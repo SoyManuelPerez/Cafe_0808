@@ -26,6 +26,7 @@ class ItemVenta(BaseModel):
     nombre: str
     gramaje: float
     cantidad: int = Field(gt=0)
+    descuento: Optional[float] = 0.0
     gramos_totales: float
     precio_unitario: float
     subtotal: float
@@ -33,6 +34,6 @@ class ItemVenta(BaseModel):
 class VentaCreate(BaseModel):
     fecha: str
     cliente: Optional[str] = "Cliente General"
-    tipo_pago: str  # "Efectivo" o "Crédito"
-    tipo_venta: Optional[str] = "Normal"  # "Normal" u "Obsequio"
+    tipo_pago: str
+    tipo_venta: Optional[str] = "Normal"
     items: List[ItemVenta]
