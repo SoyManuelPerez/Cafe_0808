@@ -11,7 +11,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from app.database import get_db, fix_id
-from app.models import CompraCreate, ProductoCreate, ProductoUpdate, ClienteCreate, VentaCreate
+from app.models import CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, ClienteCreate, VentaCreate
 from app.pdf_generator import generar_factura_pdf
 
 app = FastAPI(title="0808 Café de Especialidad")
@@ -23,7 +23,6 @@ templates = Jinja2Templates(directory="templates")
 db = get_db()
 
 def obtener_siguiente_consecutivo():
-    """Genera un número secuencial único formateado con ceros a la izquierda (0001 a 5000)."""
     ret = db.contadores.find_one_and_update(
         {"_id": "factura_num"},
         {"$inc": {"seq": 1}},
@@ -59,6 +58,81 @@ def listar_clientes():
 def eliminar_cliente(cliente_id: str):
     db.clientes.delete_one({"_id": ObjectId(cliente_id)})
     return {"mensaje": "Cliente eliminado"}
+
+# ==========================================
+# ENDPOINTS COMPRAS DE EMPAQUES
+# ==========================================
+
+@app.post("/api/compras-empaques", status_code=201)
+def crear_compra_empaque(compra: CompraEmpaqueCreate):
+    costo_unitario = (compra.costo_total / compra.cantidad) if compra.cantidad > 0 else 0.0
+    doc = {
+        "fecha": compra.fecha,
+        "tipo_empaque": compra.tipo_empaque,
+        "cantidad": compra.cantidad,
+        "costo_total": compra.costo_total,
+        "costo_unitario": costo_unitario,
+        "creado_en": datetime.utcnow()
+    }
+    res = db.compras_empaques.insert_one(doc)
+    return {"id": str(res.inserted_id)}
+
+@app.get("/api/compras-empaques")
+def listar_compras_empaques():
+    compras = list(db.compras_empaques.find().sort("fecha", -1))
+    return [fix_id(c) for c in compras]
+
+@app.get("/api/empaques/resumen")
+def resumen_empaques():
+    tipos = ["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
+    resumen = {}
+
+    # 1. Agrupar compras por tipo de empaque
+    compras_agrupadas = list(db.compras_empaques.aggregate([
+        {"$group": {
+            "_id": "$tipo_empaque",
+            "total_cant": {"$sum": "$cantidad"},
+            "total_costo": {"$sum": "$costo_total"}
+        }}
+    ]))
+    dict_compras = {c["_id"]: c for c in compras_agrupadas}
+
+    # 2. Agrupar consumos en ventas por gramaje
+    ventas = list(db.ventas.find())
+    usados = {
+        "bolsa_250g": 0,
+        "bolsa_500g": 0,
+        "etiqueta_250g": 0,
+        "etiqueta_500g": 0
+    }
+
+    for v in ventas:
+        for item in v.get("items", []):
+            cant = item.get("cantidad", 0)
+            gramaje = item.get("gramaje", 0)
+            if gramaje == 250:
+                usados["bolsa_250g"] += cant
+                usados["etiqueta_250g"] += cant
+            elif gramaje == 500:
+                usados["bolsa_500g"] += cant
+                usados["etiqueta_500g"] += cant
+
+    for t in tipos:
+        compra_info = dict_compras.get(t, {"total_cant": 0, "total_costo": 0.0})
+        total_cant = compra_info["total_cant"]
+        total_costo = compra_info["total_costo"]
+        cant_usada = usados.get(t, 0)
+        disponibles = max(0, total_cant - cant_usada)
+        costo_unitario = (total_costo / total_cant) if total_cant > 0 else 0.0
+
+        resumen[t] = {
+            "comprados": total_cant,
+            "usados": cant_usada,
+            "disponibles": disponibles,
+            "costo_unitario": round(costo_unitario, 2)
+        }
+
+    return resumen
 
 # ==========================================
 # ENDPOINTS PRODUCTOS & COMPRAS
@@ -222,16 +296,40 @@ def resumen_inventario():
 
 @app.post("/api/ventas", status_code=201)
 def registrar_venta(venta: VentaCreate):
-    resumen = resumen_inventario()
+    resumen_cafe = resumen_inventario()
+    resumen_emp = resumen_empaques()
+
     es_obsequio = (venta.tipo_venta == "Obsequio")
-    
     total_venta = 0.0 if es_obsequio else sum(i.subtotal for i in venta.items)
     total_gramos = sum(i.gramos_totales for i in venta.items)
     
-    if total_gramos > resumen["inventario_disponible_g"]:
-        raise HTTPException(status_code=400, detail="Inventario insuficiente para procesar la venta.")
+    if total_gramos > resumen_cafe["inventario_disponible_g"]:
+        raise HTTPException(status_code=400, detail="Inventario de café insuficiente para procesar la venta.")
 
-    costo_est = round(total_gramos * resumen["costo_promedio_gramo"])
+    # Verificar disponibilidad de empaques
+    req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
+    costo_empaques_total = 0.0
+
+    for item in venta.items:
+        cant = item.cantidad
+        g = item.gramaje
+        if g == 250:
+            req_empaques["bolsa_250g"] += cant
+            req_empaques["etiqueta_250g"] += cant
+            costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
+        elif g == 500:
+            req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+            costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
+
+    for k, v_req in req_empaques.items():
+        if v_req > resumen_emp[k]["disponibles"]:
+            nombre_legible = k.replace('_', ' ').title()
+            raise HTTPException(status_code=400, detail=f"Inventario insuficiente de empaque: {nombre_legible}. Requeridos: {v_req}, Disponibles: {resumen_emp[k]['disponibles']}")
+
+    # Costo Estimado = Costo del Café + Costo de Empaques (Bolsa + Etiqueta)
+    costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
+    costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo()
 
     doc = {
