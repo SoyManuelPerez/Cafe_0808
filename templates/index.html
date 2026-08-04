@@ -184,7 +184,7 @@
             color: #000;
         }
 
-        /* --- CONTENEDOR DE TABLAS RESPONSIVAS --- */
+        /* CONTENEDOR DE TABLAS RESPONSIVAS */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -194,7 +194,6 @@
             border: 1px solid var(--border-color);
         }
 
-        /* Personalización de la barra de desplazamiento horizontal */
         .table-responsive::-webkit-scrollbar {
             height: 6px;
         }
@@ -209,14 +208,14 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 500px; /* Garantiza legibilidad e interactiva barra de desliz en móviles */
+            min-width: 500px;
         }
 
         th, td {
             border: 1px solid var(--border-color);
             padding: 10px;
             text-align: left;
-            white-space: nowrap; /* Evita que el texto se deforme verticalmente */
+            white-space: nowrap;
         }
 
         th {
@@ -227,7 +226,6 @@
         .section { display: none; }
         .section.active { display: block; }
 
-        /* DISEÑO RESPONSIVO PARA MÓVILES/CELULARES */
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -287,9 +285,21 @@
 
             <div class="card">
                 <h3>Agregar Producto al Carrito</h3>
+                <label>Producto:</label>
                 <select id="select-producto"></select>
-                <input type="number" id="cant-producto" value="1" min="1" placeholder="Cantidad de Unidades">
-                <button class="btn-gold" onclick="agregarAlCarrito()">➕ Agregar al Carrito</button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label>Cantidad:</label>
+                        <input type="number" id="cant-producto" value="1" min="1" placeholder="Cantidad">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Descuento por Unidad (COP):</label>
+                        <input type="number" id="desc-producto" value="0" min="0" placeholder="Ej: 2000">
+                    </div>
+                </div>
+
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito()">➕ Agregar al Carrito</button>
             </div>
 
             <div class="card">
@@ -306,6 +316,7 @@
                                 <th>Gramaje</th>
                                 <th>Precio Unit.</th>
                                 <th>Cant.</th>
+                                <th>Desc./U.</th>
                                 <th>Subtotal</th>
                                 <th>Acción</th>
                             </tr>
@@ -594,27 +605,34 @@
         function agregarAlCarrito() {
             const pId = document.getElementById('select-producto').value;
             const cant = parseInt(document.getElementById('cant-producto').value) || 1;
+            const descuento = parseFloat(document.getElementById('desc-producto').value) || 0;
             const prod = productosCache.find(p => p.id === pId);
 
             if (!prod) return alert('Seleccione un producto válido');
 
-            const indexExistente = carrito.findIndex(item => item.producto_id === pId);
+            const precioFinalUnitario = Math.max(0, prod.precio_venta - descuento);
+            const indexExistente = carrito.findIndex(item => item.producto_id === pId && item.descuento === descuento);
             
             if (indexExistente !== -1) {
                 carrito[indexExistente].cantidad += cant;
                 carrito[indexExistente].gramos_totales = carrito[indexExistente].gramaje * carrito[indexExistente].cantidad;
-                carrito[indexExistente].subtotal = carrito[indexExistente].precio_unitario * carrito[indexExistente].cantidad;
+                carrito[indexExistente].subtotal = precioFinalUnitario * carrito[indexExistente].cantidad;
             } else {
                 carrito.push({
                     producto_id: prod.id,
                     nombre: prod.nombre,
                     gramaje: prod.gramaje,
                     cantidad: cant,
+                    descuento: descuento,
                     gramos_totales: prod.gramaje * cant,
                     precio_unitario: prod.precio_venta,
-                    subtotal: prod.precio_venta * cant
+                    subtotal: precioFinalUnitario * cant
                 });
             }
+
+            // Resetear inputs de cantidad y descuento tras agregar
+            document.getElementById('cant-producto').value = 1;
+            document.getElementById('desc-producto').value = 0;
 
             renderCarrito();
         }
@@ -646,6 +664,7 @@
                         <td>${i.gramaje}g</td>
                         <td>$${esObsequio ? 0 : i.precio_unitario.toLocaleString()}</td>
                         <td>${i.cantidad}</td>
+                        <td>$${esObsequio ? 0 : (i.descuento || 0).toLocaleString()}</td>
                         <td>$${sub.toLocaleString()}</td>
                         <td><button class="btn-danger" onclick="quitarDelCarrito(${index})">❌ Quitar</button></td>
                     </tr>
