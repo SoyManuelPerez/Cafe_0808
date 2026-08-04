@@ -520,8 +520,9 @@
                                 <th>Insumo</th>
                                 <th>Comprados</th>
                                 <th>Usados (Ventas)</th>
-                                <th>Disponibles</th>
-                                <th>Costo Unitario Prom.</th>
+                                <th>Disponibles (Editar)</th>
+                                <th>Costo Unitario (COP)</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -634,7 +635,6 @@
                 <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
             </div>
             <div class="modal-body" id="modal-body-pdf">
-                <!-- Se inyecta dinámicamente el objeto visor PDF -->
             </div>
             <div class="modal-footer">
                 <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
@@ -682,9 +682,12 @@
             const tbody = document.querySelector('#tabla-clientes tbody');
             tbody.innerHTML = clientesCache.map(c => `
                 <tr>
-                    <td><strong>${c.nombre}</strong></td>
-                    <td>${c.celular || 'N/A'}</td>
-                    <td><button class="btn-danger" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button></td>
+                    <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
+                    <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
+                    <td>
+                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
+                        <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -707,10 +710,35 @@
             }
         }
 
+        async function guardarEdicionCliente(id) {
+            const nuevoNombre = document.getElementById(`cli-nom-${id}`).value;
+            const nuevoCelular = document.getElementById(`cli-cel-${id}`).value;
+
+            if (!nuevoNombre) return alert('El nombre no puede estar vacío');
+
+            const res = await fetch('/api/clientes/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre: nuevoNombre, celular: nuevoCelular })
+            });
+
+            if (res.ok) {
+                alert('Cliente actualizado con éxito');
+                cargarClientes();
+            } else {
+                alert('Error al actualizar cliente');
+            }
+        }
+
         async function eliminarCliente(id) {
             if (confirm('¿Eliminar cliente?')) {
-                await fetch('/api/clientes/' + id, { method: 'DELETE' });
-                cargarClientes();
+                const res = await fetch('/api/clientes/' + id, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Cliente eliminado');
+                    cargarClientes();
+                } else {
+                    alert('Error al eliminar cliente');
+                }
             }
         }
 
@@ -762,10 +790,39 @@
                     <td><strong>${nombresLegibles[k]}</strong></td>
                     <td>${data[k].comprados.toLocaleString()} u.</td>
                     <td>${data[k].usados.toLocaleString()} u.</td>
-                    <td><strong style="color:var(--gold-bright);">${data[k].disponibles.toLocaleString()} u.</strong></td>
-                    <td>$${data[k].costo_unitario.toLocaleString()}</td>
+                    <td>
+                        <input type="number" id="edit-disp-${k}" value="${data[k].disponibles}" min="0" style="width: 100px;"> u.
+                    </td>
+                    <td>
+                        <input type="number" id="edit-costo-${k}" value="${data[k].costo_unitario}" min="0" step="any" style="width: 110px;">
+                    </td>
+                    <td>
+                        <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="guardarAjusteEmpaque('${k}')">💾 Guardar</button>
+                    </td>
                 </tr>
             `).join('');
+        }
+
+        async function guardarAjusteEmpaque(tipoEmpaque) {
+            const nuevosDisponibles = parseInt(document.getElementById(`edit-disp-${tipoEmpaque}`).value) || 0;
+            const nuevoCostoUnitario = parseFloat(document.getElementById(`edit-costo-${tipoEmpaque}`).value) || 0;
+
+            const res = await fetch('/api/empaques/ajuste-manual', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    tipo_empaque: tipoEmpaque,
+                    disponibles: nuevosDisponibles,
+                    costo_unitario: nuevoCostoUnitario
+                })
+            });
+
+            if (res.ok) {
+                alert('Empaque/Etiqueta actualizado con éxito');
+                cargarModuloEmpaques();
+            } else {
+                alert('Error al guardar los cambios');
+            }
         }
 
         // ================= VENTAS =================
