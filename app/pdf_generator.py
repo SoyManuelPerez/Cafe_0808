@@ -36,7 +36,6 @@ def generar_factura_pdf(venta, items):
     elements.append(Table(info_data, colWidths=[3.5*inch, 3.5*inch]))
     elements.append(Spacer(1, 15))
 
-    # Encabezados con la nueva columna Descuento
     table_data = [["Producto", "Cant.", "Precio Unit.", "Descuento", "Subtotal"]]
     for item in items:
         cant = item["cantidad"]
@@ -51,7 +50,6 @@ def generar_factura_pdf(venta, items):
             f"${int(item['subtotal']):,}"
         ])
 
-    # Distribución del ancho de columnas para Letter
     prod_table = Table(table_data, colWidths=[3.0*inch, 0.7*inch, 1.1*inch, 1.1*inch, 1.1*inch])
     prod_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#6F4E37')),
