@@ -54,9 +54,21 @@ def listar_clientes():
     clientes = list(db.clientes.find().sort("nombre", 1))
     return [fix_id(c) for c in clientes]
 
+@app.put("/api/clientes/{cliente_id}")
+def editar_cliente(cliente_id: str, cli: ClienteCreate):
+    res = db.clientes.update_one(
+        {"_id": ObjectId(cliente_id)},
+        {"$set": {"nombre": cli.nombre, "celular": cli.celular}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return {"mensaje": "Cliente actualizado exitosamente"}
+
 @app.delete("/api/clientes/{cliente_id}")
 def eliminar_cliente(cliente_id: str):
-    db.clientes.delete_one({"_id": ObjectId(cliente_id)})
+    res = db.clientes.delete_one({"_id": ObjectId(cliente_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return {"mensaje": "Cliente eliminado"}
 
 # ==========================================
@@ -131,6 +143,42 @@ def resumen_empaques():
         }
 
     return resumen
+
+@app.put("/api/empaques/ajuste-manual")
+def ajustar_empaque_manual(data: dict):
+    tipo_empaque = data.get("tipo_empaque")
+    disponibles_deseados = int(data.get("disponibles", 0))
+    nuevo_costo_unitario = float(data.get("costo_unitario", 0.0))
+
+    if not tipo_empaque:
+        raise HTTPException(status_code=400, detail="Tipo de empaque requerido")
+
+    ventas = list(db.ventas.find())
+    usados = 0
+    for v in ventas:
+        for item in v.get("items", []):
+            cant = item.get("cantidad", 0)
+            gramaje = item.get("gramaje", 0)
+            if "250g" in tipo_empaque and gramaje == 250:
+                usados += cant
+            elif "500g" in tipo_empaque and gramaje == 500:
+                usados += cant
+
+    nueva_cantidad_total = disponibles_deseados + usados
+    nuevo_costo_total = nueva_cantidad_total * nuevo_costo_unitario
+
+    db.compras_empaques.delete_many({"tipo_empaque": tipo_empaque})
+    if nueva_cantidad_total > 0:
+        db.compras_empaques.insert_one({
+            "fecha": datetime.utcnow().strftime("%Y-%m-%d"),
+            "tipo_empaque": tipo_empaque,
+            "cantidad": nueva_cantidad_total,
+            "costo_total": nuevo_costo_total,
+            "costo_unitario": nuevo_costo_unitario,
+            "creado_en": datetime.utcnow()
+        })
+
+    return {"mensaje": f"Empaque {tipo_empaque} actualizado correctamente"}
 
 # ==========================================
 # ENDPOINTS PRODUCTOS & COMPRAS
