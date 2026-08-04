@@ -85,9 +85,7 @@ def listar_compras_empaques():
 @app.get("/api/empaques/resumen")
 def resumen_empaques():
     tipos = ["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
-    resumen = {}
-
-    # 1. Agrupar compras por tipo de empaque
+    
     compras_agrupadas = list(db.compras_empaques.aggregate([
         {"$group": {
             "_id": "$tipo_empaque",
@@ -97,7 +95,6 @@ def resumen_empaques():
     ]))
     dict_compras = {c["_id"]: c for c in compras_agrupadas}
 
-    # 2. Agrupar consumos en ventas por gramaje
     ventas = list(db.ventas.find())
     usados = {
         "bolsa_250g": 0,
@@ -117,6 +114,7 @@ def resumen_empaques():
                 usados["bolsa_500g"] += cant
                 usados["etiqueta_500g"] += cant
 
+    resumen = {}
     for t in tipos:
         compra_info = dict_compras.get(t, {"total_cant": 0, "total_costo": 0.0})
         total_cant = compra_info["total_cant"]
@@ -240,48 +238,49 @@ def eliminar_producto(prod_id: str):
 
 @app.get("/api/inventario/resumen")
 def resumen_inventario():
-    compras_by_name = list(db.compras.aggregate([
+    # 1. Agrupar compras por nombre exacto de producto
+    compras_agrupadas = list(db.compras.aggregate([
         {"$group": {
-            "_id": "$producto_id",
+            "_id": "$producto_nombre",
             "total_g": {"$sum": "$gramos"},
             "total_costo": {"$sum": "$costo_total"}
         }}
     ]))
     
-    compras_globales = sum(c["total_g"] for c in compras_by_name if not c["_id"])
-    total_comprado_general = sum(c["total_g"] for c in compras_by_name)
-    total_inversion_general = sum(c["total_costo"] for c in compras_by_name)
+    total_comprado_general = sum(c["total_g"] for c in compras_agrupadas)
+    total_inversion_general = sum(c["total_costo"] for c in compras_agrupadas)
+    dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
 
-    ventas_by_prod = list(db.ventas.aggregate([
+    # 2. Agrupar ventas por nombre exacto de producto
+    ventas_agrupadas = list(db.ventas.aggregate([
         {"$unwind": "$items"},
         {"$group": {
-            "_id": "$items.producto_id",
+            "_id": "$items.nombre",
             "usados_g": {"$sum": "$items.gramos_totales"}
         }}
     ]))
     
-    dict_usados = {v["_id"]: v["usados_g"] for v in ventas_by_prod}
-    total_usado_general = sum(dict_usados.values())
+    dict_usados_nombre = {v["_id"]: v["usados_g"] for v in ventas_agrupadas if v["_id"]}
+    total_usado_general = sum(dict_usados_nombre.values())
 
+    # 3. Obtener nombres únicos de productos en catálogo
     productos = list(db.productos.find())
-    stock_por_nombre = {}
-
-    for p in productos:
-        p_id = str(p["_id"])
-        nombre = p["nombre"]
-
-        compras_prod = sum(c["total_g"] for c in compras_by_name if c["_id"] == p_id)
-        disp_g = (compras_prod if compras_prod > 0 else compras_globales) - dict_usados.get(p_id, 0.0)
-
-        if nombre not in stock_por_nombre:
-            stock_por_nombre[nombre] = 0.0
-        stock_por_nombre[nombre] += max(0.0, disp_g)
+    nombres_unicos = list(set([p["nombre"] for p in productos]))
 
     resumen_tarjetas = []
-    for nombre, gramos in stock_por_nombre.items():
+    for nombre in nombres_unicos:
+        comprado_g = dict_compras_nombre.get(nombre, 0.0)
+        usado_g = dict_usados_nombre.get(nombre, 0.0)
+        
+        # Si la compra fue específica para este producto se usa su saldo, de lo contrario el proporcional general
+        if comprado_g > 0:
+            disp_g = max(0.0, comprado_g - usado_g)
+        else:
+            disp_g = max(0.0, total_comprado_general - total_usado_general)
+
         resumen_tarjetas.append({
             "nombre": nombre,
-            "libras_disponibles": round(gramos / 500.0, 1)
+            "libras_disponibles": round(disp_g / 500.0, 1)
         })
 
     return {
@@ -306,7 +305,6 @@ def registrar_venta(venta: VentaCreate):
     if total_gramos > resumen_cafe["inventario_disponible_g"]:
         raise HTTPException(status_code=400, detail="Inventario de café insuficiente para procesar la venta.")
 
-    # Verificar disponibilidad de empaques
     req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
     costo_empaques_total = 0.0
 
@@ -327,7 +325,6 @@ def registrar_venta(venta: VentaCreate):
             nombre_legible = k.replace('_', ' ').title()
             raise HTTPException(status_code=400, detail=f"Inventario insuficiente de empaque: {nombre_legible}. Requeridos: {v_req}, Disponibles: {resumen_emp[k]['disponibles']}")
 
-    # Costo Estimado = Costo del Café + Costo de Empaques (Bolsa + Etiqueta)
     costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo()
