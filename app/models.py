@@ -33,6 +33,7 @@ class ItemVenta(BaseModel):
     gramaje: float
     cantidad: int = Field(gt=0)
     descuento: Optional[float] = 0.0
+    presentacion: Optional[str] = "Grano"  # "Grano" o "Molido"
     gramos_totales: float
     precio_unitario: float
     subtotal: float
