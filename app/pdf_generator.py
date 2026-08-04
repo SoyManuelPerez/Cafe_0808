@@ -43,9 +43,10 @@ def generar_factura_pdf(venta, items):
         cant = item["cantidad"]
         desc_unitario = item.get("descuento", 0)
         desc_total = desc_unitario * cant
+        pres = item.get("presentacion", "Grano")
 
         table_data.append([
-            f"{item['nombre']} ({int(item['gramaje'])}g)",
+            f"{item['nombre']} ({int(item['gramaje'])}g - {pres})",
             str(cant),
             f"${int(item['precio_unitario']):,}",
             f"${int(desc_total):,}",
