@@ -630,7 +630,6 @@
                 });
             }
 
-            // Resetear inputs de cantidad y descuento tras agregar
             document.getElementById('cant-producto').value = 1;
             document.getElementById('desc-producto').value = 0;
 
@@ -877,25 +876,90 @@
         }
 
         async function cargarReportes() {
+            // 1. Cargar y Totalizar Histórico de Compras
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
-            document.querySelector('#tabla-reporte-compras tbody').innerHTML = compras.map(c => `
-                <tr>
-                    <td>${c.fecha}</td>
-                    <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
-                    <td>${c.libras} Lbs</td>
-                    <td>$${c.costo_total.toLocaleString()}</td>
-                    <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
-                </tr>
-            `).join('');
+            
+            let totalLibrasCompradas = 0;
+            let totalInversionCompras = 0;
 
+            const tbodyCompras = document.querySelector('#tabla-reporte-compras tbody');
+            tbodyCompras.innerHTML = compras.map(c => {
+                const lbs = c.libras || 0;
+                const costo = c.costo_total || 0;
+
+                totalLibrasCompradas += lbs;
+                totalInversionCompras += costo;
+
+                return `
+                    <tr>
+                        <td>${c.fecha}</td>
+                        <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
+                        <td>${lbs.toLocaleString()} Lbs</td>
+                        <td>$${costo.toLocaleString()}</td>
+                        <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Fila de Totales Compras
+            let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
+            if (!tfootCompras) {
+                tfootCompras = document.createElement('tfoot');
+                document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
+            }
+            tfootCompras.innerHTML = `
+                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                    <td colspan="2" style="text-align: right;">TOTALES:</td>
+                    <td>${totalLibrasCompradas.toFixed(1)} Lbs</td>
+                    <td>$${totalInversionCompras.toLocaleString()}</td>
+                    <td>-</td>
+                </tr>
+            `;
+
+            // 2. Cargar y Totalizar Histórico de Ventas
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
-            document.querySelector('#tabla-reportes tbody').innerHTML = ventas.map(v => 
-                `<tr><td>${v.id.substring(0,8)}</td><td>${v.fecha}</td><td>${v.cliente}</td><td><strong>${v.tipo_venta || 'Normal'}</strong></td><td>$${v.total_venta.toLocaleString()}</td><td>$${v.ganancia.toLocaleString()}</td>
-                <td><a href="/api/ventas/${v.id}/pdf" target="_blank" style="color:var(--gold-bright);">Descargar PDF</a></td>
-                <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td></tr>`
-            ).join('');
+
+            let totalVentasCOP = 0;
+            let totalGananciaCOP = 0;
+
+            const tbodyVentas = document.querySelector('#tabla-reportes tbody');
+            tbodyVentas.innerHTML = ventas.map(v => {
+                const tot = v.total_venta || 0;
+                const gan = v.ganancia || 0;
+
+                totalVentasCOP += tot;
+                totalGananciaCOP += gan;
+
+                return `
+                    <tr>
+                        <td>${v.id.substring(0,8)}</td>
+                        <td>${v.fecha}</td>
+                        <td>${v.cliente}</td>
+                        <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
+                        <td>$${tot.toLocaleString()}</td>
+                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
+                        <td><a href="/api/ventas/${v.id}/pdf" target="_blank" style="color:var(--gold-bright);">Descargar PDF</a></td>
+                        <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Fila de Totales Ventas
+            let tfootVentas = document.querySelector('#tabla-reportes tfoot');
+            if (!tfootVentas) {
+                tfootVentas = document.createElement('tfoot');
+                document.querySelector('#tabla-reportes').appendChild(tfootVentas);
+            }
+            tfootVentas.innerHTML = `
+                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                    <td colspan="4" style="text-align: right;">TOTALES:</td>
+                    <td>$${totalVentasCOP.toLocaleString()}</td>
+                    <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">$${totalGananciaCOP.toLocaleString()}</td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
         }
 
         async function eliminarVenta(id) {
