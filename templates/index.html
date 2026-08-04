@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>0808 Café de Especialidad</title>
-    <!-- Favicon de la pestaña con el logo -->
     <link rel="icon" type="image/png" href="/static/logo.png">
 
     <style>
@@ -28,7 +27,6 @@
             overflow: hidden;
         }
 
-        /* Botón flotante/superior para móvil */
         .hamburger-btn {
             display: none;
             background-color: var(--sidebar-bg);
@@ -44,7 +42,6 @@
             gap: 8px;
         }
 
-        /* Sidebar de Navegación */
         .sidebar {
             width: 260px;
             background-color: var(--sidebar-bg);
@@ -184,7 +181,6 @@
             color: #000;
         }
 
-        /* CONTENEDOR DE TABLAS RESPONSIVAS */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -263,13 +259,13 @@
         <button class="nav-button active" onclick="showSection('ventas', event)">🛒 Ventas</button>
         <button class="nav-button" onclick="showSection('clientes', event)">👥 Clientes</button>
         <button class="nav-button" onclick="showSection('compras', event)">📦 Compras de Café</button>
+        <button class="nav-button" onclick="showSection('empaques', event)">🛍️ Empaques</button>
         <button class="nav-button" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
         <button class="nav-button" onclick="showSection('creditos', event)">💳 Créditos</button>
         <button class="nav-button" onclick="showSection('reportes', event)">📈 Reportes</button>
     </div>
 
     <div class="content">
-        <!-- BOTÓN NAVEGACIÓN MÓVIL -->
         <button class="hamburger-btn" onclick="toggleSidebar()">
             ☰ Menú Navegación
         </button>
@@ -380,11 +376,11 @@
             </div>
         </div>
 
-        <!-- MÓDULO COMPRAS -->
+        <!-- MÓDULO COMPRAS DE CAFÉ -->
         <div id="compras" class="section">
-            <h1>📦 Compras de Materia Prima</h1>
+            <h1>📦 Compras de Materia Prima (Café)</h1>
             <div class="card">
-                <h3>Registrar Nueva Compra</h3>
+                <h3>Registrar Nueva Compra de Café</h3>
                 <form id="form-compra" onsubmit="guardarCompra(event)">
                     <label>Seleccionar Producto:</label>
                     <select id="compra-producto-id"></select>
@@ -397,7 +393,7 @@
                         Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
-                    <button type="submit" class="btn-gold">Guardar Compra</button>
+                    <button type="submit" class="btn-gold">Guardar Compra de Café</button>
                 </form>
             </div>
 
@@ -411,6 +407,50 @@
                                 <th>Existencias (Libras)</th>
                                 <th>Costo por Libra (COP)</th>
                                 <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO EMPAQUES -->
+        <div id="empaques" class="section">
+            <h1>🛍️ Inventario de Empaques y Etiquetas</h1>
+            <div class="card">
+                <h3>Registrar Compra de Insumos</h3>
+                <form id="form-empaque" onsubmit="guardarCompraEmpaque(event)">
+                    <label>Tipo de Insumo:</label>
+                    <select id="emp-tipo" required>
+                        <option value="bolsa_250g">Bolsa 250g</option>
+                        <option value="bolsa_500g">Bolsa 500g</option>
+                        <option value="etiqueta_250g">Etiqueta 250g</option>
+                        <option value="etiqueta_500g">Etiqueta 500g</option>
+                    </select>
+                    <input type="date" id="emp-fecha">
+                    <input type="number" id="emp-cantidad" placeholder="Cantidad Comprada (Unidades)" oninput="calcularCostoEmpaqueUnitario()" required min="1">
+                    <input type="number" id="emp-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoEmpaqueUnitario()" required min="1">
+                    
+                    <div style="margin: 10px 0; color: var(--gold-bright);">
+                        Costo Unitario Calculado: <strong id="costo-empaque-unitario-txt">$0</strong>
+                    </div>
+
+                    <button type="submit" class="btn-gold">💾 Guardar Compra de Empaque</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📊 Resumen de Inventario de Insumos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-resumen-empaques">
+                        <thead>
+                            <tr>
+                                <th>Insumo</th>
+                                <th>Comprados</th>
+                                <th>Usados (Ventas)</th>
+                                <th>Disponibles</th>
+                                <th>Costo Unitario Prom.</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -466,9 +506,8 @@
         <div id="reportes" class="section">
             <h1>📈 Reportes e Históricos</h1>
             
-            <!-- HISTORIAL DE COMPRAS -->
             <div class="card">
-                <h3>📦 Histórico de Compras de Materia Prima</h3>
+                <h3>📦 Histórico de Compras de Materia Prima (Café)</h3>
                 <div class="table-responsive">
                     <table id="tabla-reporte-compras">
                         <thead>
@@ -485,7 +524,24 @@
                 </div>
             </div>
 
-            <!-- HISTORIAL DE VENTAS -->
+            <div class="card">
+                <h3>🛍️ Histórico de Compras de Empaques</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-empaques">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Insumo Comprado</th>
+                                <th>Cantidad</th>
+                                <th>Costo Total</th>
+                                <th>Costo / Unidad</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
@@ -522,6 +578,7 @@
             if(id === 'ventas') cargarVentasData();
             if(id === 'clientes') cargarClientes();
             if(id === 'compras') cargarModuloCompras();
+            if(id === 'empaques') cargarModuloEmpaques();
             if(id === 'inventario') cargarProductos();
             if(id === 'creditos') cargarCreditos();
             if(id === 'reportes') cargarReportes();
@@ -565,6 +622,60 @@
                 await fetch('/api/clientes/' + id, { method: 'DELETE' });
                 cargarClientes();
             }
+        }
+
+        // ================= EMPAQUES =================
+        function calcularCostoEmpaqueUnitario() {
+            const cant = parseInt(document.getElementById('emp-cantidad').value) || 0;
+            const costo = parseFloat(document.getElementById('emp-costo').value) || 0;
+            const u = cant > 0 ? (costo / cant) : 0;
+            document.getElementById('costo-empaque-unitario-txt').innerText = '$' + Math.round(u).toLocaleString();
+        }
+
+        async function guardarCompraEmpaque(e) {
+            e.preventDefault();
+            const payload = {
+                tipo_empaque: document.getElementById('emp-tipo').value,
+                fecha: document.getElementById('emp-fecha').value || new Date().toISOString().split('T')[0],
+                cantidad: parseInt(document.getElementById('emp-cantidad').value),
+                costo_total: parseFloat(document.getElementById('emp-costo').value)
+            };
+
+            const res = await fetch('/api/compras-empaques', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Compra de empaque guardada con éxito');
+                document.getElementById('form-empaque').reset();
+                document.getElementById('costo-empaque-unitario-txt').innerText = '$0';
+                cargarModuloEmpaques();
+            }
+        }
+
+        async function cargarModuloEmpaques() {
+            const res = await fetch('/api/empaques/resumen');
+            const data = await res.json();
+
+            const nombresLegibles = {
+                "bolsa_250g": "Bolsa 250g",
+                "bolsa_500g": "Bolsa 500g",
+                "etiqueta_250g": "Etiqueta 250g",
+                "etiqueta_500g": "Etiqueta 500g"
+            };
+
+            const tbody = document.querySelector('#tabla-resumen-empaques tbody');
+            tbody.innerHTML = Object.keys(data).map(k => `
+                <tr>
+                    <td><strong>${nombresLegibles[k]}</strong></td>
+                    <td>${data[k].comprados.toLocaleString()} u.</td>
+                    <td>${data[k].usados.toLocaleString()} u.</td>
+                    <td><strong style="color:var(--gold-bright);">${data[k].disponibles.toLocaleString()} u.</strong></td>
+                    <td>$${data[k].costo_unitario.toLocaleString()}</td>
+                </tr>
+            `).join('');
         }
 
         // ================= VENTAS =================
@@ -702,7 +813,7 @@
             }
         }
 
-        // ================= COMPRAS =================
+        // ================= COMPRAS DE CAFÉ =================
         async function cargarModuloCompras() {
             const res = await fetch('/api/productos/unicos');
             productosUnicos = await res.json();
@@ -742,7 +853,7 @@
             });
 
             if (res.ok) {
-                alert('Compra registrada con éxito');
+                alert('Compra de café registrada con éxito');
                 document.getElementById('form-compra').reset();
                 document.getElementById('costo-libra-calculado').innerText = '$0';
                 cargarModuloCompras();
@@ -876,7 +987,7 @@
         }
 
         async function cargarReportes() {
-            // 1. Cargar y Totalizar Histórico de Compras
+            // 1. Cargar Histórico de Compras de Café
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
             
@@ -902,7 +1013,6 @@
                 `;
             }).join('');
 
-            // Fila de Totales Compras
             let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
             if (!tfootCompras) {
                 tfootCompras = document.createElement('tfoot');
@@ -917,7 +1027,54 @@
                 </tr>
             `;
 
-            // 2. Cargar y Totalizar Histórico de Ventas
+            // 2. Cargar Histórico de Compras de Empaques
+            const resEmpaques = await fetch('/api/compras-empaques');
+            const empaquesList = await resEmpaques.json();
+
+            const nombresLegibles = {
+                "bolsa_250g": "Bolsa 250g",
+                "bolsa_500g": "Bolsa 500g",
+                "etiqueta_250g": "Etiqueta 250g",
+                "etiqueta_500g": "Etiqueta 500g"
+            };
+
+            let totalCantEmpaques = 0;
+            let totalInversionEmpaques = 0;
+
+            const tbodyEmp = document.querySelector('#tabla-reporte-empaques tbody');
+            tbodyEmp.innerHTML = empaquesList.map(e => {
+                const cant = e.cantidad || 0;
+                const costo = e.costo_total || 0;
+
+                totalCantEmpaques += cant;
+                totalInversionEmpaques += costo;
+
+                return `
+                    <tr>
+                        <td>${e.fecha}</td>
+                        <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
+                        <td>${cant.toLocaleString()} u.</td>
+                        <td>$${costo.toLocaleString()}</td>
+                        <td>$${Math.round(e.costo_unitario || 0).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
+            if (!tfootEmp) {
+                tfootEmp = document.createElement('tfoot');
+                document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
+            }
+            tfootEmp.innerHTML = `
+                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                    <td colspan="2" style="text-align: right;">TOTALES:</td>
+                    <td>${totalCantEmpaques.toLocaleString()} u.</td>
+                    <td>$${totalInversionEmpaques.toLocaleString()}</td>
+                    <td>-</td>
+                </tr>
+            `;
+
+            // 3. Cargar y Totalizar Histórico de Ventas
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
 
@@ -934,7 +1091,7 @@
 
                 return `
                     <tr>
-                        <td>${v.id.substring(0,8)}</td>
+                        <td>${v.consecutivo_str || v.id.substring(0,8)}</td>
                         <td>${v.fecha}</td>
                         <td>${v.cliente}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
@@ -946,7 +1103,6 @@
                 `;
             }).join('');
 
-            // Fila de Totales Ventas
             let tfootVentas = document.querySelector('#tabla-reportes tfoot');
             if (!tfootVentas) {
                 tfootVentas = document.createElement('tfoot');
