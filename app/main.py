@@ -238,7 +238,6 @@ def eliminar_producto(prod_id: str):
 
 @app.get("/api/inventario/resumen")
 def resumen_inventario():
-    # 1. Agrupar compras por nombre exacto de producto
     compras_agrupadas = list(db.compras.aggregate([
         {"$group": {
             "_id": "$producto_nombre",
@@ -251,7 +250,6 @@ def resumen_inventario():
     total_inversion_general = sum(c["total_costo"] for c in compras_agrupadas)
     dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
 
-    # 2. Agrupar ventas por nombre exacto de producto
     ventas_agrupadas = list(db.ventas.aggregate([
         {"$unwind": "$items"},
         {"$group": {
@@ -263,7 +261,6 @@ def resumen_inventario():
     dict_usados_nombre = {v["_id"]: v["usados_g"] for v in ventas_agrupadas if v["_id"]}
     total_usado_general = sum(dict_usados_nombre.values())
 
-    # 3. Obtener nombres únicos de productos en catálogo
     productos = list(db.productos.find())
     nombres_unicos = list(set([p["nombre"] for p in productos]))
 
@@ -272,7 +269,6 @@ def resumen_inventario():
         comprado_g = dict_compras_nombre.get(nombre, 0.0)
         usado_g = dict_usados_nombre.get(nombre, 0.0)
         
-        # Si la compra fue específica para este producto se usa su saldo, de lo contrario el proporcional general
         if comprado_g > 0:
             disp_g = max(0.0, comprado_g - usado_g)
         else:
@@ -375,5 +371,7 @@ def descargar_factura(venta_id: str):
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Factura_{num_factura}.pdf"}
+        headers={
+            "Content-Disposition": f"inline; filename=Factura_{num_factura}.pdf"
+        }
     )
