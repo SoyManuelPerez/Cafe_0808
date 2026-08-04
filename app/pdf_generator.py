@@ -24,13 +24,15 @@ def generar_factura_pdf(venta, items):
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#6F4E37'), alignment=1)
     normal_style = styles['Normal']
 
+    num_factura = venta.get("consecutivo_str", str(venta.get("_id", ""))[:8])
+
     elements.append(logo_image)
     elements.append(Spacer(1, 6))
     elements.append(Paragraph("0808 CAFÉ DE ESPECIALIDAD", title_style))
     elements.append(Spacer(1, 15))
 
     info_data = [
-        [Paragraph(f"<b>Factura N°:</b> {str(venta['_id'])[:8]}", normal_style), Paragraph(f"<b>Fecha:</b> {venta['fecha']}", normal_style)],
+        [Paragraph(f"<b>Factura N°:</b> {num_factura}", normal_style), Paragraph(f"<b>Fecha:</b> {venta['fecha']}", normal_style)],
         [Paragraph(f"<b>Cliente:</b> {venta.get('cliente', 'General')}", normal_style), Paragraph(f"<b>Método:</b> {venta['tipo_pago']}", normal_style)]
     ]
     elements.append(Table(info_data, colWidths=[3.5*inch, 3.5*inch]))
