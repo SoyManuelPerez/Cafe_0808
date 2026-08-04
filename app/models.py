@@ -7,6 +7,12 @@ class CompraCreate(BaseModel):
     costo_total: float = Field(gt=0)
     producto_id: Optional[str] = None
 
+class CompraEmpaqueCreate(BaseModel):
+    fecha: str
+    tipo_empaque: str  # "bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"
+    cantidad: int = Field(gt=0)
+    costo_total: float = Field(gt=0)
+
 class ProductoCreate(BaseModel):
     nombre: str
     gramaje: float = Field(gt=0)
