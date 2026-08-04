@@ -222,7 +222,7 @@
         .section { display: none; }
         .section.active { display: block; }
 
-        /* ESTILOS DEL MODAL DE FACTURA */
+        /* MODAL PREVISUALIZACIÓN */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -260,13 +260,15 @@
 
         .modal-body {
             flex: 1;
-            background-color: #222;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .modal-body iframe {
+        .modal-body object {
             width: 100%;
             height: 100%;
-            border: none;
         }
 
         .modal-footer {
@@ -347,11 +349,18 @@
                 
                 <div style="display: flex; gap: 10px;">
                     <div style="flex: 1;">
+                        <label>Presentación:</label>
+                        <select id="pres-producto">
+                            <option value="Grano">☕ Grano</option>
+                            <option value="Molido">☕ Molido</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
                         <label>Cantidad:</label>
                         <input type="number" id="cant-producto" value="1" min="1" placeholder="Cantidad">
                     </div>
                     <div style="flex: 1;">
-                        <label>Descuento por Unidad (COP):</label>
+                        <label>Descuento / Unit (COP):</label>
                         <input type="number" id="desc-producto" value="0" min="0" placeholder="Ej: 2000">
                     </div>
                 </div>
@@ -370,6 +379,7 @@
                         <thead>
                             <tr>
                                 <th>Producto</th>
+                                <th>Presentación</th>
                                 <th>Gramaje</th>
                                 <th>Precio Unit.</th>
                                 <th>Cant.</th>
@@ -623,8 +633,8 @@
                 <h3 style="margin:0; color:var(--gold-bright);">📄 Previsualización de Factura</h3>
                 <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
             </div>
-            <div class="modal-body">
-                <iframe id="iframe-pdf" src=""></iframe>
+            <div class="modal-body" id="modal-body-pdf">
+                <!-- Se inyecta dinámicamente el objeto visor PDF -->
             </div>
             <div class="modal-footer">
                 <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
@@ -639,6 +649,7 @@
         let productosUnicos = [];
         let clientesCache = [];
         let urlPdfActual = '';
+        let blobPdfActual = null;
 
         function toggleSidebar() {
             document.getElementById('main-sidebar').classList.toggle('mobile-open');
@@ -796,12 +807,13 @@
             const pId = document.getElementById('select-producto').value;
             const cant = parseInt(document.getElementById('cant-producto').value) || 1;
             const descuento = parseFloat(document.getElementById('desc-producto').value) || 0;
+            const pres = document.getElementById('pres-producto').value || 'Grano';
             const prod = productosCache.find(p => p.id === pId);
 
             if (!prod) return alert('Seleccione un producto válido');
 
             const precioFinalUnitario = Math.max(0, prod.precio_venta - descuento);
-            const indexExistente = carrito.findIndex(item => item.producto_id === pId && item.descuento === descuento);
+            const indexExistente = carrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.presentacion === pres);
             
             if (indexExistente !== -1) {
                 carrito[indexExistente].cantidad += cant;
@@ -814,6 +826,7 @@
                     gramaje: prod.gramaje,
                     cantidad: cant,
                     descuento: descuento,
+                    presentacion: pres,
                     gramos_totales: prod.gramaje * cant,
                     precio_unitario: prod.precio_venta,
                     subtotal: precioFinalUnitario * cant
@@ -850,6 +863,7 @@
                 return `
                     <tr>
                         <td>${i.nombre}</td>
+                        <td><strong>${i.presentacion}</strong></td>
                         <td>${i.gramaje}g</td>
                         <td>$${esObsequio ? 0 : i.precio_unitario.toLocaleString()}</td>
                         <td>${i.cantidad}</td>
@@ -1204,22 +1218,38 @@
             }
         }
 
-        // ================= MODAL FACTURA =================
-        function abrirModalFactura(ventaId) {
-            urlPdfActual = `/api/ventas/${ventaId}/pdf`;
-            document.getElementById('iframe-pdf').src = urlPdfActual;
+        // ================= MODAL PREVISUALIZACIÓN FACTURA =================
+        async function abrirModalFactura(ventaId) {
+            const container = document.getElementById('modal-body-pdf');
+            container.innerHTML = '<div style="color:var(--gold-bright); text-align:center;">Cargando vista previa...</div>';
             document.getElementById('modal-factura').style.display = 'flex';
+
+            const res = await fetch(`/api/ventas/${ventaId}/pdf`);
+            const blob = await res.blob();
+            blobPdfActual = blob;
+            urlPdfActual = URL.createObjectURL(blob);
+
+            container.innerHTML = `<object data="${urlPdfActual}" type="application/pdf"><p style="color:#fff;">Tu dispositivo no soporta previsualización integrada. Utiliza el botón inferior para descargar el PDF.</p></object>`;
         }
 
         function cerrarModalFactura() {
             document.getElementById('modal-factura').style.display = 'none';
-            document.getElementById('iframe-pdf').src = '';
-            urlPdfActual = '';
+            document.getElementById('modal-body-pdf').innerHTML = '';
+            if (urlPdfActual) {
+                URL.revokeObjectURL(urlPdfActual);
+                urlPdfActual = '';
+                blobPdfActual = null;
+            }
         }
 
         function descargarPdfDesdeModal() {
-            if (urlPdfActual) {
-                window.open(urlPdfActual, '_blank');
+            if (blobPdfActual) {
+                const a = document.createElement('a');
+                a.href = urlPdfActual;
+                a.download = `Factura.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
             }
         }
 
