@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0808 Café de Especialidad</title>
+    <!-- Favicon de la pestaña con el logo -->
+    <link rel="icon" type="image/png" href="/static/logo.png">
+
+    <style>
+        :root {
+            --bg-color: #0D0D0D;
+            --sidebar-bg: #141414;
+            --card-bg: #1A1A1A;
+            --gold-primary: #D4AF37;
+            --gold-bright: #FFD700;
+            --text-color: #F5F5F5;
+            --border-color: #292418;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Botón flotante/superior para móvil */
+        .hamburger-btn {
+            display: none;
+            background-color: var(--sidebar-bg);
+            color: var(--gold-primary);
+            border: 1px solid var(--gold-primary);
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Sidebar de Navegación */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 2px solid var(--gold-primary);
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+
+        .brand-title {
+            color: var(--gold-bright);
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .nav-button {
+            width: 100%;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--gold-primary);
+            padding: 12px 15px;
+            margin: 5px 0;
+            text-align: left;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:hover, .nav-button.active {
+            background-color: #1A1813;
+            border-color: var(--gold-primary);
+            color: var(--gold-bright);
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+        }
+
+        .content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        h1, h2, h3 {
+            color: var(--gold-primary);
+            text-shadow: 0 0 5px rgba(212, 175, 55, 0.2);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .grid-stock {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stock-item {
+            background-color: #141414;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stock-item-title {
+            color: var(--gold-primary);
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 5px;
+        }
+
+        .stock-item-qty {
+            color: var(--gold-bright);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            background-color: #222;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button.btn-gold {
+            background-color: var(--sidebar-bg);
+            color: var(--gold-primary);
+            border: 1px solid var(--gold-primary);
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button.btn-gold:hover {
+            background-color: var(--gold-primary);
+            color: #000;
+        }
+
+        button.btn-danger {
+            background-color: #3a1414;
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+            padding: 5px 10px;
+            width: auto;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button.btn-danger:hover {
+            background-color: #ff6b6b;
+            color: #000;
+        }
+
+        /* --- CONTENEDOR DE TABLAS RESPONSIVAS --- */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Personalización de la barra de desplazamiento horizontal */
+        .table-responsive::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-track {
+            background: #141414;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: var(--gold-primary);
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px; /* Garantiza legibilidad e interactiva barra de desliz en móviles */
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: left;
+            white-space: nowrap; /* Evita que el texto se deforme verticalmente */
+        }
+
+        th {
+            background-color: #1A1813;
+            color: var(--gold-primary);
+        }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* DISEÑO RESPONSIVO PARA MÓVILES/CELULARES */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .hamburger-btn {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                height: 100vh;
+                width: 250px;
+                box-shadow: 4px 0 15px rgba(0,0,0,0.8);
+            }
+
+            .sidebar.mobile-open {
+                left: 0;
+            }
+
+            .content {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="main-sidebar">
+        <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
+        <div class="brand-title">0808 CAFÉ</div>
+        <button class="nav-button active" onclick="showSection('ventas', event)">🛒 Ventas</button>
+        <button class="nav-button" onclick="showSection('clientes', event)">👥 Clientes</button>
+        <button class="nav-button" onclick="showSection('compras', event)">📦 Compras de Café</button>
+        <button class="nav-button" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
+        <button class="nav-button" onclick="showSection('creditos', event)">💳 Créditos</button>
+        <button class="nav-button" onclick="showSection('reportes', event)">📈 Reportes</button>
+    </div>
+
+    <div class="content">
+        <!-- BOTÓN NAVEGACIÓN MÓVIL -->
+        <button class="hamburger-btn" onclick="toggleSidebar()">
+            ☰ Menú Navegación
+        </button>
+
+        <!-- MÓDULO VENTAS -->
+        <div id="ventas" class="section active">
+            <h1>🛒 Módulo de Ventas</h1>
+
+            <div class="card">
+                <h3>☕ Café Disponible por Producto</h3>
+                <div id="grid-detalles-stock" class="grid-stock"></div>
+            </div>
+
+            <div class="card">
+                <h3>Agregar Producto al Carrito</h3>
+                <select id="select-producto"></select>
+                <input type="number" id="cant-producto" value="1" min="1" placeholder="Cantidad de Unidades">
+                <button class="btn-gold" onclick="agregarAlCarrito()">➕ Agregar al Carrito</button>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>🛒 Carrito de Compras</h3>
+                    <button class="btn-danger" onclick="vaciarCarrito()">🗑️ Vaciar Carrito</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="tabla-carrito">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Gramaje</th>
+                                <th>Precio Unit.</th>
+                                <th>Cant.</th>
+                                <th>Subtotal</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; text-align: right; font-size: 20px; color: var(--gold-bright);">
+                    Total: <strong id="total-carrito-txt">$0</strong>
+                </div>
+
+                <br>
+                <label>Seleccionar Cliente:</label>
+                <select id="select-cliente-venta"></select>
+
+                <label>Tipo de Venta:</label>
+                <select id="tipo-venta" onchange="toggleTipoVenta()">
+                    <option value="Normal">Normal</option>
+                    <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
+                </select>
+
+                <div id="div-metodo-pago">
+                    <label>Método de Pago:</label>
+                    <select id="pago-venta">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
+                </div>
+
+                <button class="btn-gold" onclick="procesarVenta()">🚀 Procesar Venta</button>
+            </div>
+        </div>
+
+        <!-- MÓDULO CLIENTES -->
+        <div id="clientes" class="section">
+            <h1>👥 Módulo de Clientes</h1>
+            <div class="card">
+                <h3>Registrar Nuevo Cliente</h3>
+                <form id="form-cliente" onsubmit="guardarCliente(event)">
+                    <input type="text" id="cli-nombre" placeholder="Nombre Completo del Cliente" required>
+                    <input type="text" id="cli-celular" placeholder="Número de Celular">
+                    <button type="submit" class="btn-gold">💾 Guardar Cliente</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Lista de Clientes</h3>
+                <div class="table-responsive">
+                    <table id="tabla-clientes">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Celular</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO COMPRAS -->
+        <div id="compras" class="section">
+            <h1>📦 Compras de Materia Prima</h1>
+            <div class="card">
+                <h3>Registrar Nueva Compra</h3>
+                <form id="form-compra" onsubmit="guardarCompra(event)">
+                    <label>Seleccionar Producto:</label>
+                    <select id="compra-producto-id"></select>
+                    
+                    <input type="date" id="compra-fecha">
+                    <input type="number" id="compra-libras" placeholder="Cantidad de Libras Compradas" oninput="calcularCostoPorLibra()" step="any" required>
+                    <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
+                    
+                    <div style="margin: 10px 0; color: var(--gold-bright);">
+                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
+                    </div>
+
+                    <button type="submit" class="btn-gold">Guardar Compra</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Existencias y Costo por Libra por Producto</h3>
+                <div class="table-responsive">
+                    <table id="tabla-existencias">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Existencias (Libras)</th>
+                                <th>Costo por Libra (COP)</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO INVENTARIO Y PRODUCTOS -->
+        <div id="inventario" class="section">
+            <h1>📊 Productos e Inventario</h1>
+            <div class="card">
+                <h3>Crear Producto</h3>
+                <form id="form-producto" onsubmit="guardarProducto(event)">
+                    <input type="text" id="prod-nombre" placeholder="Nombre del Café" required>
+                    <input type="number" id="prod-gramos" placeholder="Gramaje (g)" required>
+                    <input type="number" id="prod-precio" placeholder="Precio de Venta (COP)" required>
+                    <button type="submit" class="btn-gold">Guardar Producto</button>
+                </form>
+            </div>
+            <div class="card">
+                <h3>Catálogo de Productos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-productos">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Gramaje</th>
+                                <th>Precio de Venta</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO CRÉDITOS -->
+        <div id="creditos" class="section">
+            <h1>💳 Cuentas por Cobrar</h1>
+            <div class="card">
+                <div class="table-responsive">
+                    <table id="tabla-creditos">
+                        <thead><tr><th>ID</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO REPORTES -->
+        <div id="reportes" class="section">
+            <h1>📈 Reportes e Históricos</h1>
+            
+            <!-- HISTORIAL DE COMPRAS -->
+            <div class="card">
+                <h3>📦 Histórico de Compras de Materia Prima</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-compras">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Producto Comprado</th>
+                                <th>Cantidad (Libras)</th>
+                                <th>Costo Total</th>
+                                <th>Costo / Libra</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- HISTORIAL DE VENTAS -->
+            <div class="card">
+                <h3>🛒 Histórico de Ventas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reportes">
+                        <thead><tr><th>ID</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Factura</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let carrito = [];
+        let productosCache = [];
+        let productosUnicos = [];
+        let clientesCache = [];
+
+        function toggleSidebar() {
+            document.getElementById('main-sidebar').classList.toggle('mobile-open');
+        }
+
+        function showSection(id, evt) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (evt && evt.target) evt.target.classList.add('active');
+
+            if (window.innerWidth <= 768) {
+                document.getElementById('main-sidebar').classList.remove('mobile-open');
+            }
+
+            if(id === 'ventas') cargarVentasData();
+            if(id === 'clientes') cargarClientes();
+            if(id === 'compras') cargarModuloCompras();
+            if(id === 'inventario') cargarProductos();
+            if(id === 'creditos') cargarCreditos();
+            if(id === 'reportes') cargarReportes();
+        }
+
+        // ================= CLIENTES =================
+        async function cargarClientes() {
+            const res = await fetch('/api/clientes');
+            clientesCache = await res.json();
+
+            const tbody = document.querySelector('#tabla-clientes tbody');
+            tbody.innerHTML = clientesCache.map(c => `
+                <tr>
+                    <td><strong>${c.nombre}</strong></td>
+                    <td>${c.celular || 'N/A'}</td>
+                    <td><button class="btn-danger" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function guardarCliente(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('cli-nombre').value;
+            const celular = document.getElementById('cli-celular').value;
+
+            const res = await fetch('/api/clientes', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre, celular })
+            });
+
+            if (res.ok) {
+                alert('Cliente guardado con éxito');
+                document.getElementById('form-cliente').reset();
+                cargarClientes();
+            }
+        }
+
+        async function eliminarCliente(id) {
+            if (confirm('¿Eliminar cliente?')) {
+                await fetch('/api/clientes/' + id, { method: 'DELETE' });
+                cargarClientes();
+            }
+        }
+
+        // ================= VENTAS =================
+        async function cargarVentasData() {
+            const resResumen = await fetch('/api/inventario/resumen');
+            const dataResumen = await resResumen.json();
+            
+            const gridStock = document.getElementById('grid-detalles-stock');
+            if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
+                gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
+            } else {
+                gridStock.innerHTML = dataResumen.productos_stock.map(p => `
+                    <div class="stock-item">
+                        <div class="stock-item-title">${p.nombre}</div>
+                        <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
+                    </div>
+                `).join('');
+            }
+
+            const resProds = await fetch('/api/productos');
+            productosCache = await resProds.json();
+            const selectP = document.getElementById('select-producto');
+            selectP.innerHTML = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+
+            const resCli = await fetch('/api/clientes');
+            clientesCache = await resCli.json();
+            const selectC = document.getElementById('select-cliente-venta');
+            selectC.innerHTML = '<option value="Cliente General">Cliente General</option>' +
+                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
+        }
+
+        function toggleTipoVenta() {
+            const tipo = document.getElementById('tipo-venta').value;
+            document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
+            renderCarrito();
+        }
+
+        function agregarAlCarrito() {
+            const pId = document.getElementById('select-producto').value;
+            const cant = parseInt(document.getElementById('cant-producto').value) || 1;
+            const prod = productosCache.find(p => p.id === pId);
+
+            if (!prod) return alert('Seleccione un producto válido');
+
+            const indexExistente = carrito.findIndex(item => item.producto_id === pId);
+            
+            if (indexExistente !== -1) {
+                carrito[indexExistente].cantidad += cant;
+                carrito[indexExistente].gramos_totales = carrito[indexExistente].gramaje * carrito[indexExistente].cantidad;
+                carrito[indexExistente].subtotal = carrito[indexExistente].precio_unitario * carrito[indexExistente].cantidad;
+            } else {
+                carrito.push({
+                    producto_id: prod.id,
+                    nombre: prod.nombre,
+                    gramaje: prod.gramaje,
+                    cantidad: cant,
+                    gramos_totales: prod.gramaje * cant,
+                    precio_unitario: prod.precio_venta,
+                    subtotal: prod.precio_venta * cant
+                });
+            }
+
+            renderCarrito();
+        }
+
+        function quitarDelCarrito(index) {
+            carrito.splice(index, 1);
+            renderCarrito();
+        }
+
+        function vaciarCarrito() {
+            if (carrito.length === 0) return;
+            if (confirm('¿Vaciar todo el carrito?')) {
+                carrito = [];
+                renderCarrito();
+            }
+        }
+
+        function renderCarrito() {
+            const tbody = document.querySelector('#tabla-carrito tbody');
+            const esObsequio = document.getElementById('tipo-venta').value === 'Obsequio';
+            let total = 0;
+
+            tbody.innerHTML = carrito.map((i, index) => {
+                const sub = esObsequio ? 0 : i.subtotal;
+                total += sub;
+                return `
+                    <tr>
+                        <td>${i.nombre}</td>
+                        <td>${i.gramaje}g</td>
+                        <td>$${esObsequio ? 0 : i.precio_unitario.toLocaleString()}</td>
+                        <td>${i.cantidad}</td>
+                        <td>$${sub.toLocaleString()}</td>
+                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index})">❌ Quitar</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('total-carrito-txt').innerText = '$' + total.toLocaleString();
+        }
+
+        async function procesarVenta() {
+            if (carrito.length === 0) return alert('El carrito está vacío');
+
+            const tipoVenta = document.getElementById('tipo-venta').value;
+            const payload = {
+                fecha: new Date().toISOString().split('T')[0],
+                cliente: document.getElementById('select-cliente-venta').value,
+                tipo_pago: tipoVenta === 'Obsequio' ? 'N/A' : document.getElementById('pago-venta').value,
+                tipo_venta: tipoVenta,
+                items: carrito
+            };
+
+            const res = await fetch('/api/ventas', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
+                carrito = [];
+                renderCarrito();
+                cargarVentasData();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al procesar la venta');
+            }
+        }
+
+        // ================= COMPRAS =================
+        async function cargarModuloCompras() {
+            const res = await fetch('/api/productos/unicos');
+            productosUnicos = await res.json();
+            
+            const select = document.getElementById('compra-producto-id');
+            select.innerHTML = '<option value="">-- Seleccionar Producto --</option>' + 
+                productosUnicos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+
+            cargarTablaExistencias();
+        }
+
+        function calcularCostoPorLibra() {
+            const libras = parseFloat(document.getElementById('compra-libras').value) || 0;
+            const costo = parseFloat(document.getElementById('compra-costo').value) || 0;
+            const costoPorLibra = libras > 0 ? (costo / libras) : 0;
+            
+            document.getElementById('costo-libra-calculado').innerText = '$' + Math.round(costoPorLibra).toLocaleString();
+        }
+
+        async function guardarCompra(e) {
+            e.preventDefault();
+            const prodId = document.getElementById('compra-producto-id').value;
+            const libras = parseFloat(document.getElementById('compra-libras').value);
+            const costoTotal = parseFloat(document.getElementById('compra-costo').value);
+
+            const payload = {
+                fecha: document.getElementById('compra-fecha').value || new Date().toISOString().split('T')[0],
+                libras: libras,
+                costo_total: costoTotal,
+                producto_id: prodId || null
+            };
+
+            const res = await fetch('/api/compras', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Compra registrada con éxito');
+                document.getElementById('form-compra').reset();
+                document.getElementById('costo-libra-calculado').innerText = '$0';
+                cargarModuloCompras();
+            } else {
+                alert('Error al registrar compra');
+            }
+        }
+
+        async function cargarTablaExistencias() {
+            const resResumen = await fetch('/api/inventario/resumen');
+            const dataResumen = await resResumen.json();
+
+            const tbody = document.querySelector('#tabla-existencias tbody');
+            if (productosUnicos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">No hay productos registrados</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = productosUnicos.map(p => {
+                const itemStock = dataResumen.productos_stock.find(s => s.nombre === p.nombre);
+                const totalLbs = itemStock ? itemStock.libras_disponibles : 0;
+
+                return `
+                    <tr>
+                        <td><strong>${p.nombre}</strong></td>
+                        <td>${totalLbs} Lbs</td>
+                        <td>
+                            <input type="number" id="costo-edit-${p.id}" value="${p.costo_por_libra || 0}" style="width: 120px;">
+                        </td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarCostoManual('${p.nombre}', '${p.id}')">💾 Guardar Costo</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function guardarCostoManual(nombre, id) {
+            const nuevoCosto = parseFloat(document.getElementById(`costo-edit-${id}`).value) || 0;
+            
+            const res = await fetch('/api/productos/actualizar-costo-libra', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre: nombre, costo_por_libra: nuevoCosto })
+            });
+
+            if (res.ok) {
+                alert(`Costo actualizado para "${nombre}"`);
+                cargarModuloCompras();
+            } else {
+                alert('Error al actualizar el costo');
+            }
+        }
+
+        // ================= PRODUCTOS =================
+        async function guardarProducto(e) {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('prod-nombre').value,
+                gramaje: parseFloat(document.getElementById('prod-gramos').value),
+                precio_venta: parseFloat(document.getElementById('prod-precio').value)
+            };
+
+            const res = await fetch('/api/productos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Producto creado con éxito');
+                document.getElementById('form-producto').reset();
+                cargarProductos();
+            }
+        }
+
+        async function cargarProductos() {
+            const res = await fetch('/api/productos');
+            productosCache = await res.json();
+            document.querySelector('#tabla-productos tbody').innerHTML = productosCache.map(p => 
+                `<tr>
+                    <td><input type="text" id="edit-nom-${p.id}" value="${p.nombre}" style="width: 180px;"></td>
+                    <td>${p.gramaje}g</td>
+                    <td><input type="number" id="edit-prec-${p.id}" value="${p.precio_venta}" style="width: 120px;"></td>
+                    <td>
+                        <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarEdicionProducto('${p.id}')">✏️ Guardar</button>
+                        <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${p.id}')">❌</button>
+                    </td>
+                </tr>`
+            ).join('');
+        }
+
+        async function guardarEdicionProducto(id) {
+            const nuevoNombre = document.getElementById(`edit-nom-${id}`).value;
+            const nuevoPrecio = parseFloat(document.getElementById(`edit-prec-${id}`).value);
+
+            if (!nuevoNombre || isNaN(nuevoPrecio)) return alert('Ingrese un nombre y precio válidos');
+
+            const res = await fetch('/api/productos/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre: nuevoNombre, precio_venta: nuevoPrecio })
+            });
+
+            if (res.ok) {
+                alert('Producto actualizado correctamente');
+                cargarProductos();
+            }
+        }
+
+        async function eliminarProducto(id) {
+            const res = await fetch('/api/productos/' + id, { method: 'DELETE' });
+            if(!res.ok) alert((await res.json()).detail);
+            cargarProductos();
+        }
+
+        // ================= CRÉDITOS Y REPORTES =================
+        async function cargarCreditos() {
+            const res = await fetch('/api/ventas');
+            const ventas = await res.json();
+            const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
+            document.querySelector('#tabla-creditos tbody').innerHTML = creditos.map(c => 
+                `<tr><td>${c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>$${c.total_venta.toLocaleString()}</td><td>${c.estado_credito}</td>
+                <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td></tr>`
+            ).join('');
+        }
+
+        async function pagarCredito(id) {
+            await fetch(`/api/ventas/${id}/pagar-credito`, { method: 'PUT' });
+            cargarCreditos();
+        }
+
+        async function cargarReportes() {
+            const resCompras = await fetch('/api/compras');
+            const compras = await resCompras.json();
+            document.querySelector('#tabla-reporte-compras tbody').innerHTML = compras.map(c => `
+                <tr>
+                    <td>${c.fecha}</td>
+                    <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
+                    <td>${c.libras} Lbs</td>
+                    <td>$${c.costo_total.toLocaleString()}</td>
+                    <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            const resVentas = await fetch('/api/ventas');
+            const ventas = await resVentas.json();
+            document.querySelector('#tabla-reportes tbody').innerHTML = ventas.map(v => 
+                `<tr><td>${v.id.substring(0,8)}</td><td>${v.fecha}</td><td>${v.cliente}</td><td><strong>${v.tipo_venta || 'Normal'}</strong></td><td>$${v.total_venta.toLocaleString()}</td><td>$${v.ganancia.toLocaleString()}</td>
+                <td><a href="/api/ventas/${v.id}/pdf" target="_blank" style="color:var(--gold-bright);">Descargar PDF</a></td>
+                <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td></tr>`
+            ).join('');
+        }
+
+        async function eliminarVenta(id) {
+            if(confirm('¿Eliminar esta venta?')) {
+                await fetch('/api/ventas/' + id, { method: 'DELETE' });
+                cargarReportes();
+            }
+        }
+
+        // Cargar Inicial
+        cargarVentasData();
+    </script>
+</body>
+</html>
