@@ -22,6 +22,19 @@ templates = Jinja2Templates(directory="templates")
 
 db = get_db()
 
+def obtener_siguiente_consecutivo():
+    """Genera un número secuencial único formateado con ceros a la izquierda (0001 a 5000)."""
+    ret = db.contadores.find_one_and_update(
+        {"_id": "factura_num"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=True
+    )
+    num_seq = ret.get("seq", 1)
+    if num_seq > 5000:
+        num_seq = ((num_seq - 1) % 5000) + 1
+    return f"{num_seq:04d}"
+
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
@@ -219,8 +232,10 @@ def registrar_venta(venta: VentaCreate):
         raise HTTPException(status_code=400, detail="Inventario insuficiente para procesar la venta.")
 
     costo_est = round(total_gramos * resumen["costo_promedio_gramo"])
+    consecutivo = obtener_siguiente_consecutivo()
 
     doc = {
+        "consecutivo_str": consecutivo,
         "fecha": venta.fecha,
         "cliente": venta.cliente,
         "tipo_pago": "N/A" if es_obsequio else venta.tipo_pago,
@@ -233,7 +248,7 @@ def registrar_venta(venta: VentaCreate):
         "creado_en": datetime.utcnow()
     }
     res = db.ventas.insert_one(doc)
-    return {"id": str(res.inserted_id)}
+    return {"id": str(res.inserted_id), "consecutivo": consecutivo}
 
 @app.get("/api/ventas")
 def listar_ventas():
@@ -261,4 +276,9 @@ def descargar_factura(venta_id: str):
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
     pdf_bytes = generar_factura_pdf(venta, venta["items"])
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Factura_{str(venta_id)[:8]}.pdf"})
+    num_factura = venta.get("consecutivo_str", str(venta_id)[:8])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Factura_{num_factura}.pdf"}
+    )
