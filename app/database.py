@@ -1,7 +1,9 @@
 import os
 from pymongo import MongoClient
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://Cafe0808:AdminCafe0808@bdcafe0808.ivz1n4f.mongodb.net/?appName=BDCAFE0808")
+# Lee la variable de entorno 'MONGO_URI' configurada en Render.
+# Si estás ejecutando localmente y no existe la variable, usará 'mongodb://localhost:27017' por defecto.
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "gestion_cafe")
 
 client = MongoClient(MONGO_URI)
@@ -11,7 +13,6 @@ def get_db():
     return db
 
 def fix_id(doc):
-    """Convierte el '_id' ObjectId de MongoDB a un string 'id'."""
     if doc and "_id" in doc:
         doc["id"] = str(doc["_id"])
         del doc["_id"]
