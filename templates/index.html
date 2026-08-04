@@ -222,6 +222,62 @@
         .section { display: none; }
         .section.active { display: block; }
 
+        /* ESTILOS DEL MODAL DE FACTURA */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--gold-primary);
+            width: 90%;
+            max-width: 800px;
+            height: 85vh;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+
+        .modal-header {
+            padding: 12px 20px;
+            background-color: #141414;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            flex: 1;
+            background-color: #222;
+        }
+
+        .modal-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .modal-footer {
+            padding: 12px 20px;
+            background-color: #141414;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -247,6 +303,11 @@
 
             .content {
                 padding: 15px;
+            }
+
+            .modal-container {
+                width: 95%;
+                height: 90vh;
             }
         }
     </style>
@@ -546,7 +607,7 @@
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
                     <table id="tabla-reportes">
-                        <thead><tr><th>ID</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Factura</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -555,11 +616,29 @@
 
     </div>
 
+    <!-- MODAL DE PREVISUALIZACIÓN DE FACTURA -->
+    <div id="modal-factura" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold-bright);">📄 Previsualización de Factura</h3>
+                <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+            </div>
+            <div class="modal-body">
+                <iframe id="iframe-pdf" src=""></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
+                <button class="btn-danger" style="width:auto; padding:8px 16px;" onclick="cerrarModalFactura()">❌ Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let carrito = [];
         let productosCache = [];
         let productosUnicos = [];
         let clientesCache = [];
+        let urlPdfActual = '';
 
         function toggleSidebar() {
             document.getElementById('main-sidebar').classList.toggle('mobile-open');
@@ -976,7 +1055,7 @@
             const ventas = await res.json();
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
             document.querySelector('#tabla-creditos tbody').innerHTML = creditos.map(c => 
-                `<tr><td>${c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>$${c.total_venta.toLocaleString()}</td><td>${c.estado_credito}</td>
+                `<tr><td>${c.consecutivo_str || c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>$${c.total_venta.toLocaleString()}</td><td>${c.estado_credito}</td>
                 <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td></tr>`
             ).join('');
         }
@@ -1091,13 +1170,13 @@
 
                 return `
                     <tr>
-                        <td>${v.consecutivo_str || v.id.substring(0,8)}</td>
+                        <td><strong>${v.consecutivo_str || v.id.substring(0,8)}</strong></td>
                         <td>${v.fecha}</td>
                         <td>${v.cliente}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
                         <td>$${tot.toLocaleString()}</td>
                         <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
-                        <td><a href="/api/ventas/${v.id}/pdf" target="_blank" style="color:var(--gold-bright);">Descargar PDF</a></td>
+                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalFactura('${v.id}')">👁️ Ver Factura</button></td>
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
                 `;
@@ -1122,6 +1201,25 @@
             if(confirm('¿Eliminar esta venta?')) {
                 await fetch('/api/ventas/' + id, { method: 'DELETE' });
                 cargarReportes();
+            }
+        }
+
+        // ================= MODAL FACTURA =================
+        function abrirModalFactura(ventaId) {
+            urlPdfActual = `/api/ventas/${ventaId}/pdf`;
+            document.getElementById('iframe-pdf').src = urlPdfActual;
+            document.getElementById('modal-factura').style.display = 'flex';
+        }
+
+        function cerrarModalFactura() {
+            document.getElementById('modal-factura').style.display = 'none';
+            document.getElementById('iframe-pdf').src = '';
+            urlPdfActual = '';
+        }
+
+        function descargarPdfDesdeModal() {
+            if (urlPdfActual) {
+                window.open(urlPdfActual, '_blank');
             }
         }
 
