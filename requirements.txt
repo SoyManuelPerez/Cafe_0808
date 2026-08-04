@@ -1,6 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pymongo
 pydantic
 reportlab
 jinja2
+gunicorn
