@@ -1,12 +1,11 @@
 import os
 import sys
+import bcrypt
 from datetime import datetime
 from bson import ObjectId
-from fastapi import FastAPI, HTTPException, Response, Request, Depends, status
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
-from passlib.context import CryptContext
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
@@ -22,13 +21,33 @@ os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 db = get_db()
 
-# Crear usuario admin inicial si no existe
-if db.usuarios.count_documents({"username": "admin"}) == 0:
-    hashed = pwd_context.hash("admin123")
-    db.usuarios.insert_one({"username": "admin", "password_hash": hashed})
+# ==========================================
+# FUNCIONES DE SEGURIDAD (BCRYPT NATIVO)
+# ==========================================
+
+def hash_password(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+# Inicializar o actualizar usuario admin con la clave "0808cafe"
+user_admin = db.usuarios.find_one({"username": "admin"})
+if not user_admin:
+    hashed_default = hash_password("0808cafe")
+    db.usuarios.insert_one({"username": "admin", "password_hash": hashed_default})
+else:
+    # Asegura que si la clave antigua usaba passlib se actualice correctamente
+    if not verify_password("0808cafe", user_admin.get("password_hash", "")):
+        hashed_updated = hash_password("0808cafe")
+        db.usuarios.update_one({"username": "admin"}, {"$set": {"password_hash": hashed_updated}})
 
 def obtener_siguiente_consecutivo():
     ret = db.contadores.find_one_and_update(
@@ -49,7 +68,7 @@ def obtener_siguiente_consecutivo():
 @app.post("/api/login")
 def login(user_data: UserLogin, response: Response):
     user = db.usuarios.find_one({"username": user_data.username})
-    if not user or not pwd_context.verify(user_data.password, user["password_hash"]):
+    if not user or not verify_password(user_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     
     response.set_cookie(key="session_user", value=user_data.username, httponly=True)
