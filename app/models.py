@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
 class CompraCreate(BaseModel):
     fecha: str
     libras: float = Field(gt=0)
@@ -9,7 +17,7 @@ class CompraCreate(BaseModel):
 
 class CompraEmpaqueCreate(BaseModel):
     fecha: str
-    tipo_empaque: str  # "bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"
+    tipo_empaque: str
     cantidad: int = Field(gt=0)
     costo_total: float = Field(gt=0)
 
@@ -33,7 +41,7 @@ class ItemVenta(BaseModel):
     gramaje: float
     cantidad: int = Field(gt=0)
     descuento: Optional[float] = 0.0
-    presentacion: Optional[str] = "Grano"  # "Grano" o "Molido"
+    presentacion: Optional[str] = "Grano"
     gramos_totales: float
     precio_unitario: float
     subtotal: float
