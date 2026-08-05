@@ -27,6 +27,31 @@
             overflow: hidden;
         }
 
+        /* SCREEN LOGIN */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .login-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--gold-primary);
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
         .hamburger-btn {
             display: none;
             background-color: var(--sidebar-bg);
@@ -222,7 +247,6 @@
         .section { display: none; }
         .section.active { display: block; }
 
-        /* MODAL PREVISUALIZACIÓN */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -316,6 +340,20 @@
 </head>
 <body>
 
+    <!-- PANTALLA LOGIN -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
+            <h2 style="color:var(--gold-bright);">0808 CAFÉ</h2>
+            <p style="color:#aaa; font-size:14px;">Inicia sesión para acceder</p>
+            <form onsubmit="ejecutarLogin(event)">
+                <input type="text" id="login-user" placeholder="Usuario" required>
+                <input type="password" id="login-pass" placeholder="Contraseña" required>
+                <button type="submit" class="btn-gold" style="margin-top:15px;">🔑 Ingresar</button>
+            </form>
+        </div>
+    </div>
+
     <div class="sidebar" id="main-sidebar">
         <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
         <div class="brand-title">0808 CAFÉ</div>
@@ -326,6 +364,7 @@
         <button class="nav-button" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
         <button class="nav-button" onclick="showSection('creditos', event)">💳 Créditos</button>
         <button class="nav-button" onclick="showSection('reportes', event)">📈 Reportes</button>
+        <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar Sesión</button>
     </div>
 
     <div class="content">
@@ -634,8 +673,7 @@
                 <h3 style="margin:0; color:var(--gold-bright);">📄 Previsualización de Factura</h3>
                 <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
             </div>
-            <div class="modal-body" id="modal-body-pdf">
-            </div>
+            <div class="modal-body" id="modal-body-pdf"></div>
             <div class="modal-footer">
                 <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
                 <button class="btn-danger" style="width:auto; padding:8px 16px;" onclick="cerrarModalFactura()">❌ Cerrar</button>
@@ -650,6 +688,31 @@
         let clientesCache = [];
         let urlPdfActual = '';
         let blobPdfActual = null;
+
+        // LOGIN
+        async function ejecutarLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: u, password: p })
+            });
+
+            if (res.ok) {
+                document.getElementById('login-screen').style.display = 'none';
+                cargarVentasData();
+            } else {
+                alert('Usuario o contraseña incorrectos');
+            }
+        }
+
+        async function ejecutarLogout() {
+            await fetch('/api/logout', { method: 'POST' });
+            document.getElementById('login-screen').style.display = 'flex';
+        }
 
         function toggleSidebar() {
             document.getElementById('main-sidebar').classList.toggle('mobile-open');
@@ -674,7 +737,7 @@
             if(id === 'reportes') cargarReportes();
         }
 
-        // ================= CLIENTES =================
+        // CLIENTES
         async function cargarClientes() {
             const res = await fetch('/api/clientes');
             clientesCache = await res.json();
@@ -725,8 +788,6 @@
             if (res.ok) {
                 alert('Cliente actualizado con éxito');
                 cargarClientes();
-            } else {
-                alert('Error al actualizar cliente');
             }
         }
 
@@ -736,13 +797,11 @@
                 if (res.ok) {
                     alert('Cliente eliminado');
                     cargarClientes();
-                } else {
-                    alert('Error al eliminar cliente');
                 }
             }
         }
 
-        // ================= EMPAQUES =================
+        // EMPAQUES
         function calcularCostoEmpaqueUnitario() {
             const cant = parseInt(document.getElementById('emp-cantidad').value) || 0;
             const costo = parseFloat(document.getElementById('emp-costo').value) || 0;
@@ -820,12 +879,10 @@
             if (res.ok) {
                 alert('Empaque/Etiqueta actualizado con éxito');
                 cargarModuloEmpaques();
-            } else {
-                alert('Error al guardar los cambios');
             }
         }
 
-        // ================= VENTAS =================
+        // VENTAS
         async function cargarVentasData() {
             const resResumen = await fetch('/api/inventario/resumen');
             const dataResumen = await resResumen.json();
@@ -963,7 +1020,7 @@
             }
         }
 
-        // ================= COMPRAS DE CAFÉ =================
+        // COMPRAS DE CAFÉ
         async function cargarModuloCompras() {
             const res = await fetch('/api/productos/unicos');
             productosUnicos = await res.json();
@@ -1007,8 +1064,6 @@
                 document.getElementById('form-compra').reset();
                 document.getElementById('costo-libra-calculado').innerText = '$0';
                 cargarModuloCompras();
-            } else {
-                alert('Error al registrar compra');
             }
         }
 
@@ -1053,12 +1108,10 @@
             if (res.ok) {
                 alert(`Costo actualizado para "${nombre}"`);
                 cargarModuloCompras();
-            } else {
-                alert('Error al actualizar el costo');
             }
         }
 
-        // ================= PRODUCTOS =================
+        // PRODUCTOS
         async function guardarProducto(e) {
             e.preventDefault();
             const payload = {
@@ -1120,7 +1173,7 @@
             cargarProductos();
         }
 
-        // ================= CRÉDITOS Y REPORTES =================
+        // CRÉDITOS Y REPORTES
         async function cargarCreditos() {
             const res = await fetch('/api/ventas');
             const ventas = await res.json();
@@ -1137,7 +1190,6 @@
         }
 
         async function cargarReportes() {
-            // 1. Cargar Histórico de Compras de Café
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
             
@@ -1177,7 +1229,6 @@
                 </tr>
             `;
 
-            // 2. Cargar Histórico de Compras de Empaques
             const resEmpaques = await fetch('/api/compras-empaques');
             const empaquesList = await resEmpaques.json();
 
@@ -1224,7 +1275,6 @@
                 </tr>
             `;
 
-            // 3. Cargar y Totalizar Histórico de Ventas
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
 
@@ -1275,7 +1325,7 @@
             }
         }
 
-        // ================= MODAL PREVISUALIZACIÓN FACTURA =================
+        // MODAL PREVISUALIZACIÓN FACTURA
         async function abrirModalFactura(ventaId) {
             const container = document.getElementById('modal-body-pdf');
             container.innerHTML = '<div style="color:var(--gold-bright); text-align:center;">Cargando vista previa...</div>';
@@ -1310,7 +1360,7 @@
             }
         }
 
-        // Cargar Inicial
+        // Inicialización
         cargarVentasData();
     </script>
 </body>
