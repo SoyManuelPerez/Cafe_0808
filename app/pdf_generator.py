@@ -39,19 +39,31 @@ def generar_factura_pdf(venta, items):
     elements.append(Spacer(1, 15))
 
     table_data = [["Producto", "Cant.", "Precio Unit.", "Descuento", "Subtotal"]]
+    
+    valor_total_bruto = 0.0
+    descuento_total = 0.0
+
     for item in items:
         cant = item["cantidad"]
-        desc_unitario = item.get("descuento", 0)
-        desc_total = desc_unitario * cant
+        p_unit = item["precio_unitario"]
+        desc_u = item.get("descuento", 0.0)
         pres = item.get("presentacion", "Grano")
+
+        subtotal_bruto = cant * p_unit
+        desc_item_total = desc_u * cant
+
+        valor_total_bruto += subtotal_bruto
+        descuento_total += desc_item_total
 
         table_data.append([
             f"{item['nombre']} ({int(item['gramaje'])}g - {pres})",
             str(cant),
-            f"${int(item['precio_unitario']):,}",
-            f"${int(desc_total):,}",
-            f"${int(item['subtotal']):,}"
+            f"${int(p_unit):,}",
+            f"${int(desc_item_total):,}",
+            f"${int(subtotal_bruto):,}"
         ])
+
+    valor_a_pagar = max(0.0, valor_total_bruto - descuento_total) if venta.get("tipo_venta") != "Obsequio" else 0.0
 
     prod_table = Table(table_data, colWidths=[3.0*inch, 0.7*inch, 1.1*inch, 1.1*inch, 1.1*inch])
     prod_table.setStyle(TableStyle([
@@ -63,8 +75,20 @@ def generar_factura_pdf(venta, items):
     elements.append(prod_table)
     elements.append(Spacer(1, 15))
 
-    total_data = [["", "TOTAL PAGADO:", f"${int(venta['total_venta']):,} COP"]]
-    elements.append(Table(total_data, colWidths=[3.0*inch, 2.2*inch, 1.8*inch]))
+    # Tabla de Totales
+    total_data = [
+        ["", "Valor Total:", f"${int(valor_total_bruto):,} COP"],
+        ["", "Descuento Total:", f"-${int(descuento_total):,} COP"],
+        ["", "Valor a Pagar:", f"${int(valor_a_pagar):,} COP"]
+    ]
+
+    t_totales = Table(total_data, colWidths=[3.0*inch, 2.2*inch, 1.8*inch])
+    t_totales.setStyle(TableStyle([
+        ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+        ('FONTNAME', (1,2), (-1,2), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (1,2), (-1,2), colors.HexColor('#6F4E37')),
+    ]))
+    elements.append(t_totales)
 
     doc.build(elements)
     buffer.seek(0)
