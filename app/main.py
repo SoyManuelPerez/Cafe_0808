@@ -2,16 +2,18 @@ import os
 import sys
 from datetime import datetime
 from bson import ObjectId
-from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi import FastAPI, HTTPException, Response, Request, Depends, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
+from passlib.context import CryptContext
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from app.database import get_db, fix_id
-from app.models import CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, ClienteCreate, VentaCreate
+from app.models import CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, ClienteCreate, VentaCreate, UserLogin
 from app.pdf_generator import generar_factura_pdf
 
 app = FastAPI(title="0808 Café de Especialidad")
@@ -20,7 +22,13 @@ os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 db = get_db()
+
+# Crear usuario admin inicial si no existe
+if db.usuarios.count_documents({"username": "admin"}) == 0:
+    hashed = pwd_context.hash("admin123")
+    db.usuarios.insert_one({"username": "admin", "password_hash": hashed})
 
 def obtener_siguiente_consecutivo():
     ret = db.contadores.find_one_and_update(
@@ -33,6 +41,24 @@ def obtener_siguiente_consecutivo():
     if num_seq > 5000:
         num_seq = ((num_seq - 1) % 5000) + 1
     return f"{num_seq:04d}"
+
+# ==========================================
+# RUTAS AUTENTICACIÓN
+# ==========================================
+
+@app.post("/api/login")
+def login(user_data: UserLogin, response: Response):
+    user = db.usuarios.find_one({"username": user_data.username})
+    if not user or not pwd_context.verify(user_data.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    
+    response.set_cookie(key="session_user", value=user_data.username, httponly=True)
+    return {"mensaje": "Login exitoso"}
+
+@app.post("/api/logout")
+def logout(response: Response):
+    response.delete_cookie("session_user")
+    return {"mensaje": "Sesión cerrada"}
 
 @app.get("/")
 def home(request: Request):
@@ -319,8 +345,10 @@ def resumen_inventario():
         
         if comprado_g > 0:
             disp_g = max(0.0, comprado_g - usado_g)
+        elif nombre in dict_compras_nombre:
+            disp_g = max(0.0, dict_compras_nombre[nombre] - usado_g)
         else:
-            disp_g = max(0.0, total_comprado_general - total_usado_general)
+            disp_g = 0.0
 
         resumen_tarjetas.append({
             "nombre": nombre,
