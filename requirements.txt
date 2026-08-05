@@ -5,5 +5,5 @@ pydantic
 reportlab
 jinja2
 gunicorn
+bcrypt==4.0.1
 python-multipart
-passlib[bcrypt]
