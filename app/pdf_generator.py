@@ -7,7 +7,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
-LOGO_FALLBACK = "/9j/4AAQSkZJRgABAQAASABIAAD/4QCMRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABAAOgAQADAAAAAQABAACgAgAEAAAAAQAAAoCgAwAEAAAAAQAAAoAAAAAA/+0AOFBob3Rvc2hvcCAzLjAAOEJJTQQEAAAAAAAAOEJJTQQlAAAAAAAQ1B2M2Y8AsgTpgAmY7PhCfv/AABEIAoACgAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIxgUQUQpGhscE/9oADAMBAAIRACEQEDEQH/AP9k="
+LOGO_FALLBACK = "/9j/4AAQSkZJRgABAQAASABIAAD/4QCMRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABAAOgAQADAAAAAQABAACgAgAEAAAAAQAAAoCgAwAEAAAAAQAAAoAAAAAA/+0AOFBob3Rvc2hvcCAzLjAAOEJJTQQEAAAAAAAAOEJJTQQlAAAAAAAQ1B2M2Y8AsgTpgAmY7PhCfv/AABEIAoACgAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIxgUQUQpGhscE/9oADAMBALEVEL0DEQH/AP9k="
 
 def generar_factura_pdf(venta, items):
     buffer = io.BytesIO()
@@ -23,6 +23,7 @@ def generar_factura_pdf(venta, items):
 
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#6F4E37'), alignment=1)
     normal_style = styles['Normal']
+    account_style = ParagraphStyle('AccountStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=13, textColor=colors.HexColor('#222222'))
 
     num_factura = venta.get("consecutivo_str", str(venta.get("_id", ""))[:8])
 
@@ -75,15 +76,27 @@ def generar_factura_pdf(venta, items):
     elements.append(prod_table)
     elements.append(Spacer(1, 15))
 
-    # Tabla de Totales
+    # Información de la cuenta bancaria para pago
+    texto_cuenta = Paragraph(
+        "<b>Datos de Pago:</b><br/>"
+        "Cuenta de Ahorros<br/>"
+        "Bancolombia No 333-998815-66<br/>"
+        "Amaia Sierra",
+        account_style
+    )
+
+    # Tabla de Totales con datos bancarios a la izquierda
     total_data = [
-        ["", "Valor Total:", f"${int(valor_total_bruto):,} COP"],
+        [texto_cuenta, "Valor Total:", f"${int(valor_total_bruto):,} COP"],
         ["", "Descuento Total:", f"-${int(descuento_total):,} COP"],
         ["", "Valor a Pagar:", f"${int(valor_a_pagar):,} COP"]
     ]
 
-    t_totales = Table(total_data, colWidths=[3.0*inch, 2.2*inch, 1.8*inch])
+    t_totales = Table(total_data, colWidths=[3.2*inch, 2.0*inch, 1.8*inch])
     t_totales.setStyle(TableStyle([
+        ('SPAN', (0,0), (0,2)),  # Combina verticalmente la primera columna para abarcar las tres filas
+        ('VALIGN', (0,0), (0,2), 'TOP'),
+        ('ALIGN', (0,0), (0,2), 'LEFT'),
         ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
         ('FONTNAME', (1,2), (-1,2), 'Helvetica-Bold'),
         ('TEXTCOLOR', (1,2), (-1,2), colors.HexColor('#6F4E37')),
