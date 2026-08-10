@@ -5,10 +5,6 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
-class UserCreate(BaseModel):
-    username: str
-    password: str
-
 class CompraCreate(BaseModel):
     fecha: str
     libras: float = Field(gt=0)
@@ -51,4 +47,9 @@ class VentaCreate(BaseModel):
     cliente: Optional[str] = "Cliente General"
     tipo_pago: str
     tipo_venta: Optional[str] = "Normal"
+    items: List[ItemVenta]
+
+class CotizacionCreate(BaseModel):
+    fecha: str
+    cliente: Optional[str] = "Cliente General"
     items: List[ItemVenta]
