@@ -20,8 +20,8 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
         logo_path = "static/logo.png"
 
     if os.path.exists(logo_path):
-        # Se incrementa el tamaño del logo a 2.2 pulgadas
-        logo_image = Image(logo_path, width=2.2*inch, height=2.2*inch)
+        # Se incrementa el tamaño del logo a 3.5 pulgadas
+        logo_image = Image(logo_path, width=3.5*inch, height=3.5*inch)
     else:
         logo_data = base64.b64decode(LOGO_FALLBACK)
         logo_image = Image(io.BytesIO(logo_data), width=2.2*inch, height=2.2*inch)
