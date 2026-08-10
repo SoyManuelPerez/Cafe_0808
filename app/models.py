@@ -1,5 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 class UserCreate(BaseModel):
     username: str
@@ -9,41 +13,37 @@ class UserUpdate(BaseModel):
     username: str
     password: Optional[str] = None
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class CompraCreate(BaseModel):
-    fecha: str
-    libras: float = Field(gt=0)
-    costo_total: float = Field(gt=0)
-    producto_id: Optional[str] = None
+class ClienteCreate(BaseModel):
+    nombre: str
+    celular: Optional[str] = None
 
 class CompraEmpaqueCreate(BaseModel):
     fecha: str
     tipo_empaque: str
-    cantidad: int = Field(gt=0)
-    costo_total: float = Field(gt=0)
+    cantidad: int
+    costo_total: float
+
+class CompraCreate(BaseModel):
+    fecha: str
+    libras: float
+    costo_total: float
+    producto_id: Optional[str] = None
 
 class ProductoCreate(BaseModel):
     nombre: str
-    gramaje: float = Field(gt=0)
-    precio_venta: float = Field(ge=0)
+    gramaje: float
+    precio_venta: float
     costo_por_libra: Optional[float] = 0.0
 
 class ProductoUpdate(BaseModel):
     nombre: str
-    precio_venta: float = Field(ge=0)
-
-class ClienteCreate(BaseModel):
-    nombre: str
-    celular: Optional[str] = ""
+    precio_venta: float
 
 class ItemVenta(BaseModel):
     producto_id: str
     nombre: str
     gramaje: float
-    cantidad: int = Field(gt=0)
+    cantidad: int
     descuento: Optional[float] = 0.0
     presentacion: Optional[str] = "Grano"
     gramos_totales: float
@@ -52,12 +52,7 @@ class ItemVenta(BaseModel):
 
 class VentaCreate(BaseModel):
     fecha: str
-    cliente: Optional[str] = "Cliente General"
+    cliente: str
     tipo_pago: str
     tipo_venta: Optional[str] = "Normal"
-    items: List[ItemVenta]
-
-class CotizacionCreate(BaseModel):
-    fecha: str
-    cliente: Optional[str] = "Cliente General"
     items: List[ItemVenta]
