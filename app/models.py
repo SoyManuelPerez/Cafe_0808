@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+class UserUpdate(BaseModel):
+    username: str
+    password: Optional[str] = None
+
 class UserLogin(BaseModel):
     username: str
     password: str
