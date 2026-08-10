@@ -12,7 +12,10 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from app.database import get_db, fix_id
-from app.models import CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, ClienteCreate, VentaCreate, UserLogin
+from app.models import (
+    CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, 
+    ClienteCreate, VentaCreate, UserLogin, UserCreate, UserUpdate
+)
 from app.pdf_generator import generar_factura_pdf
 
 app = FastAPI(title="0808 Café de Especialidad")
@@ -80,6 +83,60 @@ def logout(response: Response):
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+# ==========================================
+# ENDPOINTS GESTIÓN DE USUARIOS
+# ==========================================
+
+@app.post("/api/usuarios", status_code=201)
+def crear_usuario(usr: UserCreate):
+    usuario_existente = db.usuarios.find_one({"username": usr.username})
+    if usuario_existente:
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya existe.")
+    
+    hashed = hash_password(usr.password)
+    doc = {
+        "username": usr.username,
+        "password_hash": hashed,
+        "creado_en": datetime.utcnow()
+    }
+    res = db.usuarios.insert_one(doc)
+    return {"id": str(res.inserted_id), "mensaje": "Usuario creado exitosamente"}
+
+@app.get("/api/usuarios")
+def listar_usuarios():
+    usuarios = list(db.usuarios.find({}, {"password_hash": 0}).sort("username", 1))
+    return [fix_id(u) for u in usuarios]
+
+@app.put("/api/usuarios/{user_id}")
+def editar_usuario(user_id: str, usr: UserUpdate):
+    existente = db.usuarios.find_one({"username": usr.username, "_id": {"$ne": ObjectId(user_id)}})
+    if existente:
+        raise HTTPException(status_code=400, detail="Ese nombre de usuario ya está en uso.")
+
+    update_fields = {"username": usr.username}
+    if usr.password and usr.password.strip():
+        update_fields["password_hash"] = hash_password(usr.password)
+
+    res = db.usuarios.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": update_fields}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {"mensaje": "Usuario actualizado exitosamente"}
+
+@app.delete("/api/usuarios/{user_id}")
+def eliminar_usuario(user_id: str):
+    user_to_delete = db.usuarios.find_one({"_id": ObjectId(user_id)})
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if user_to_delete.get("username") == "admin":
+        raise HTTPException(status_code=400, detail="No se puede eliminar el usuario administrador principal ('admin').")
+
+    db.usuarios.delete_one({"_id": ObjectId(user_id)})
+    return {"mensaje": "Usuario eliminado correctamente"}
 
 # ==========================================
 # ENDPOINTS CLIENTES
