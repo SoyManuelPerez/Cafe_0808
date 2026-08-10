@@ -363,6 +363,7 @@
         <button class="nav-button" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
         <button class="nav-button" onclick="showSection('creditos', event)">💳 Créditos</button>
         <button class="nav-button" onclick="showSection('reportes', event)">📈 Reportes</button>
+        <button class="nav-button" onclick="showSection('usuarios-sec', event)">👤 Usuarios</button>
         <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar Sesión</button>
     </div>
 
@@ -695,9 +696,35 @@
             </div>
         </div>
 
+        <!-- MÓDULO GESTIÓN DE USUARIOS -->
+        <div id="usuarios-sec" class="section">
+            <h1>👤 Gestión de Usuarios</h1>
+
+            <div class="card">
+                <h3>Crear Nuevo Usuario</h3>
+                <form id="form-usuario" onsubmit="guardarUsuario(event)">
+                    <input type="text" id="usr-username" placeholder="Nombre de usuario" required>
+                    <input type="password" id="usr-password" placeholder="Contraseña" required>
+                    <button type="submit" class="btn-gold">💾 Crear Usuario</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Lista de Usuarios Registrados</h3>
+                <div class="table-responsive">
+                    <table id="tabla-usuarios">
+                        <thead>
+                            <tr><th>Usuario</th><th>Nueva Contraseña (Opcional)</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- MODAL DE PREVISUALIZACIÓN DE FACTURA O COTIZACIÓN -->
+    <!-- MODAL PREVISUALIZACIÓN PDF -->
     <div id="modal-factura" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -768,6 +795,80 @@
             if(id === 'inventario') cargarProductos();
             if(id === 'creditos') cargarCreditos();
             if(id === 'reportes') cargarReportes();
+            if(id === 'usuarios-sec') cargarUsuarios();
+        }
+
+        // USUARIOS
+        async function cargarUsuarios() {
+            const res = await fetch('/api/usuarios');
+            const usuarios = await res.json();
+
+            const tbody = document.querySelector('#tabla-usuarios tbody');
+            tbody.innerHTML = usuarios.map(u => `
+                <tr>
+                    <td><input type="text" id="usr-name-${u.id}" value="${u.username}" style="width: 180px;"></td>
+                    <td><input type="password" id="usr-pass-${u.id}" placeholder="Dejar en blanco para mantener" style="width: 220px;"></td>
+                    <td>
+                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionUsuario('${u.id}')">✏️ Guardar</button>
+                        ${u.username !== 'admin' ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarUsuario('${u.id}')">❌ Eliminar</button>` : '<span style="color:#aaa; font-size:12px; margin-left:5px;">(Admin Principal)</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function guardarUsuario(e) {
+            e.preventDefault();
+            const username = document.getElementById('usr-username').value;
+            const password = document.getElementById('usr-password').value;
+
+            const res = await fetch('/api/usuarios', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+
+            if (res.ok) {
+                alert('Usuario creado con éxito');
+                document.getElementById('form-usuario').reset();
+                cargarUsuarios();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al crear usuario');
+            }
+        }
+
+        async function guardarEdicionUsuario(id) {
+            const nuevoUsername = document.getElementById(`usr-name-${id}`).value;
+            const nuevaPassword = document.getElementById(`usr-pass-${id}`).value;
+
+            if (!nuevoUsername) return alert('El usuario no puede estar vacío');
+
+            const res = await fetch('/api/usuarios/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: nuevoUsername, password: nuevaPassword || null })
+            });
+
+            if (res.ok) {
+                alert('Usuario actualizado correctamente');
+                cargarUsuarios();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al actualizar usuario');
+            }
+        }
+
+        async function eliminarUsuario(id) {
+            if (confirm('¿Está seguro de eliminar este usuario?')) {
+                const res = await fetch('/api/usuarios/' + id, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Usuario eliminado');
+                    cargarUsuarios();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al eliminar usuario');
+                }
+            }
         }
 
         // CLIENTES
