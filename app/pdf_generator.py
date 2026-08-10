@@ -9,38 +9,61 @@ from reportlab.lib.units import inch
 
 LOGO_FALLBACK = "/9j/4AAQSkZJRgABAQAASABIAAD/4QCMRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABAAOgAQADAAAAAQABAACgAgAEAAAAAQAAAoCgAwAEAAAAAQAAAoAAAAAA/+0AOFBob3Rvc2hvcCAzLjAAOEJJTQQEAAAAAAAAOEJJTQQlAAAAAAAQ1B2M2Y8AsgTpgAmY7PhCfv/AABEIAoACgAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIxgUQUQpGhscE/9oADAMBAAIRACEQEDEQH/AP9k="
 
-def generar_factura_pdf(venta, items):
+def generar_factura_pdf(documento, items, es_cotizacion=False):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     elements = []
 
-    # Se busca prioritariamente la nueva imagen "static/logo_factura.jpeg"
     logo_path = "static/logo_factura.jpeg"
     if not os.path.exists(logo_path):
-        # Respaldo por si no existe logo_factura.jpeg
         logo_path = "static/logo.png"
 
     if os.path.exists(logo_path):
-        logo_image = Image(logo_path, width=2*inch, height=2*inch)
+        # Se incrementa el tamaño del logo a 2.2 pulgadas
+        logo_image = Image(logo_path, width=2.2*inch, height=2.2*inch)
     else:
         logo_data = base64.b64decode(LOGO_FALLBACK)
-        logo_image = Image(io.BytesIO(logo_data), width=1.4*inch, height=1.4*inch)
+        logo_image = Image(io.BytesIO(logo_data), width=2.2*inch, height=2.2*inch)
 
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#6F4E37'), alignment=1)
-    normal_style = styles['Normal']
-    account_style = ParagraphStyle('AccountStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=13, textColor=colors.HexColor('#222222'))
+    # Estilos en NEGRO
+    title_style = ParagraphStyle(
+        'TitleStyle', 
+        parent=styles['Heading1'], 
+        fontName='Helvetica-Bold', 
+        fontSize=20, 
+        textColor=colors.black, 
+        alignment=1
+    )
+    normal_style = ParagraphStyle(
+        'NormalBlack',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        textColor=colors.black
+    )
+    account_style = ParagraphStyle(
+        'AccountStyle', 
+        parent=styles['Normal'], 
+        fontName='Helvetica', 
+        fontSize=9, 
+        leading=13, 
+        textColor=colors.black
+    )
 
-    num_factura = venta.get("consecutivo_str", str(venta.get("_id", ""))[:8])
+    num_doc = documento.get("consecutivo_str", str(documento.get("_id", ""))[:8])
+    tipo_doc_titulo = "COTIZACIÓN" if es_cotizacion else "FACTURA DE VENTA"
+    label_num = "Cotización N°:" if es_cotizacion else "Factura N°:"
 
     elements.append(logo_image)
     elements.append(Spacer(1, 6))
     elements.append(Paragraph("0808 CAFÉ DE ESPECIALIDAD", title_style))
+    elements.append(Paragraph(f"<b>{tipo_doc_titulo}</b>", ParagraphStyle('SubTitle', parent=normal_style, alignment=1, fontSize=12)))
     elements.append(Spacer(1, 15))
 
     info_data = [
-        [Paragraph(f"<b>Factura N°:</b> {num_factura}", normal_style), Paragraph(f"<b>Fecha:</b> {venta['fecha']}", normal_style)],
-        [Paragraph(f"<b>Cliente:</b> {venta.get('cliente', 'General')}", normal_style), Paragraph(f"<b>Método:</b> {venta['tipo_pago']}", normal_style)]
+        [Paragraph(f"<b>{label_num}</b> {num_doc}", normal_style), Paragraph(f"<b>Fecha:</b> {documento['fecha']}", normal_style)],
+        [Paragraph(f"<b>Cliente:</b> {documento.get('cliente', 'General')}", normal_style), Paragraph(f"<b>Método:</b> {documento.get('tipo_pago', 'N/A')}", normal_style)]
     ]
     elements.append(Table(info_data, colWidths=[3.5*inch, 3.5*inch]))
     elements.append(Spacer(1, 15))
@@ -70,19 +93,19 @@ def generar_factura_pdf(venta, items):
             f"${int(subtotal_bruto):,}"
         ])
 
-    valor_a_pagar = max(0.0, valor_total_bruto - descuento_total) if venta.get("tipo_venta") != "Obsequio" else 0.0
+    valor_a_pagar = max(0.0, valor_total_bruto - descuento_total) if documento.get("tipo_venta") != "Obsequio" else 0.0
 
     prod_table = Table(table_data, colWidths=[3.0*inch, 0.7*inch, 1.1*inch, 1.1*inch, 1.1*inch])
     prod_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#6F4E37')),
+        ('BACKGROUND', (0,0), (-1,0), colors.black),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E0D5C5')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#333333')),
         ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('TEXTCOLOR', (0,1), (-1,-1), colors.black),
     ]))
     elements.append(prod_table)
     elements.append(Spacer(1, 15))
 
-    # Información de la cuenta bancaria para pago
     texto_cuenta = Paragraph(
         "<b>Datos de Pago:</b><br/>"
         "Cuenta de Ahorros<br/>"
@@ -91,7 +114,6 @@ def generar_factura_pdf(venta, items):
         account_style
     )
 
-    # Tabla de Totales con datos bancarios a la izquierda
     total_data = [
         [texto_cuenta, "Valor Total:", f"${int(valor_total_bruto):,} COP"],
         ["", "Descuento Total:", f"-${int(descuento_total):,} COP"],
@@ -105,7 +127,7 @@ def generar_factura_pdf(venta, items):
         ('ALIGN', (0,0), (0,2), 'LEFT'),
         ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
         ('FONTNAME', (1,2), (-1,2), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (1,2), (-1,2), colors.HexColor('#6F4E37')),
+        ('TEXTCOLOR', (0,0), (-1,-1), colors.black),
     ]))
     elements.append(t_totales)
 
