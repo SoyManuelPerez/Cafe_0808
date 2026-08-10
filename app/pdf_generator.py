@@ -21,10 +21,10 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
 
     if os.path.exists(logo_path):
         # Aumentamos el ancho a 2.8 pulgadas
-        logo_image = Image(logo_path, width=3.5*inch, height=2.5*inch)
+        logo_image = Image(logo_path, width=3.5*inch, height=3.5*inch)
     else:
         logo_data = base64.b64decode(LOGO_FALLBACK)
-        logo_image = Image(io.BytesIO(logo_data), width=3.5*inch, height=2.5*inch)
+        logo_image = Image(io.BytesIO(logo_data), width=3.5*inch, height=3.5*inch)
 
     # Estilo con espacio superior casi nulo para pegar el texto al logo
     title_style = ParagraphStyle(
