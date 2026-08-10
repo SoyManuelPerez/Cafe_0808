@@ -20,21 +20,24 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
         logo_path = "static/logo.png"
 
     if os.path.exists(logo_path):
-        # Se incrementa el tamaño del logo a 3.5 pulgadas
-        logo_image = Image(logo_path, width=3.5*inch, height=3.5*inch)
+        # Aumentamos el ancho a 2.8 pulgadas
+        logo_image = Image(logo_path, width=3.5*inch, height=2.5*inch)
     else:
         logo_data = base64.b64decode(LOGO_FALLBACK)
-        logo_image = Image(io.BytesIO(logo_data), width=2.2*inch, height=2.2*inch)
+        logo_image = Image(io.BytesIO(logo_data), width=3.5*inch, height=2.5*inch)
 
-    # Estilos en NEGRO
+    # Estilo con espacio superior casi nulo para pegar el texto al logo
     title_style = ParagraphStyle(
         'TitleStyle', 
         parent=styles['Heading1'], 
         fontName='Helvetica-Bold', 
-        fontSize=20, 
+        fontSize=18, 
         textColor=colors.black, 
-        alignment=1
+        alignment=1,
+        spaceBefore=2,
+        spaceAfter=2
     )
+    
     normal_style = ParagraphStyle(
         'NormalBlack',
         parent=styles['Normal'],
@@ -42,6 +45,7 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
         fontSize=10,
         textColor=colors.black
     )
+    
     account_style = ParagraphStyle(
         'AccountStyle', 
         parent=styles['Normal'], 
@@ -55,11 +59,11 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
     tipo_doc_titulo = "COTIZACIÓN" if es_cotizacion else "FACTURA DE VENTA"
     label_num = "Cotización N°:" if es_cotizacion else "Factura N°:"
 
+    # Se agrega la imagen del logo y pegado inmediatamente después el texto
     elements.append(logo_image)
-    elements.append(Spacer(1, 6))
     elements.append(Paragraph("0808 CAFÉ DE ESPECIALIDAD", title_style))
-    elements.append(Paragraph(f"<b>{tipo_doc_titulo}</b>", ParagraphStyle('SubTitle', parent=normal_style, alignment=1, fontSize=12)))
-    elements.append(Spacer(1, 15))
+    elements.append(Paragraph(f"<b>{tipo_doc_titulo}</b>", ParagraphStyle('SubTitle', parent=normal_style, alignment=1, fontSize=11, spaceBefore=2, spaceAfter=10)))
+    elements.append(Spacer(1, 10))
 
     info_data = [
         [Paragraph(f"<b>{label_num}</b> {num_doc}", normal_style), Paragraph(f"<b>Fecha:</b> {documento['fecha']}", normal_style)],
