@@ -22,7 +22,7 @@ def generar_factura_pdf(venta, items):
         logo_path = "static/logo.png"
 
     if os.path.exists(logo_path):
-        logo_image = Image(logo_path, width=1.4*inch, height=1.4*inch)
+        logo_image = Image(logo_path, width=2*inch, height=2*inch)
     else:
         logo_data = base64.b64decode(LOGO_FALLBACK)
         logo_image = Image(io.BytesIO(logo_data), width=1.4*inch, height=1.4*inch)
