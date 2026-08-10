@@ -38,20 +38,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
-# Inicializar o actualizar usuario admin con la clave "0808cafe"
 user_admin = db.usuarios.find_one({"username": "admin"})
 if not user_admin:
     hashed_default = hash_password("0808cafe")
     db.usuarios.insert_one({"username": "admin", "password_hash": hashed_default})
 else:
-    # Asegura que si la clave antigua usaba passlib se actualice correctamente
     if not verify_password("0808cafe", user_admin.get("password_hash", "")):
         hashed_updated = hash_password("0808cafe")
         db.usuarios.update_one({"username": "admin"}, {"$set": {"password_hash": hashed_updated}})
 
-def obtener_siguiente_consecutivo():
+def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
     ret = db.contadores.find_one_and_update(
-        {"_id": "factura_num"},
+        {"_id": tipo_contador},
         {"$inc": {"seq": 1}},
         upsert=True,
         return_document=True
@@ -418,7 +416,7 @@ def registrar_venta(venta: VentaCreate):
 
     costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
     costo_est = round(costo_cafe + costo_empaques_total)
-    consecutivo = obtener_siguiente_consecutivo()
+    consecutivo = obtener_siguiente_consecutivo("factura_num")
 
     doc = {
         "consecutivo_str": consecutivo,
@@ -461,7 +459,7 @@ def descargar_factura(venta_id: str):
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    pdf_bytes = generar_factura_pdf(venta, venta["items"])
+    pdf_bytes = generar_factura_pdf(venta, venta["items"], es_cotizacion=False)
     num_factura = venta.get("consecutivo_str", str(venta_id)[:8])
     return Response(
         content=pdf_bytes,
@@ -470,3 +468,52 @@ def descargar_factura(venta_id: str):
             "Content-Disposition": f"inline; filename=Factura_{num_factura}.pdf"
         }
     )
+
+# ==========================================
+# ENDPOINTS COTIZACIONES (SIN DESCONTAR STOCK)
+# ==========================================
+
+@app.post("/api/cotizaciones", status_code=201)
+def registrar_cotizacion(cotizacion: VentaCreate):
+    total_cotizacion = sum(i.subtotal for i in cotizacion.items)
+    consecutivo = obtener_siguiente_consecutivo("cotizacion_num")
+
+    doc = {
+        "consecutivo_str": consecutivo,
+        "fecha": cotizacion.fecha,
+        "cliente": cotizacion.cliente,
+        "tipo_pago": cotizacion.tipo_pago,
+        "total_venta": total_cotizacion,
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
+        "creado_en": datetime.utcnow()
+    }
+    res = db.cotizaciones.insert_one(doc)
+    return {"id": str(res.inserted_id), "consecutivo": consecutivo}
+
+@app.get("/api/cotizaciones")
+def listar_cotizaciones():
+    cotizaciones = list(db.cotizaciones.find().sort("fecha", -1))
+    return [fix_id(c) for c in cotizaciones]
+
+@app.get("/api/cotizaciones/{cotizacion_id}/pdf")
+def descargar_cotizacion_pdf(cotizacion_id: str):
+    cotizacion = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
+    if not cotizacion:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+
+    pdf_bytes = generar_factura_pdf(cotizacion, cotizacion["items"], es_cotizacion=True)
+    num_cot = cotizacion.get("consecutivo_str", str(cotizacion_id)[:8])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename=Cotizacion_{num_cot}.pdf"
+        }
+    )
+
+@app.delete("/api/cotizaciones/{cotizacion_id}")
+def eliminar_cotizacion(cotizacion_id: str):
+    res = db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    return {"mensaje": "Cotización eliminada correctamente"}
