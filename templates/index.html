@@ -27,7 +27,6 @@
             overflow: hidden;
         }
 
-        /* SCREEN LOGIN */
         .login-screen {
             position: fixed;
             top: 0;
@@ -340,7 +339,6 @@
 </head>
 <body>
 
-    <!-- PANTALLA LOGIN -->
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
@@ -358,6 +356,7 @@
         <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
         <div class="brand-title">0808 CAFÉ</div>
         <button class="nav-button active" onclick="showSection('ventas', event)">🛒 Ventas</button>
+        <button class="nav-button" onclick="showSection('cotizaciones', event)">📑 Cotizaciones</button>
         <button class="nav-button" onclick="showSection('clientes', event)">👥 Clientes</button>
         <button class="nav-button" onclick="showSection('compras', event)">📦 Compras de Café</button>
         <button class="nav-button" onclick="showSection('empaques', event)">🛍️ Empaques</button>
@@ -396,36 +395,27 @@
                     </div>
                     <div style="flex: 1;">
                         <label>Cantidad:</label>
-                        <input type="number" id="cant-producto" value="1" min="1" placeholder="Cantidad">
+                        <input type="number" id="cant-producto" value="1" min="1">
                     </div>
                     <div style="flex: 1;">
                         <label>Descuento / Unit (COP):</label>
-                        <input type="number" id="desc-producto" value="0" min="0" placeholder="Ej: 2000">
+                        <input type="number" id="desc-producto" value="0" min="0">
                     </div>
                 </div>
 
-                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito()">➕ Agregar al Carrito</button>
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('venta')">➕ Agregar al Carrito</button>
             </div>
 
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>🛒 Carrito de Compras</h3>
-                    <button class="btn-danger" onclick="vaciarCarrito()">🗑️ Vaciar Carrito</button>
+                    <button class="btn-danger" onclick="vaciarCarrito('venta')">🗑️ Vaciar Carrito</button>
                 </div>
 
                 <div class="table-responsive">
                     <table id="tabla-carrito">
                         <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Presentación</th>
-                                <th>Gramaje</th>
-                                <th>Precio Unit.</th>
-                                <th>Cant.</th>
-                                <th>Desc./U.</th>
-                                <th>Subtotal</th>
-                                <th>Acción</th>
-                            </tr>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -457,6 +447,70 @@
             </div>
         </div>
 
+        <!-- MÓDULO COTIZACIONES -->
+        <div id="cotizaciones" class="section">
+            <h1>📑 Módulo de Cotizaciones (Sin Descuento de Stock)</h1>
+
+            <div class="card">
+                <h3>Agregar Producto a la Cotización</h3>
+                <label>Producto:</label>
+                <select id="select-producto-cot"></select>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label>Presentación:</label>
+                        <select id="pres-producto-cot">
+                            <option value="Grano">☕ Grano</option>
+                            <option value="Molido">☕ Molido</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Cantidad:</label>
+                        <input type="number" id="cant-producto-cot" value="1" min="1">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Descuento / Unit (COP):</label>
+                        <input type="number" id="desc-producto-cot" value="0" min="0">
+                    </div>
+                </div>
+
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('cotizacion')">➕ Agregar a Cotización</button>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>📑 Carrito de Cotización</h3>
+                    <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">🗑️ Vaciar Carrito</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="tabla-carrito-cot">
+                        <thead>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; text-align: right; font-size: 20px; color: var(--gold-bright);">
+                    Total Cotización: <strong id="total-carrito-txt-cot">$0</strong>
+                </div>
+
+                <br>
+                <label>Seleccionar Cliente:</label>
+                <select id="select-cliente-cot"></select>
+
+                <label>Forma de Pago Propuesta:</label>
+                <select id="pago-cot">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+
+                <button class="btn-gold" onclick="procesarCotizacion()">📄 Generar Cotización</button>
+            </div>
+        </div>
+
         <!-- MÓDULO CLIENTES -->
         <div id="clientes" class="section">
             <h1>👥 Módulo de Clientes</h1>
@@ -474,11 +528,7 @@
                 <div class="table-responsive">
                     <table id="tabla-clientes">
                         <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Celular</th>
-                                <th>Acciones</th>
-                            </tr>
+                            <tr><th>Nombre</th><th>Celular</th><th>Acciones</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -512,12 +562,7 @@
                 <div class="table-responsive">
                     <table id="tabla-existencias">
                         <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Existencias (Libras)</th>
-                                <th>Costo por Libra (COP)</th>
-                                <th>Acción</th>
-                            </tr>
+                            <tr><th>Producto</th><th>Existencias (Libras)</th><th>Costo por Libra (COP)</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -555,14 +600,7 @@
                 <div class="table-responsive">
                     <table id="tabla-resumen-empaques">
                         <thead>
-                            <tr>
-                                <th>Insumo</th>
-                                <th>Comprados</th>
-                                <th>Usados (Ventas)</th>
-                                <th>Disponibles (Editar)</th>
-                                <th>Costo Unitario (COP)</th>
-                                <th>Acción</th>
-                            </tr>
+                            <tr><th>Insumo</th><th>Comprados</th><th>Usados (Ventas)</th><th>Disponibles (Editar)</th><th>Costo Unitario (COP)</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -587,12 +625,7 @@
                 <div class="table-responsive">
                     <table id="tabla-productos">
                         <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Gramaje</th>
-                                <th>Precio de Venta</th>
-                                <th>Acciones</th>
-                            </tr>
+                            <tr><th>Nombre</th><th>Gramaje</th><th>Precio de Venta</th><th>Acciones</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -622,13 +655,7 @@
                 <div class="table-responsive">
                     <table id="tabla-reporte-compras">
                         <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Producto Comprado</th>
-                                <th>Cantidad (Libras)</th>
-                                <th>Costo Total</th>
-                                <th>Costo / Libra</th>
-                            </tr>
+                            <tr><th>Fecha</th><th>Producto Comprado</th><th>Cantidad (Libras)</th><th>Costo Total</th><th>Costo / Libra</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -640,13 +667,7 @@
                 <div class="table-responsive">
                     <table id="tabla-reporte-empaques">
                         <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Insumo Comprado</th>
-                                <th>Cantidad</th>
-                                <th>Costo Total</th>
-                                <th>Costo / Unidad</th>
-                            </tr>
+                            <tr><th>Fecha</th><th>Insumo Comprado</th><th>Cantidad</th><th>Costo Total</th><th>Costo / Unidad</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -662,15 +683,25 @@
                     </table>
                 </div>
             </div>
+
+            <div class="card">
+                <h3>📑 Histórico de Cotizaciones</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-cotizaciones">
+                        <thead><tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
     </div>
 
-    <!-- MODAL DE PREVISUALIZACIÓN DE FACTURA -->
+    <!-- MODAL DE PREVISUALIZACIÓN DE FACTURA O COTIZACIÓN -->
     <div id="modal-factura" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h3 style="margin:0; color:var(--gold-bright);">📄 Previsualización de Factura</h3>
+                <h3 id="modal-titulo-pdf" style="margin:0; color:var(--gold-bright);">📄 Previsualización de Documento</h3>
                 <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
             </div>
             <div class="modal-body" id="modal-body-pdf"></div>
@@ -683,13 +714,14 @@
 
     <script>
         let carrito = [];
+        let carritoCotizacion = [];
         let productosCache = [];
         let productosUnicos = [];
         let clientesCache = [];
         let urlPdfActual = '';
         let blobPdfActual = null;
+        let nombrePdfDescarga = 'Documento.pdf';
 
-        // LOGIN
         async function ejecutarLogin(e) {
             e.preventDefault();
             const u = document.getElementById('login-user').value;
@@ -729,6 +761,7 @@
             }
 
             if(id === 'ventas') cargarVentasData();
+            if(id === 'cotizaciones') cargarCotizacionesData();
             if(id === 'clientes') cargarClientes();
             if(id === 'compras') cargarModuloCompras();
             if(id === 'empaques') cargarModuloEmpaques();
@@ -882,7 +915,7 @@
             }
         }
 
-        // VENTAS
+        // VENTAS Y COTIZACIONES (LÓGICA CARRITO COMPARTIDA)
         async function cargarVentasData() {
             const resResumen = await fetch('/api/inventario/resumen');
             const dataResumen = await resResumen.json();
@@ -901,40 +934,65 @@
 
             const resProds = await fetch('/api/productos');
             productosCache = await resProds.json();
-            const selectP = document.getElementById('select-producto');
-            selectP.innerHTML = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+            
+            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+            document.getElementById('select-producto').innerHTML = optionsProds;
 
             const resCli = await fetch('/api/clientes');
             clientesCache = await resCli.json();
-            const selectC = document.getElementById('select-cliente-venta');
-            selectC.innerHTML = '<option value="Cliente General">Cliente General</option>' +
+            
+            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
                 clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
+            document.getElementById('select-cliente-venta').innerHTML = optionsCli;
+        }
+
+        async function cargarCotizacionesData() {
+            if(productosCache.length === 0) {
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+            }
+            if(clientesCache.length === 0) {
+                const resCli = await fetch('/api/clientes');
+                clientesCache = await resCli.json();
+            }
+
+            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+            document.getElementById('select-producto-cot').innerHTML = optionsProds;
+
+            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
+                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
+            document.getElementById('select-cliente-cot').innerHTML = optionsCli;
         }
 
         function toggleTipoVenta() {
             const tipo = document.getElementById('tipo-venta').value;
             document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
-            renderCarrito();
+            renderCarrito('venta');
         }
 
-        function agregarAlCarrito() {
-            const pId = document.getElementById('select-producto').value;
-            const cant = parseInt(document.getElementById('cant-producto').value) || 1;
-            const descuento = parseFloat(document.getElementById('desc-producto').value) || 0;
-            const pres = document.getElementById('pres-producto').value || 'Grano';
+        function agregarAlCarrito(modo) {
+            const esCot = modo === 'cotizacion';
+            const suffix = esCot ? '-cot' : '';
+
+            const pId = document.getElementById('select-producto' + suffix).value;
+            const cant = parseInt(document.getElementById('cant-producto' + suffix).value) || 1;
+            const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
+            const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
             const prod = productosCache.find(p => p.id === pId);
 
             if (!prod) return alert('Seleccione un producto válido');
 
             const precioFinalUnitario = Math.max(0, prod.precio_venta - descuento);
-            const indexExistente = carrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.presentacion === pres);
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+
+            const indexExistente = targetCarrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.presentacion === pres);
             
             if (indexExistente !== -1) {
-                carrito[indexExistente].cantidad += cant;
-                carrito[indexExistente].gramos_totales = carrito[indexExistente].gramaje * carrito[indexExistente].cantidad;
-                carrito[indexExistente].subtotal = precioFinalUnitario * carrito[indexExistente].cantidad;
+                targetCarrito[indexExistente].cantidad += cant;
+                targetCarrito[indexExistente].gramos_totales = targetCarrito[indexExistente].gramaje * targetCarrito[indexExistente].cantidad;
+                targetCarrito[indexExistente].subtotal = precioFinalUnitario * targetCarrito[indexExistente].cantidad;
             } else {
-                carrito.push({
+                targetCarrito.push({
                     producto_id: prod.id,
                     nombre: prod.nombre,
                     gramaje: prod.gramaje,
@@ -947,31 +1005,39 @@
                 });
             }
 
-            document.getElementById('cant-producto').value = 1;
-            document.getElementById('desc-producto').value = 0;
+            document.getElementById('cant-producto' + suffix).value = 1;
+            document.getElementById('desc-producto' + suffix).value = 0;
 
-            renderCarrito();
+            renderCarrito(modo);
         }
 
-        function quitarDelCarrito(index) {
-            carrito.splice(index, 1);
-            renderCarrito();
+        function quitarDelCarrito(index, modo) {
+            if(modo === 'cotizacion') {
+                carritoCotizacion.splice(index, 1);
+            } else {
+                carrito.splice(index, 1);
+            }
+            renderCarrito(modo);
         }
 
-        function vaciarCarrito() {
-            if (carrito.length === 0) return;
-            if (confirm('¿Vaciar todo el carrito?')) {
-                carrito = [];
-                renderCarrito();
+        function vaciarCarrito(modo) {
+            const target = modo === 'cotizacion' ? carritoCotizacion : carrito;
+            if (target.length === 0) return;
+            if (confirm('¿Vaciar carrito?')) {
+                if(modo === 'cotizacion') carritoCotizacion = [];
+                else carrito = [];
+                renderCarrito(modo);
             }
         }
 
-        function renderCarrito() {
-            const tbody = document.querySelector('#tabla-carrito tbody');
-            const esObsequio = document.getElementById('tipo-venta').value === 'Obsequio';
+        function renderCarrito(modo) {
+            const esCot = modo === 'cotizacion';
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+            const tbody = document.querySelector(esCot ? '#tabla-carrito-cot tbody' : '#tabla-carrito tbody');
+            const esObsequio = !esCot && document.getElementById('tipo-venta').value === 'Obsequio';
             let total = 0;
 
-            tbody.innerHTML = carrito.map((i, index) => {
+            tbody.innerHTML = targetCarrito.map((i, index) => {
                 const sub = esObsequio ? 0 : i.subtotal;
                 total += sub;
                 return `
@@ -983,12 +1049,13 @@
                         <td>${i.cantidad}</td>
                         <td>$${esObsequio ? 0 : (i.descuento || 0).toLocaleString()}</td>
                         <td>$${sub.toLocaleString()}</td>
-                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index})">❌ Quitar</button></td>
+                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
                     </tr>
                 `;
             }).join('');
 
-            document.getElementById('total-carrito-txt').innerText = '$' + total.toLocaleString();
+            const txtTotal = document.getElementById(esCot ? 'total-carrito-txt-cot' : 'total-carrito-txt');
+            txtTotal.innerText = '$' + total.toLocaleString();
         }
 
         async function procesarVenta() {
@@ -1012,11 +1079,38 @@
             if (res.ok) {
                 alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
                 carrito = [];
-                renderCarrito();
+                renderCarrito('venta');
                 cargarVentasData();
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Error al procesar la venta');
+            }
+        }
+
+        async function procesarCotizacion() {
+            if (carritoCotizacion.length === 0) return alert('El carrito de cotización está vacío');
+
+            const payload = {
+                fecha: new Date().toISOString().split('T')[0],
+                cliente: document.getElementById('select-cliente-cot').value,
+                tipo_pago: document.getElementById('pago-cot').value,
+                items: carritoCotizacion
+            };
+
+            const res = await fetch('/api/cotizaciones', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Cotización N° ${data.consecutivo} registrada con éxito`);
+                carritoCotizacion = [];
+                renderCarrito('cotizacion');
+                abrirModalPdf(`/api/cotizaciones/${data.id}/pdf`, `Cotización N° ${data.consecutivo}`, `Cotizacion_${data.consecutivo}.pdf`);
+            } else {
+                alert('Error al generar cotización');
             }
         }
 
@@ -1190,6 +1284,7 @@
         }
 
         async function cargarReportes() {
+            // Histórico Compras Café
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
             
@@ -1200,7 +1295,6 @@
             tbodyCompras.innerHTML = compras.map(c => {
                 const lbs = c.libras || 0;
                 const costo = c.costo_total || 0;
-
                 totalLibrasCompradas += lbs;
                 totalInversionCompras += costo;
 
@@ -1229,6 +1323,7 @@
                 </tr>
             `;
 
+            // Histórico Compras Empaques
             const resEmpaques = await fetch('/api/compras-empaques');
             const empaquesList = await resEmpaques.json();
 
@@ -1246,7 +1341,6 @@
             tbodyEmp.innerHTML = empaquesList.map(e => {
                 const cant = e.cantidad || 0;
                 const costo = e.costo_total || 0;
-
                 totalCantEmpaques += cant;
                 totalInversionEmpaques += costo;
 
@@ -1275,6 +1369,7 @@
                 </tr>
             `;
 
+            // Histórico Ventas
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
 
@@ -1285,19 +1380,20 @@
             tbodyVentas.innerHTML = ventas.map(v => {
                 const tot = v.total_venta || 0;
                 const gan = v.ganancia || 0;
-
                 totalVentasCOP += tot;
                 totalGananciaCOP += gan;
 
+                const numFact = v.consecutivo_str || v.id.substring(0,8);
+
                 return `
                     <tr>
-                        <td><strong>${v.consecutivo_str || v.id.substring(0,8)}</strong></td>
+                        <td><strong>${numFact}</strong></td>
                         <td>${v.fecha}</td>
                         <td>${v.cliente}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
                         <td>$${tot.toLocaleString()}</td>
                         <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
-                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalFactura('${v.id}')">👁️ Ver Factura</button></td>
+                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
                 `;
@@ -1316,6 +1412,44 @@
                     <td colspan="2"></td>
                 </tr>
             `;
+
+            // Histórico Cotizaciones
+            const resCot = await fetch('/api/cotizaciones');
+            const cotizaciones = await resCot.json();
+
+            let totalCotizacionesCOP = 0;
+
+            const tbodyCot = document.querySelector('#tabla-reporte-cotizaciones tbody');
+            tbodyCot.innerHTML = cotizaciones.map(c => {
+                const tot = c.total_venta || 0;
+                totalCotizacionesCOP += tot;
+                const numCot = c.consecutivo_str || c.id.substring(0,8);
+
+                return `
+                    <tr>
+                        <td><strong>${numCot}</strong></td>
+                        <td>${c.fecha}</td>
+                        <td>${c.cliente}</td>
+                        <td>${c.tipo_pago || 'N/A'}</td>
+                        <td>$${tot.toLocaleString()}</td>
+                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                        <td><button class="btn-danger" onclick="eliminarCotizacion('${c.id}')">❌</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
+            if (!tfootCot) {
+                tfootCot = document.createElement('tfoot');
+                document.querySelector('#tabla-reporte-cotizaciones').appendChild(tfootCot);
+            }
+            tfootCot.innerHTML = `
+                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                    <td colspan="4" style="text-align: right;">TOTAL COTIZADO:</td>
+                    <td>$${totalCotizacionesCOP.toLocaleString()}</td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
         }
 
         async function eliminarVenta(id) {
@@ -1325,13 +1459,23 @@
             }
         }
 
-        // MODAL PREVISUALIZACIÓN FACTURA
-        async function abrirModalFactura(ventaId) {
+        async function eliminarCotizacion(id) {
+            if(confirm('¿Eliminar esta cotización?')) {
+                await fetch('/api/cotizaciones/' + id, { method: 'DELETE' });
+                cargarReportes();
+            }
+        }
+
+        // MODAL PREVISUALIZACIÓN UNIFICADA
+        async function abrirModalPdf(endpointUrl, tituloModal, filenameDescarga) {
             const container = document.getElementById('modal-body-pdf');
+            document.getElementById('modal-titulo-pdf').innerText = '📄 ' + tituloModal;
             container.innerHTML = '<div style="color:var(--gold-bright); text-align:center;">Cargando vista previa...</div>';
             document.getElementById('modal-factura').style.display = 'flex';
 
-            const res = await fetch(`/api/ventas/${ventaId}/pdf`);
+            nombrePdfDescarga = filenameDescarga || 'Documento.pdf';
+
+            const res = await fetch(endpointUrl);
             const blob = await res.blob();
             blobPdfActual = blob;
             urlPdfActual = URL.createObjectURL(blob);
@@ -1353,7 +1497,7 @@
             if (blobPdfActual) {
                 const a = document.createElement('a');
                 a.href = urlPdfActual;
-                a.download = `Factura.pdf`;
+                a.download = nombrePdfDescarga;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
