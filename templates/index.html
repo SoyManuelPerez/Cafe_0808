@@ -840,7 +840,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -1137,10 +1137,12 @@
         function renderTablaPaginada(tableId, dataArray, renderRowFn, options = {}) {
             setupTableToolbar(tableId, options);
 
+            const safeData = Array.isArray(dataArray) ? dataArray : [];
+
             if (!tableStates[tableId]) {
-                tableStates[tableId] = { page: 1, search: '', data: dataArray, renderFn: renderRowFn, options: options };
+                tableStates[tableId] = { page: 1, search: '', data: safeData, renderFn: renderRowFn, options: options };
             } else {
-                tableStates[tableId].data = dataArray;
+                tableStates[tableId].data = safeData;
                 tableStates[tableId].renderFn = renderRowFn;
                 tableStates[tableId].options = options;
             }
@@ -1166,20 +1168,20 @@
             const st = tableStates[tableId];
             if (!st) return;
 
-            let filtered = st.data || [];
+            let filtered = Array.isArray(st.data) ? st.data : [];
             if (st.search) {
-                filtered = st.data.filter(item => {
-                    return Object.values(item).some(val => 
+                filtered = filtered.filter(item => {
+                    return Object.values(item || {}).some(val => 
                         val !== null && val !== undefined && String(val).toLowerCase().includes(st.search)
                     );
                 });
             }
 
-            if (typeof st.options.onFilter === 'function') {
+            if (typeof st.options?.onFilter === 'function') {
                 st.options.onFilter(filtered);
             }
 
-            const pageSize = st.options.pageSize || 10;
+            const pageSize = st.options?.pageSize || 10;
             const totalPages = Math.ceil(filtered.length / pageSize) || 1;
             
             if (st.page > totalPages) st.page = totalPages;
@@ -1259,6 +1261,7 @@
         }
 
         function ordenarProductosArray(arr) {
+            if (!Array.isArray(arr)) return [];
             return arr.sort((a, b) => {
                 const cmpNombre = (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' });
                 if (cmpNombre !== 0) return cmpNombre;
@@ -1292,31 +1295,37 @@
             const u = document.getElementById('login-user').value;
             const p = document.getElementById('login-pass').value;
 
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: u, password: p })
-            });
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: u, password: p })
+                });
 
-            if (res.ok) {
-                const data = await res.json();
-                usuarioActual = data.username;
-                rolActual = data.rol;
-                
-                localStorage.setItem('user_0808', usuarioActual);
-                localStorage.setItem('rol_0808', rolActual);
-                localStorage.setItem('login_timestamp_0808', Date.now().toString());
+                if (res.ok) {
+                    const data = await res.json();
+                    usuarioActual = data.username;
+                    rolActual = data.rol;
+                    
+                    localStorage.setItem('user_0808', usuarioActual);
+                    localStorage.setItem('rol_0808', rolActual);
+                    localStorage.setItem('login_timestamp_0808', Date.now().toString());
 
-                document.getElementById('login-screen').style.display = 'none';
-                aplicarPermisosUI();
-                cargarVentasData();
-            } else {
-                alert('Usuario o contraseña incorrectos');
+                    document.getElementById('login-screen').style.display = 'none';
+                    aplicarPermisosUI();
+                    cargarVentasData();
+                } else {
+                    alert('Usuario o contraseña incorrectos');
+                }
+            } catch (err) {
+                console.error("Error en login:", err);
             }
         }
 
         async function ejecutarLogout() {
-            await fetch('/api/logout', { method: 'POST' });
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+            } catch(e) {}
             localStorage.removeItem('user_0808');
             localStorage.removeItem('rol_0808');
             localStorage.removeItem('login_timestamp_0808');
@@ -1367,24 +1376,26 @@
                 const dataResumen = await resResumen.json();
                 
                 const gridStock = document.getElementById('grid-detalles-stock');
-                if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
-                    gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
-                } else {
-                    const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
-                        const nom = String(p.nombre || '').toLowerCase();
-                        const gram = parseFloat(p.gramaje) || 0;
-                        return !nom.includes('2.5kg') && !nom.includes('2.5 kg') && gram !== 2500;
-                    });
-
-                    if (productosFiltradosGrid.length === 0) {
-                        gridStock.innerHTML = '<div style="grid-column: 1/-1; color:#aaa;">No hay productos estándar disponibles</div>';
+                if (gridStock) {
+                    if (!dataResumen?.productos_stock || dataResumen.productos_stock.length === 0) {
+                        gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
                     } else {
-                        gridStock.innerHTML = productosFiltradosGrid.map(p => `
-                            <div class="stock-item">
-                                <div class="stock-item-title">${p.nombre}</div>
-                                <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
-                            </div>
-                        `).join('');
+                        const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
+                            const nom = String(p.nombre || '').toLowerCase();
+                            const gram = parseFloat(p.gramaje) || 0;
+                            return !nom.includes('2.5kg') && !nom.includes('2.5 kg') && gram !== 2500;
+                        });
+
+                        if (productosFiltradosGrid.length === 0) {
+                            gridStock.innerHTML = '<div style="grid-column: 1/-1; color:#aaa;">No hay productos estándar disponibles</div>';
+                        } else {
+                            gridStock.innerHTML = productosFiltradosGrid.map(p => `
+                                <div class="stock-item">
+                                    <div class="stock-item-title">${p.nombre}</div>
+                                    <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
+                                </div>
+                            `).join('');
+                        }
                     }
                 }
 
@@ -1392,11 +1403,13 @@
                 productosCache = await resProds.json();
                 ordenarProductosArray(productosCache);
                 
-                const optionsProds = productosCache.map(p => {
-                    const pId = p.id || p._id;
-                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-                }).join('');
-                document.getElementById('select-producto').innerHTML = optionsProds;
+                const selectProd = document.getElementById('select-producto');
+                if (selectProd) {
+                    selectProd.innerHTML = productosCache.map(p => {
+                        const pId = p.id || p._id;
+                        return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                    }).join('');
+                }
 
                 await actualizarSelectsClientes();
                 cargarMisVentas();
@@ -1410,10 +1423,12 @@
                 const res = await fetch('/api/ventas');
                 const ventas = await res.json();
                 
-                const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
+                const list = Array.isArray(ventas) ? ventas : [];
+                const misVentas = (rolActual === 'admin') ? list : list.filter(v => v.vendedor === usuarioActual);
 
                 renderTablaPaginada('tabla-mis-ventas', misVentas, v => {
-                    const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
+                    const idVal = v.id || v._id || '';
+                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
                     const esPendiente = v.estado_despacho === 'Pendiente';
                     const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
                     
@@ -1423,8 +1438,8 @@
                     return `
                         <tr>
                             <td><strong>${numFact}</strong></td>
-                            <td>${v.fecha}</td>
-                            <td>${v.cliente}</td>
+                            <td>${v.fecha || ''}</td>
+                            <td>${v.cliente || ''}</td>
                             <td>${v.tipo_venta || 'Normal'}</td>
                             <td>${badgeEstado}</td>
                             <td>
@@ -1432,8 +1447,8 @@
                                 ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito}</small>` : ''}
                             </td>
                             <td>
-                                <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                                ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${v.id}')">✅ Pagado</button>` : ''}
+                                <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
+                                ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
                             </td>
                         </tr>
                     `;
@@ -1452,11 +1467,13 @@
                 productosCache = await resProds.json();
                 ordenarProductosArray(productosCache);
 
-                const optionsProds = productosCache.map(p => {
-                    const pId = p.id || p._id;
-                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-                }).join('');
-                document.getElementById('select-producto-cot').innerHTML = optionsProds;
+                const selectCot = document.getElementById('select-producto-cot');
+                if (selectCot) {
+                    selectCot.innerHTML = productosCache.map(p => {
+                        const pId = p.id || p._id;
+                        return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                    }).join('');
+                }
 
                 await actualizarSelectsClientes();
                 cargarMisCotizaciones();
@@ -1470,18 +1487,20 @@
                 const res = await fetch('/api/cotizaciones');
                 const cotizaciones = await res.json();
                 
-                const misCot = (rolActual === 'admin') ? cotizaciones : cotizaciones.filter(c => c.vendedor === usuarioActual);
+                const list = Array.isArray(cotizaciones) ? cotizaciones : [];
+                const misCot = (rolActual === 'admin') ? list : list.filter(c => c.vendedor === usuarioActual);
 
                 renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
-                    const numCot = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
+                    const idVal = c.id || c._id || '';
+                    const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
                     return `
                         <tr>
                             <td><strong>${numCot}</strong></td>
-                            <td>${c.fecha}</td>
-                            <td>${c.cliente}</td>
+                            <td>${c.fecha || ''}</td>
+                            <td>${c.cliente || ''}</td>
                             <td>${c.tipo_pago || 'N/A'}</td>
                             <td>${fmtCOP(c.total_venta)}</td>
-                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
                         </tr>
                     `;
                 });
@@ -1500,10 +1519,11 @@
                 ordenarProductosArray(productosEnvioCache);
 
                 const selectEnvio = document.getElementById('select-prod-envio');
-                
-                selectEnvio.innerHTML = productosEnvioCache.map((p, idx) => {
-                    return `<option value="${idx}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-                }).join('');
+                if (selectEnvio) {
+                    selectEnvio.innerHTML = productosEnvioCache.map((p, idx) => {
+                        return `<option value="${idx}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                    }).join('');
+                }
 
                 document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
                 renderItemsEnvio();
@@ -1601,27 +1621,32 @@
         }
 
         async function cargarHistoricoEnvios() {
-            const resEnv = await fetch('/api/envios');
-            const envios = await resEnv.json();
+            try {
+                const resEnv = await fetch('/api/envios');
+                const envios = await resEnv.json();
 
-            renderTablaPaginada('tabla-historico-envios', envios, e => {
-                const itemsSummary = e.items.map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
-                const numFacturas = (e.facturas_ids || []).length;
+                renderTablaPaginada('tabla-historico-envios', envios, e => {
+                    const itemsSummary = (e.items || []).map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
+                    const numFacturas = (e.facturas_ids || []).length;
+                    const idVal = e.id || e._id || '';
 
-                return `
-                    <tr>
-                        <td>${e.fecha}</td>
-                        <td><strong>${e.nota}</strong></td>
-                        <td>${fmtCOP(e.valor_envio)}</td>
-                        <td style="font-size:13px; color:#aaa;">${itemsSummary}</td>
-                        <td><strong style="color:var(--gold-bright);">${numFacturas} Factura(s)</strong></td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="abrirModalVincularFacturas('${e.id}')">🔗 Vincular Facturas</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="eliminarEnvio('${e.id}')">❌</button>
-                        </td>
-                    </tr>
-                `;
-            });
+                    return `
+                        <tr>
+                            <td>${e.fecha || ''}</td>
+                            <td><strong>${e.nota || ''}</strong></td>
+                            <td>${fmtCOP(e.valor_envio)}</td>
+                            <td style="font-size:13px; color:#aaa;">${itemsSummary}</td>
+                            <td><strong style="color:var(--gold-bright);">${numFacturas} Factura(s)</strong></td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="abrirModalVincularFacturas('${idVal}')">🔗 Vincular Facturas</button>
+                                <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="eliminarEnvio('${idVal}')">❌</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando histórico de envíos:", err);
+            }
         }
 
         async function abrirModalVincularFacturas(envioId) {
@@ -1631,19 +1656,20 @@
 
             const resEnvios = await fetch('/api/envios');
             const envios = await resEnvios.json();
-            const envioActual = envios.find(e => e.id === envioId);
+            const envioActual = Array.isArray(envios) ? envios.find(e => (e.id || e._id) === envioId) : null;
             const vinculadasActuales = envioActual ? (envioActual.facturas_ids || []) : [];
 
             const container = document.getElementById('lista-facturas-vincular');
-            if (ventasCache.length === 0) {
+            if (!ventasCache || ventasCache.length === 0) {
                 container.innerHTML = '<div style="color:#aaa;">No hay ventas registradas</div>';
             } else {
                 container.innerHTML = ventasCache.map(v => {
-                    const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
-                    const isChecked = vinculadasActuales.includes(v.id) ? 'checked' : '';
+                    const idVal = v.id || v._id || '';
+                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                    const isChecked = vinculadasActuales.includes(idVal) ? 'checked' : '';
                     return `
                         <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer;">
-                            <input type="checkbox" class="chk-factura" value="${v.id}" ${isChecked} style="width:auto; margin:0;">
+                            <input type="checkbox" class="chk-factura" value="${idVal}" ${isChecked} style="width:auto; margin:0;">
                             <span><strong>${numFact}</strong> - ${v.fecha} - ${v.cliente} (${fmtCOP(v.total_venta)})</span>
                         </label>
                     `;
@@ -1697,28 +1723,34 @@
         }
 
         async function cargarVentasParciales() {
-            const res = await fetch('/api/ventas');
-            const ventas = await res.json();
-            const parciales = ventas.filter(v => v.estado_despacho === 'Pendiente');
+            try {
+                const res = await fetch('/api/ventas');
+                const ventas = await res.json();
+                const list = Array.isArray(ventas) ? ventas : [];
+                const parciales = list.filter(v => v.estado_despacho === 'Pendiente');
 
-            renderTablaPaginada('tabla-parciales', parciales, v => {
-                const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
-                let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
-                return `
-                    <tr>
-                        <td><strong>${numFact}</strong></td>
-                        <td>${v.fecha}</td>
-                        <td>${v.cliente}</td>
-                        <td>${v.vendedor || 'admin'}</td>
-                        <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
-                        <td>${fmtCOP(v.total_venta)}</td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
-                        </td>
-                    </tr>
-                `;
-            });
+                renderTablaPaginada('tabla-parciales', parciales, v => {
+                    const idVal = v.id || v._id || '';
+                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                    let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
+                    return `
+                        <tr>
+                            <td><strong>${numFact}</strong></td>
+                            <td>${v.fecha || ''}</td>
+                            <td>${v.cliente || ''}</td>
+                            <td>${v.vendedor || 'admin'}</td>
+                            <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
+                            <td>${fmtCOP(v.total_venta)}</td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${idVal}')">✅ Despachar / Completar</button>
+                                <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando ventas parciales:", err);
+            }
         }
 
         async function completarDespacho(id) {
@@ -1812,26 +1844,28 @@
             const esObsequio = !esCot && document.getElementById('tipo-venta').value === 'Obsequio';
             let total = 0;
 
-            tbody.innerHTML = targetCarrito.map((i, index) => {
-                const sub = esObsequio ? 0 : i.subtotal;
-                total += sub;
-                return `
-                    <tr>
-                        <td>${i.nombre}</td>
-                        <td><strong>${i.presentacion}</strong></td>
-                        <td>${i.gramaje}g</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
-                        <td>${i.cantidad}</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
-                        <td>${fmtCOP(sub)}</td>
-                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
-                    </tr>
-                `;
-            }).join('');
+            if (tbody) {
+                tbody.innerHTML = targetCarrito.map((i, index) => {
+                    const sub = esObsequio ? 0 : i.subtotal;
+                    total += sub;
+                    return `
+                        <tr>
+                            <td>${i.nombre}</td>
+                            <td><strong>${i.presentacion}</strong></td>
+                            <td>${i.gramaje}g</td>
+                            <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
+                            <td>${i.cantidad}</td>
+                            <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
+                            <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
+                            <td>${fmtCOP(sub)}</td>
+                            <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
 
             const txtTotal = document.getElementById(esCot ? 'total-carrito-txt-cot' : 'total-carrito-txt');
-            txtTotal.innerText = fmtCOP(total);
+            if (txtTotal) txtTotal.innerText = fmtCOP(total);
         }
 
         async function procesarVenta() {
@@ -1899,25 +1933,32 @@
         }
 
         async function cargarUsuarios() {
-            const res = await fetch('/api/usuarios');
-            const usuarios = await res.json();
+            try {
+                const res = await fetch('/api/usuarios');
+                const usuarios = await res.json();
 
-            renderTablaPaginada('tabla-usuarios', usuarios, u => `
-                <tr>
-                    <td><input type="text" id="usr-name-${u.id}" value="${u.username}" style="width: 150px;"></td>
-                    <td>
-                        <select id="usr-rol-${u.id}" style="width: 110px;">
-                            <option value="ventas" ${u.rol === 'ventas' ? 'selected' : ''}>Ventas</option>
-                            <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Admin</option>
-                        </select>
-                    </td>
-                    <td><input type="password" id="usr-pass-${u.id}" placeholder="Dejar en blanco para mantener" style="width: 180px;"></td>
-                    <td>
-                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionUsuario('${u.id}')">✏️ Guardar</button>
-                        ${u.username !== 'admin' ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarUsuario('${u.id}')">❌ Eliminar</button>` : '<span style="color:#aaa; font-size:12px; margin-left:5px;">(Admin Principal)</span>'}
-                    </td>
-                </tr>
-            `);
+                renderTablaPaginada('tabla-usuarios', usuarios, u => {
+                    const idVal = u.id || u._id || '';
+                    return `
+                        <tr>
+                            <td><input type="text" id="usr-name-${idVal}" value="${u.username}" style="width: 150px;"></td>
+                            <td>
+                                <select id="usr-rol-${idVal}" style="width: 110px;">
+                                    <option value="ventas" ${u.rol === 'ventas' ? 'selected' : ''}>Ventas</option>
+                                    <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Admin</option>
+                                </select>
+                            </td>
+                            <td><input type="password" id="usr-pass-${idVal}" placeholder="Dejar en blanco para mantener" style="width: 180px;"></td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionUsuario('${idVal}')">✏️ Guardar</button>
+                                ${u.username !== 'admin' ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarUsuario('${idVal}')">❌ Eliminar</button>` : '<span style="color:#aaa; font-size:12px; margin-left:5px;">(Admin Principal)</span>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando usuarios:", err);
+            }
         }
 
         async function guardarUsuario(e) {
@@ -1978,40 +2019,52 @@
         }
 
         async function cargarClientes() {
-            const res = await fetch('/api/clientes');
-            clientesCache = await res.json();
+            try {
+                const res = await fetch('/api/clientes');
+                clientesCache = await res.json();
 
-            renderTablaPaginada('tabla-clientes', clientesCache, c => `
-                <tr>
-                    <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
-                    <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
-                    <td>
-                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
-                        <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
-                    </td>
-                </tr>
-            `);
+                renderTablaPaginada('tabla-clientes', clientesCache, c => {
+                    const idVal = c.id || c._id || '';
+                    return `
+                        <tr>
+                            <td><input type="text" id="cli-nom-${idVal}" value="${c.nombre}" style="width: 180px;"></td>
+                            <td><input type="text" id="cli-cel-${idVal}" value="${c.celular || ''}" style="width: 140px;"></td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${idVal}')">✏️ Guardar</button>
+                                <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${idVal}')">❌ Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando clientes:", err);
+            }
         }
 
         async function actualizarSelectsClientes(clienteSeleccionar = null) {
-            const res = await fetch('/api/clientes');
-            clientesCache = await res.json();
+            try {
+                const res = await fetch('/api/clientes');
+                clientesCache = await res.json();
 
-            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
-                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
+                const list = Array.isArray(clientesCache) ? clientesCache : [];
+                const optionsCli = '<option value="Cliente General">Cliente General</option>' +
+                    list.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
 
-            const selectVenta = document.getElementById('select-cliente-venta');
-            const selectCot = document.getElementById('select-cliente-cot');
+                const selectVenta = document.getElementById('select-cliente-venta');
+                const selectCot = document.getElementById('select-cliente-cot');
 
-            if (selectVenta) selectVenta.innerHTML = optionsCli;
-            if (selectCot) selectCot.innerHTML = optionsCli;
+                if (selectVenta) selectVenta.innerHTML = optionsCli;
+                if (selectCot) selectCot.innerHTML = optionsCli;
 
-            if (clienteSeleccionar) {
-                if (origenModalCliente === 'venta' && selectVenta) {
-                    selectVenta.value = clienteSeleccionar;
-                } else if (origenModalCliente === 'cotizacion' && selectCot) {
-                    selectCot.value = clienteSeleccionar;
+                if (clienteSeleccionar) {
+                    if (origenModalCliente === 'venta' && selectVenta) {
+                        selectVenta.value = clienteSeleccionar;
+                    } else if (origenModalCliente === 'cotizacion' && selectCot) {
+                        selectCot.value = clienteSeleccionar;
+                    }
                 }
+            } catch (err) {
+                console.error("Error actualizando selects de clientes:", err);
             }
         }
 
@@ -2123,34 +2176,38 @@
         }
 
         async function cargarModuloEmpaques() {
-            const res = await fetch('/api/empaques/resumen');
-            const data = await res.json();
+            try {
+                const res = await fetch('/api/empaques/resumen');
+                const data = await res.json();
 
-            const nombresLegibles = {
-                "bolsa_250g": "Bolsa 250g",
-                "bolsa_500g": "Bolsa 500g",
-                "etiqueta_250g": "Etiqueta 250g",
-                "etiqueta_500g": "Etiqueta 500g"
-            };
+                const nombresLegibles = {
+                    "bolsa_250g": "Bolsa 250g",
+                    "bolsa_500g": "Bolsa 500g",
+                    "etiqueta_250g": "Etiqueta 250g",
+                    "etiqueta_500g": "Etiqueta 500g"
+                };
 
-            const list = Object.keys(data).map(k => ({ key: k, ...data[k] }));
+                const list = Object.keys(data || {}).map(k => ({ key: k, ...data[k] }));
 
-            renderTablaPaginada('tabla-resumen-empaques', list, item => `
-                <tr>
-                    <td><strong>${nombresLegibles[item.key] || item.key}</strong></td>
-                    <td>${item.comprados.toLocaleString('es-CO')} u.</td>
-                    <td>${item.usados.toLocaleString('es-CO')} u.</td>
-                    <td>
-                        <input type="number" id="edit-disp-${item.key}" value="${item.disponibles}" min="0" style="width: 100px;"> u.
-                    </td>
-                    <td>
-                        <input type="number" id="edit-costo-${item.key}" value="${item.costo_unitario}" min="0" step="any" style="width: 110px;">
-                    </td>
-                    <td>
-                        <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="guardarAjusteEmpaque('${item.key}')">💾 Guardar</button>
-                    </td>
-                </tr>
-            `);
+                renderTablaPaginada('tabla-resumen-empaques', list, item => `
+                    <tr>
+                        <td><strong>${nombresLegibles[item.key] || item.key}</strong></td>
+                        <td>${(item.comprados || 0).toLocaleString('es-CO')} u.</td>
+                        <td>${(item.usados || 0).toLocaleString('es-CO')} u.</td>
+                        <td>
+                            <input type="number" id="edit-disp-${item.key}" value="${item.disponibles || 0}" min="0" style="width: 100px;"> u.
+                        </td>
+                        <td>
+                            <input type="number" id="edit-costo-${item.key}" value="${item.costo_unitario || 0}" min="0" step="any" style="width: 110px;">
+                        </td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="guardarAjusteEmpaque('${item.key}')">💾 Guardar</button>
+                        </td>
+                    </tr>
+                `);
+            } catch (err) {
+                console.error("Error cargando inventario empaques:", err);
+            }
         }
 
         async function guardarAjusteEmpaque(tipoEmpaque) {
@@ -2174,17 +2231,22 @@
         }
 
         async function cargarModuloCompras() {
-            const res = await fetch('/api/productos/unicos');
-            productosUnicos = await res.json();
-            
-            const select = document.getElementById('compra-producto-id');
-            select.innerHTML = '<option value="">-- Seleccionar Producto --</option>' + 
-                productosUnicos.map(p => {
-                    const pId = p.id || p._id;
-                    return `<option value="${pId}">${p.nombre}</option>`;
-                }).join('');
+            try {
+                const res = await fetch('/api/productos/unicos');
+                productosUnicos = await res.json();
+                
+                const select = document.getElementById('compra-producto-id');
+                const list = Array.isArray(productosUnicos) ? productosUnicos : [];
+                select.innerHTML = '<option value="">-- Seleccionar Producto --</option>' + 
+                    list.map(p => {
+                        const pId = p.id || p._id;
+                        return `<option value="${pId}">${p.nombre}</option>`;
+                    }).join('');
 
-            cargarTablaExistencias();
+                cargarTablaExistencias();
+            } catch (err) {
+                console.error("Error cargando compras:", err);
+            }
         }
 
         function calcularCostoPorLibra() {
@@ -2223,27 +2285,32 @@
         }
 
         async function cargarTablaExistencias() {
-            const resResumen = await fetch('/api/inventario/resumen');
-            const dataResumen = await resResumen.json();
+            try {
+                const resResumen = await fetch('/api/inventario/resumen');
+                const dataResumen = await resResumen.json();
 
-            renderTablaPaginada('tabla-existencias', productosUnicos, p => {
-                const itemStock = dataResumen.productos_stock.find(s => s.nombre === p.nombre);
-                const totalLbs = itemStock ? itemStock.libras_disponibles : 0;
-                const pId = p.id || p._id;
+                renderTablaPaginada('tabla-existencias', productosUnicos, p => {
+                    const stockList = Array.isArray(dataResumen?.productos_stock) ? dataResumen.productos_stock : [];
+                    const itemStock = stockList.find(s => s.nombre === p.nombre);
+                    const totalLbs = itemStock ? itemStock.libras_disponibles : 0;
+                    const pId = p.id || p._id || '';
 
-                return `
-                    <tr>
-                        <td><strong>${p.nombre}</strong></td>
-                        <td>${totalLbs} Lbs</td>
-                        <td>
-                            <input type="number" id="costo-edit-${pId}" value="${p.costo_por_libra || 0}" style="width: 120px;">
-                        </td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarCostoManual('${p.nombre}', '${pId}')">💾 Guardar Costo</button>
-                        </td>
-                    </tr>
-                `;
-            });
+                    return `
+                        <tr>
+                            <td><strong>${p.nombre}</strong></td>
+                            <td>${totalLbs} Lbs</td>
+                            <td>
+                                <input type="number" id="costo-edit-${pId}" value="${p.costo_por_libra || 0}" style="width: 120px;">
+                            </td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarCostoManual('${p.nombre}', '${pId}')">💾 Guardar Costo</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando existencias:", err);
+            }
         }
 
         async function guardarCostoManual(nombre, id) {
@@ -2283,22 +2350,26 @@
         }
 
         async function cargarProductos() {
-            const res = await fetch('/api/productos');
-            productosCache = await res.json();
-            ordenarProductosArray(productosCache);
+            try {
+                const res = await fetch('/api/productos');
+                productosCache = await res.json();
+                ordenarProductosArray(productosCache);
 
-            renderTablaPaginada('tabla-productos', productosCache, p => {
-                const pId = p.id || p._id;
-                return `<tr>
-                    <td><input type="text" id="edit-nom-${pId}" value="${p.nombre}" style="width: 180px;"></td>
-                    <td>${p.gramaje || 0}g</td>
-                    <td><input type="number" id="edit-prec-${pId}" value="${p.precio_venta || 0}" style="width: 120px;"></td>
-                    <td>
-                        <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarEdicionProducto('${pId}')">✏️ Guardar</button>
-                        <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${pId}')">❌</button>
-                    </td>
-                </tr>`;
-            });
+                renderTablaPaginada('tabla-productos', productosCache, p => {
+                    const pId = p.id || p._id || '';
+                    return `<tr>
+                        <td><input type="text" id="edit-nom-${pId}" value="${p.nombre}" style="width: 180px;"></td>
+                        <td>${p.gramaje || 0}g</td>
+                        <td><input type="number" id="edit-prec-${pId}" value="${p.precio_venta || 0}" style="width: 120px;"></td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarEdicionProducto('${pId}')">✏️ Guardar</button>
+                            <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${pId}')">❌</button>
+                        </td>
+                    </tr>`;
+                });
+            } catch (err) {
+                console.error("Error cargando productos:", err);
+            }
         }
 
         async function guardarEdicionProducto(id) {
@@ -2326,40 +2397,46 @@
         }
 
         async function cargarCreditos() {
-            const res = await fetch('/api/ventas');
-            const ventas = await res.json();
-            const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
+            try {
+                const res = await fetch('/api/ventas');
+                const ventas = await res.json();
+                const list = Array.isArray(ventas) ? ventas : [];
+                const creditos = list.filter(v => v.tipo_pago === 'Crédito');
 
-            renderTablaPaginada('tabla-creditos', creditos, c => {
-                const numFact = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
-                return `<tr>
-                    <td>${numFact}</td>
-                    <td>${c.fecha}</td>
-                    <td>${c.cliente}</td>
-                    <td>${fmtCOP(c.total_venta)}</td>
-                    <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
-                    <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td>
-                </tr>`;
-            },
-            {
-                onFilter: (filteredList) => {
-                    let sum = filteredList.reduce((acc, c) => acc + (c.total_venta || 0), 0);
-                    document.getElementById('total-creditos-txt').innerText = fmtCOP(sum);
+                renderTablaPaginada('tabla-creditos', creditos, c => {
+                    const idVal = c.id || c._id || '';
+                    const numFact = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                    return `<tr>
+                        <td>${numFact}</td>
+                        <td>${c.fecha || ''}</td>
+                        <td>${c.cliente || ''}</td>
+                        <td>${fmtCOP(c.total_venta)}</td>
+                        <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
+                        <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button>` : '-'}</td>
+                    </tr>`;
+                },
+                {
+                    onFilter: (filteredList) => {
+                        let sum = filteredList.reduce((acc, c) => acc + (c.total_venta || 0), 0);
+                        document.getElementById('total-creditos-txt').innerText = fmtCOP(sum);
 
-                    let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
-                    if (!tfootCreditos) {
-                        tfootCreditos = document.createElement('tfoot');
-                        document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
+                        let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
+                        if (!tfootCreditos) {
+                            tfootCreditos = document.createElement('tfoot');
+                            document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
+                        }
+                        tfootCreditos.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
+                                <td>${fmtCOP(sum)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        `;
                     }
-                    tfootCreditos.innerHTML = `
-                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                            <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
-                            <td>${fmtCOP(sum)}</td>
-                            <td colspan="2"></td>
-                        </tr>
-                    `;
-                }
-            });
+                });
+            } catch (err) {
+                console.error("Error cargando créditos:", err);
+            }
         }
 
         async function pagarCredito(id) {
@@ -2367,171 +2444,196 @@
             cargarCreditos();
         }
 
+        // -------------------------------------------------------------------
+        // MÓDULO REPORTES GENERALES
+        // -------------------------------------------------------------------
         async function cargarReportes() {
-            const resCompras = await fetch('/api/compras');
-            const compras = await resCompras.json();
+            // Reporte Compras Café
+            try {
+                const resCompras = await fetch('/api/compras');
+                const compras = await resCompras.json();
 
-            renderTablaPaginada('tabla-reporte-compras', compras, c => `
-                <tr>
-                    <td>${c.fecha}</td>
-                    <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
-                    <td>${(c.libras || 0).toLocaleString('es-CO')} Lbs</td>
-                    <td>${fmtCOP(c.costo_total)}</td>
-                    <td>${fmtCOP(c.costo_por_libra)}</td>
-                </tr>
-            `, {
-                enableExcel: true,
-                excelFileName: 'Reporte_Compras_Cafe.xlsx',
-                onFilter: (filtered) => {
-                    let totalLbs = filtered.reduce((acc, c) => acc + (c.libras || 0), 0);
-                    let totalInv = filtered.reduce((acc, c) => acc + (c.costo_total || 0), 0);
-                    
-                    let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
-                    if (!tfootCompras) {
-                        tfootCompras = document.createElement('tfoot');
-                        document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
-                    }
-                    tfootCompras.innerHTML = `
-                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                            <td colspan="2" style="text-align: right;">TOTALES:</td>
-                            <td>${totalLbs.toFixed(1)} Lbs</td>
-                            <td>${fmtCOP(totalInv)}</td>
-                            <td>-</td>
-                        </tr>
-                    `;
-                }
-            });
-
-            const resEmpaques = await fetch('/api/compras-empaques');
-            const empaquesList = await resEmpaques.json();
-
-            const nombresLegibles = {
-                "bolsa_250g": "Bolsa 250g",
-                "bolsa_500g": "Bolsa 500g",
-                "etiqueta_250g": "Etiqueta 250g",
-                "etiqueta_500g": "Etiqueta 500g"
-            };
-
-            renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
-                <tr>
-                    <td>${e.fecha}</td>
-                    <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
-                    <td>${(e.cantidad || 0).toLocaleString('es-CO')} u.</td>
-                    <td>${fmtCOP(e.costo_total)}</td>
-                    <td>${fmtCOP(e.costo_unitario)}</td>
-                </tr>
-            `, {
-                enableExcel: true,
-                excelFileName: 'Reporte_Compras_Empaques.xlsx',
-                onFilter: (filtered) => {
-                    let totalCant = filtered.reduce((acc, e) => acc + (e.cantidad || 0), 0);
-                    let totalInv = filtered.reduce((acc, e) => acc + (e.costo_total || 0), 0);
-
-                    let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
-                    if (!tfootEmp) {
-                        tfootEmp = document.createElement('tfoot');
-                        document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
-                    }
-                    tfootEmp.innerHTML = `
-                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                            <td colspan="2" style="text-align: right;">TOTALES:</td>
-                            <td>${totalCant.toLocaleString('es-CO')} u.</td>
-                            <td>${fmtCOP(totalInv)}</td>
-                            <td>-</td>
-                        </tr>
-                    `;
-                }
-            });
-
-            const resVentas = await fetch('/api/ventas');
-            const ventas = await resVentas.json();
-
-            renderTablaPaginada('tabla-reportes', ventas, v => {
-                const tot = v.total_venta || 0;
-                const gan = v.ganancia || 0;
-                const fleteApp = v.costo_envio_asociado || 0;
-                const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
-                const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
-
-                return `
+                renderTablaPaginada('tabla-reporte-compras', compras, c => `
                     <tr>
-                        <td><strong>${numFact}</strong></td>
-                        <td>${v.fecha}</td>
-                        <td>${v.cliente}</td>
-                        <td>${v.vendedor || 'admin'}</td>
-                        <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
-                        <td>${estadoTxt}</td>
-                        <td>${fmtCOP(tot)}</td>
-                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">
-                            ${fmtCOP(gan)}
-                            ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
-                        </td>
-                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
-                        <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
+                        <td>${c.fecha || ''}</td>
+                        <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
+                        <td>${(c.libras || 0).toLocaleString('es-CO')} Lbs</td>
+                        <td>${fmtCOP(c.costo_total)}</td>
+                        <td>${fmtCOP(c.costo_por_libra)}</td>
                     </tr>
-                `;
-            }, {
-                enableExcel: true,
-                excelFileName: 'Historico_Ventas.xlsx',
-                onFilter: (filteredVentas) => {
-                    let totalVentas = filteredVentas.reduce((acc, v) => acc + (v.total_venta || 0), 0);
-                    let totalGanancia = filteredVentas.reduce((acc, v) => acc + (v.ganancia || 0), 0);
-
-                    let tfootVentas = document.querySelector('#tabla-reportes tfoot');
-                    if (!tfootVentas) {
-                        tfootVentas = document.createElement('tfoot');
-                        document.querySelector('#tabla-reportes').appendChild(tfootVentas);
+                `, {
+                    enableExcel: true,
+                    excelFileName: 'Reporte_Compras_Cafe.xlsx',
+                    onFilter: (filtered) => {
+                        let totalLbs = filtered.reduce((acc, c) => acc + (c.libras || 0), 0);
+                        let totalInv = filtered.reduce((acc, c) => acc + (c.costo_total || 0), 0);
+                        
+                        let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
+                        if (!tfootCompras) {
+                            tfootCompras = document.createElement('tfoot');
+                            document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
+                        }
+                        tfootCompras.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="2" style="text-align: right;">TOTALES:</td>
+                                <td>${totalLbs.toFixed(1)} Lbs</td>
+                                <td>${fmtCOP(totalInv)}</td>
+                                <td>-</td>
+                            </tr>
+                        `;
                     }
-                    tfootVentas.innerHTML = `
-                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                            <td colspan="6" style="text-align: right;">TOTALES FILTRADOS:</td>
-                            <td>${fmtCOP(totalVentas)}</td>
-                            <td style="color: ${totalGanancia < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">${fmtCOP(totalGanancia)}</td>
-                            <td colspan="2"></td>
-                        </tr>
-                    `;
-                }
-            });
+                });
+            } catch (err) {
+                console.error("Error reporte compras:", err);
+            }
 
-            const resCot = await fetch('/api/cotizaciones');
-            const cotizaciones = await resCot.json();
+            // Reporte Empaques
+            try {
+                const resEmpaques = await fetch('/api/compras-empaques');
+                const empaquesList = await resEmpaques.json();
 
-            renderTablaPaginada('tabla-reporte-cotizaciones', cotizaciones, c => {
-                const tot = c.total_venta || 0;
-                const numCot = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
+                const nombresLegibles = {
+                    "bolsa_250g": "Bolsa 250g",
+                    "bolsa_500g": "Bolsa 500g",
+                    "etiqueta_250g": "Etiqueta 250g",
+                    "etiqueta_500g": "Etiqueta 500g"
+                };
 
-                return `
+                renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
                     <tr>
-                        <td><strong>${numCot}</strong></td>
-                        <td>${c.fecha}</td>
-                        <td>${c.cliente}</td>
-                        <td>${c.vendedor || 'admin'}</td>
-                        <td>${c.tipo_pago || 'N/A'}</td>
-                        <td>${fmtCOP(tot)}</td>
-                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
-                        <td><button class="btn-danger" onclick="eliminarCotizacion('${c.id}')">❌</button></td>
+                        <td>${e.fecha || ''}</td>
+                        <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
+                        <td>${(e.cantidad || 0).toLocaleString('es-CO')} u.</td>
+                        <td>${fmtCOP(e.costo_total)}</td>
+                        <td>${fmtCOP(e.costo_unitario)}</td>
                     </tr>
-                `;
-            }, {
-                enableExcel: true,
-                excelFileName: 'Historico_Cotizaciones.xlsx',
-                onFilter: (filteredCot) => {
-                    let totalCot = filteredCot.reduce((acc, c) => acc + (c.total_venta || 0), 0);
+                `, {
+                    enableExcel: true,
+                    excelFileName: 'Reporte_Compras_Empaques.xlsx',
+                    onFilter: (filtered) => {
+                        let totalCant = filtered.reduce((acc, e) => acc + (e.cantidad || 0), 0);
+                        let totalInv = filtered.reduce((acc, e) => acc + (e.costo_total || 0), 0);
 
-                    let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
-                    if (!tfootCot) {
-                        tfootCot = document.createElement('tfoot');
-                        document.querySelector('#tabla-reporte-cotizaciones').appendChild(tfootCot);
+                        let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
+                        if (!tfootEmp) {
+                            tfootEmp = document.createElement('tfoot');
+                            document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
+                        }
+                        tfootEmp.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="2" style="text-align: right;">TOTALES:</td>
+                                <td>${totalCant.toLocaleString('es-CO')} u.</td>
+                                <td>${fmtCOP(totalInv)}</td>
+                                <td>-</td>
+                            </tr>
+                        `;
                     }
-                    tfootCot.innerHTML = `
-                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                            <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
-                            <td>${fmtCOP(totalCot)}</td>
-                            <td colspan="2"></td>
+                });
+            } catch (err) {
+                console.error("Error reporte empaques:", err);
+            }
+
+            // Reporte Historico de Ventas
+            try {
+                const resVentas = await fetch('/api/ventas');
+                const ventas = await resVentas.json();
+
+                renderTablaPaginada('tabla-reportes', ventas, v => {
+                    const tot = v.total_venta || 0;
+                    const gan = v.ganancia || 0;
+                    const fleteApp = v.costo_envio_asociado || 0;
+                    const idVal = v.id || v._id || '';
+                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                    const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
+
+                    return `
+                        <tr>
+                            <td><strong>${numFact}</strong></td>
+                            <td>${v.fecha || ''}</td>
+                            <td>${v.cliente || ''}</td>
+                            <td>${v.vendedor || 'admin'}</td>
+                            <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
+                            <td>${estadoTxt}</td>
+                            <td>${fmtCOP(tot)}</td>
+                            <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">
+                                ${fmtCOP(gan)}
+                                ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
+                            </td>
+                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
+                            <td><button class="btn-danger" onclick="eliminarVenta('${idVal}')">❌</button></td>
                         </tr>
                     `;
-                }
-            });
+                }, {
+                    enableExcel: true,
+                    excelFileName: 'Historico_Ventas.xlsx',
+                    onFilter: (filteredVentas) => {
+                        let totalVentas = filteredVentas.reduce((acc, v) => acc + (v.total_venta || 0), 0);
+                        let totalGanancia = filteredVentas.reduce((acc, v) => acc + (v.ganancia || 0), 0);
+
+                        let tfootVentas = document.querySelector('#tabla-reportes tfoot');
+                        if (!tfootVentas) {
+                            tfootVentas = document.createElement('tfoot');
+                            document.querySelector('#tabla-reportes').appendChild(tfootVentas);
+                        }
+                        tfootVentas.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="6" style="text-align: right;">TOTALES FILTRADOS:</td>
+                                <td>${fmtCOP(totalVentas)}</td>
+                                <td style="color: ${totalGanancia < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">${fmtCOP(totalGanancia)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        `;
+                    }
+                });
+            } catch (err) {
+                console.error("Error reporte ventas:", err);
+            }
+
+            // Reporte Historico de Cotizaciones
+            try {
+                const resCot = await fetch('/api/cotizaciones');
+                const cotizaciones = await resCot.json();
+
+                renderTablaPaginada('tabla-reporte-cotizaciones', cotizaciones, c => {
+                    const tot = c.total_venta || 0;
+                    const idVal = c.id || c._id || '';
+                    const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+
+                    return `
+                        <tr>
+                            <td><strong>${numCot}</strong></td>
+                            <td>${c.fecha || ''}</td>
+                            <td>${c.cliente || ''}</td>
+                            <td>${c.vendedor || 'admin'}</td>
+                            <td>${c.tipo_pago || 'N/A'}</td>
+                            <td>${fmtCOP(tot)}</td>
+                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                            <td><button class="btn-danger" onclick="eliminarCotizacion('${idVal}')">❌</button></td>
+                        </tr>
+                    `;
+                }, {
+                    enableExcel: true,
+                    excelFileName: 'Historico_Cotizaciones.xlsx',
+                    onFilter: (filteredCot) => {
+                        let totalCot = filteredCot.reduce((acc, c) => acc + (c.total_venta || 0), 0);
+
+                        let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
+                        if (!tfootCot) {
+                            tfootCot = document.createElement('tfoot');
+                            document.querySelector('#tabla-reporte-cotizaciones').appendChild(tfootCot);
+                        }
+                        tfootCot.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
+                                <td>${fmtCOP(totalCot)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        `;
+                    }
+                });
+            } catch (err) {
+                console.error("Error reporte cotizaciones:", err);
+            }
         }
 
         async function eliminarVenta(id) {
@@ -2556,12 +2658,16 @@
 
             nombrePdfDescarga = filenameDescarga || 'Documento.pdf';
 
-            const res = await fetch(endpointUrl);
-            const blob = await res.blob();
-            blobPdfActual = blob;
-            urlPdfActual = URL.createObjectURL(blob);
+            try {
+                const res = await fetch(endpointUrl);
+                const blob = await res.blob();
+                blobPdfActual = blob;
+                urlPdfActual = URL.createObjectURL(blob);
 
-            container.innerHTML = `<object data="${urlPdfActual}" type="application/pdf"><p style="color:#fff;">Tu dispositivo no soporta previsualización integrada. Utiliza el botón inferior para descargar el PDF.</p></object>`;
+                container.innerHTML = `<object data="${urlPdfActual}" type="application/pdf"><p style="color:#fff;">Tu dispositivo no soporta previsualización integrada. Utiliza el botón inferior para descargar el PDF.</p></object>`;
+            } catch (err) {
+                container.innerHTML = '<div style="color:#ff6b6b; text-align:center;">Error al cargar la previsualización del PDF</div>';
+            }
         }
 
         function cerrarModalFactura() {
