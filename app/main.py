@@ -33,7 +33,7 @@ else:
     print("✅ Conectando a base de datos remota MongoDB mediante MONGO_URI.")
 
 client = pymongo.MongoClient(MONGO_URI)
-db = client["cafe_0808_db"]
+db = client["gestion_cafe"]
 
 # -------------------------------------------------------------------
 # MODELOS DE DATOS (PYDANTIC)
