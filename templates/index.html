@@ -840,7 +840,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -1358,7 +1358,7 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS (CORREGIDO Y OPTIMIZADO)
+        // MÓDULO DE ENVÍOS CONSOLIDADOS (USANDO ÍNDICES FÍSICOS)
         // -------------------------------------------------------------------
         async function cargarModuloEnvios() {
             try {
@@ -1368,9 +1368,8 @@
 
                 const selectEnvio = document.getElementById('select-prod-envio');
                 
-                selectEnvio.innerHTML = productosCache.map(p => {
-                    const pId = p.id || p._id;
-                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                selectEnvio.innerHTML = productosCache.map((p, idx) => {
+                    return `<option value="${idx}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
                 }).join('');
 
                 document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
@@ -1382,47 +1381,44 @@
         }
 
         async function agregarProductoAEnvio() {
-    const pId = document.getElementById('select-prod-envio').value;
-    const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
-    
-    if (!productosCache || productosCache.length === 0) {
-        const resProds = await fetch('/api/productos');
-        productosCache = await resProds.json();
-        ordenarProductosArray(productosCache);
-    }
+            const selectEnvio = document.getElementById('select-prod-envio');
+            const idxSeleccionado = parseInt(selectEnvio.value);
 
-    const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
+            if (isNaN(idxSeleccionado) || !productosCache || !productosCache[idxSeleccionado]) {
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
+            }
 
-    if (!prod) {
-        alert("Por favor selecciona un producto válido.");
-        return;
-    }
+            const prod = productosCache[idxSeleccionado];
 
-    const prodIdFinal = prod.id || prod._id;
-    const gramajeFinal = prod.gramaje || 0;
+            if (!prod) {
+                alert("Por favor selecciona un producto válido.");
+                return;
+            }
 
-    // Buscamos si ya existe EXACTAMENTE el mismo producto (por id o combinación de nombre y gramaje)
-    const idxExistente = itemsEnvioConsolidado.findIndex(i => 
-        String(i.producto_id) === String(prodIdFinal) || 
-        (i.nombre === prod.nombre && i.gramaje === gramajeFinal)
-    );
+            const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
+            const prodIdFinal = prod.id || prod._id || prod.nombre;
+            const gramajeFinal = prod.gramaje || 0;
 
-    if (idxExistente !== -1) {
-        // Si es el mismo producto, incrementa su cantidad
-        itemsEnvioConsolidado[idxExistente].cantidad += cant;
-    } else {
-        // Si es un producto diferente, crea una nueva fila en el arreglo
-        itemsEnvioConsolidado.push({
-            producto_id: prodIdFinal,
-            nombre: prod.nombre,
-            gramaje: gramajeFinal,
-            cantidad: cant
-        });
-    }
+            const idxExistente = itemsEnvioConsolidado.findIndex(i => 
+                i.nombre === prod.nombre && Number(i.gramaje) === Number(gramajeFinal)
+            );
 
-    document.getElementById('cant-prod-envio').value = 1;
-    renderItemsEnvio();
-}
+            if (idxExistente !== -1) {
+                itemsEnvioConsolidado[idxExistente].cantidad += cant;
+            } else {
+                itemsEnvioConsolidado.push({
+                    producto_id: prodIdFinal,
+                    nombre: prod.nombre,
+                    gramaje: gramajeFinal,
+                    cantidad: cant
+                });
+            }
+
+            document.getElementById('cant-prod-envio').value = 1;
+            renderItemsEnvio();
+        }
 
         function quitarProductoEnvio(idx) {
             itemsEnvioConsolidado.splice(idx, 1);
