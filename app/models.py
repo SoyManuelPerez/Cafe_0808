@@ -8,7 +8,7 @@ class UserLogin(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    rol: Optional[str] = "ventas"  # "admin" o "ventas"
+    rol: Optional[str] = "ventas"
 
 class UserUpdate(BaseModel):
     username: str
@@ -56,8 +56,7 @@ class VentaCreate(BaseModel):
     fecha: str
     cliente: str
     tipo_pago: str
-    tipo_venta: Optional[str] = "Normal" # "Normal", "Obsequio", "Parcial"
-    estado_despacho: Optional[str] = "Completo" # "Completo" o "Pendiente"
+    tipo_venta: Optional[str] = "Normal"
+    estado_despacho: Optional[str] = "Completo"  # "Completo" o "Pendiente"
     vendedor: Optional[str] = None
     items: List[ItemVenta]
-
