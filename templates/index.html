@@ -338,7 +338,6 @@
             margin: 0;
         }
 
-        /* BOTÓN MÁS SELECCIONAR CLIENTE TOTALMENTE DESTACADO Y DORADO */
         .btn-add-inline {
             width: 44px !important;
             height: 44px !important;
@@ -349,8 +348,8 @@
             justify-content: center;
             align-items: center;
             flex-shrink: 0;
-            background-color: var(--gold-primary) !important; /* Fondo Dorado */
-            color: #000000 !important; /* Ícono Negro Alto Contraste */
+            background-color: var(--gold-primary) !important;
+            color: #000000 !important;
             border: 1px solid var(--gold-bright) !important;
             border-radius: 6px !important;
             cursor: pointer;
@@ -688,7 +687,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -913,8 +912,36 @@
         let nombrePdfDescarga = 'Documento.pdf';
         let origenModalCliente = 'venta';
 
-        let usuarioActual = localStorage.getItem('user_0808') || '';
-        let rolActual = localStorage.getItem('rol_0808') || 'ventas';
+        let usuarioActual = '';
+        let rolActual = 'ventas';
+
+        const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 Horas en milisegundos
+
+        function verificarSesionActiva() {
+            const loginTimeStr = localStorage.getItem('login_timestamp_0808');
+            const savedUser = localStorage.getItem('user_0808');
+            const savedRol = localStorage.getItem('rol_0808');
+
+            if (savedUser && savedRol && loginTimeStr) {
+                const tiempoTranscurrido = Date.now() - parseInt(loginTimeStr, 10);
+
+                if (tiempoTranscurrido < DURACION_SESION_MS) {
+                    usuarioActual = savedUser;
+                    rolActual = savedRol;
+                    document.getElementById('login-screen').style.display = 'none';
+                    aplicarPermisosUI();
+                    cargarVentasData();
+                    return true;
+                }
+            }
+
+            // Si la sesión expiró o no existe, limpia datos y muestra el login
+            localStorage.removeItem('user_0808');
+            localStorage.removeItem('rol_0808');
+            localStorage.removeItem('login_timestamp_0808');
+            document.getElementById('login-screen').style.display = 'flex';
+            return false;
+        }
 
         function ordenarProductosArray(arr) {
             return arr.sort((a, b) => {
@@ -961,8 +988,10 @@
                 usuarioActual = data.username;
                 rolActual = data.rol;
                 
+                // Guardar credenciales y marca de tiempo
                 localStorage.setItem('user_0808', usuarioActual);
                 localStorage.setItem('rol_0808', rolActual);
+                localStorage.setItem('login_timestamp_0808', Date.now().toString());
 
                 document.getElementById('login-screen').style.display = 'none';
                 aplicarPermisosUI();
@@ -976,6 +1005,7 @@
             await fetch('/api/logout', { method: 'POST' });
             localStorage.removeItem('user_0808');
             localStorage.removeItem('rol_0808');
+            localStorage.removeItem('login_timestamp_0808');
             document.getElementById('login-screen').style.display = 'flex';
         }
 
@@ -1388,7 +1418,7 @@
                         <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
                         <td>$${(v.total_venta || 0).toLocaleString()}</td>
                         <td>
-                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
+                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
                             <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
                         </td>
                     </tr>
@@ -1999,11 +2029,8 @@
             }
         }
 
-        // Inicialización
-        if(usuarioActual) {
-            aplicarPermisosUI();
-        }
-        cargarVentasData();
+        // Inicialización con control de expiración de sesión (12 Horas)
+        verificarSesionActiva();
     </script>
 </body>
 </html>
