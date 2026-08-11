@@ -1260,7 +1260,7 @@
 
         function ordenarProductosArray(arr) {
             return arr.sort((a, b) => {
-                const cmpNombre = a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+                const cmpNombre = (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' });
                 if (cmpNombre !== 0) return cmpNombre;
                 return (a.gramaje || 0) - (b.gramaje || 0);
             });
@@ -1359,17 +1359,20 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS
+        // MÓDULO DE ENVÍOS CONSOLIDADOS (CORREGIDO PARA AGREGAR ÍTEMS CORRECTAMENTE)
         // -------------------------------------------------------------------
         async function cargarModuloEnvios() {
-            if (productosCache.length === 0) {
-                const resProds = await fetch('/api/productos');
-                productosCache = await resProds.json();
-                ordenarProductosArray(productosCache);
-            }
+            const resProds = await fetch('/api/productos');
+            productosCache = await resProds.json();
+            ordenarProductosArray(productosCache);
 
             const selectEnvio = document.getElementById('select-prod-envio');
-            selectEnvio.innerHTML = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g)</option>`).join('');
+            
+            selectEnvio.innerHTML = productosCache.map(p => {
+                const prodId = p.id || p._id;
+                const gram = p.gramaje ? `${p.gramaje}g` : 'N/A';
+                return `<option value="${prodId}">${p.nombre} (${gram})</option>`;
+            }).join('');
 
             document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
             renderItemsEnvio();
@@ -1379,18 +1382,25 @@
         function agregarProductoAEnvio() {
             const pId = document.getElementById('select-prod-envio').value;
             const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
-            const prod = productosCache.find(p => p.id === pId);
+            
+            const prod = productosCache.find(p => (p.id || p._id) === pId);
 
-            if (!prod) return;
+            if (!prod) {
+                alert("Por favor selecciona un producto válido.");
+                return;
+            }
 
-            const idx = itemsEnvioConsolidado.findIndex(i => i.producto_id === pId);
+            const prodIdFinal = prod.id || prod._id;
+            const gramajeFinal = prod.gramaje || 0;
+
+            const idx = itemsEnvioConsolidado.findIndex(i => i.producto_id === prodIdFinal);
             if (idx !== -1) {
                 itemsEnvioConsolidado[idx].cantidad += cant;
             } else {
                 itemsEnvioConsolidado.push({
-                    producto_id: prod.id,
+                    producto_id: prodIdFinal,
                     nombre: prod.nombre,
-                    gramaje: prod.gramaje,
+                    gramaje: gramajeFinal,
                     cantidad: cant
                 });
             }
@@ -1838,7 +1848,10 @@
             productosCache = await resProds.json();
             ordenarProductosArray(productosCache);
             
-            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - ${fmtCOP(p.precio_venta)}</option>`).join('');
+            const optionsProds = productosCache.map(p => {
+                const pId = p.id || p._id;
+                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+            }).join('');
             document.getElementById('select-producto').innerHTML = optionsProds;
 
             await actualizarSelectsClientes();
@@ -1931,7 +1944,10 @@
                 ordenarProductosArray(productosCache);
             }
 
-            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - ${fmtCOP(p.precio_venta)}</option>`).join('');
+            const optionsProds = productosCache.map(p => {
+                const pId = p.id || p._id;
+                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+            }).join('');
             document.getElementById('select-producto-cot').innerHTML = optionsProds;
 
             await actualizarSelectsClientes();
@@ -1974,15 +1990,16 @@
             const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
             const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
             const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
-            const prod = productosCache.find(p => p.id === pId);
+            const prod = productosCache.find(p => (p.id || p._id) === pId);
 
             if (!prod) return alert('Seleccione un producto válido');
 
+            const prodIdFinal = prod.id || prod._id;
             const precioBase = prod.precio_venta || 0;
             const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
             const targetCarrito = esCot ? carritoCotizacion : carrito;
 
-            const indexExistente = targetCarrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
+            const indexExistente = targetCarrito.findIndex(item => item.producto_id === prodIdFinal && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
             
             if (indexExistente !== -1) {
                 targetCarrito[indexExistente].cantidad += cant;
@@ -1990,14 +2007,14 @@
                 targetCarrito[indexExistente].subtotal = precioFinalUnitario * targetCarrito[indexExistente].cantidad;
             } else {
                 targetCarrito.push({
-                    producto_id: prod.id,
+                    producto_id: prodIdFinal,
                     nombre: prod.nombre,
-                    gramaje: prod.gramaje,
+                    gramaje: prod.gramaje || 0,
                     cantidad: cant,
                     valor_add: valorAdd,
                     descuento: descuento,
                     presentacion: pres,
-                    gramos_totales: prod.gramaje * cant,
+                    gramos_totales: (prod.gramaje || 0) * cant,
                     precio_unitario: precioFinalUnitario,
                     subtotal: precioFinalUnitario * cant
                 });
@@ -2128,7 +2145,10 @@
             
             const select = document.getElementById('compra-producto-id');
             select.innerHTML = '<option value="">-- Seleccionar Producto --</option>' + 
-                productosUnicos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+                productosUnicos.map(p => {
+                    const pId = p.id || p._id;
+                    return `<option value="${pId}">${p.nombre}</option>`;
+                }).join('');
 
             cargarTablaExistencias();
         }
@@ -2175,16 +2195,17 @@
             renderTablaPaginada('tabla-existencias', productosUnicos, p => {
                 const itemStock = dataResumen.productos_stock.find(s => s.nombre === p.nombre);
                 const totalLbs = itemStock ? itemStock.libras_disponibles : 0;
+                const pId = p.id || p._id;
 
                 return `
                     <tr>
                         <td><strong>${p.nombre}</strong></td>
                         <td>${totalLbs} Lbs</td>
                         <td>
-                            <input type="number" id="costo-edit-${p.id}" value="${p.costo_por_libra || 0}" style="width: 120px;">
+                            <input type="number" id="costo-edit-${pId}" value="${p.costo_por_libra || 0}" style="width: 120px;">
                         </td>
                         <td>
-                            <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarCostoManual('${p.nombre}', '${p.id}')">💾 Guardar Costo</button>
+                            <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarCostoManual('${p.nombre}', '${pId}')">💾 Guardar Costo</button>
                         </td>
                     </tr>
                 `;
@@ -2232,17 +2253,18 @@
             productosCache = await res.json();
             ordenarProductosArray(productosCache);
 
-            renderTablaPaginada('tabla-productos', productosCache, p => 
-                `<tr>
-                    <td><input type="text" id="edit-nom-${p.id}" value="${p.nombre}" style="width: 180px;"></td>
-                    <td>${p.gramaje}g</td>
-                    <td><input type="number" id="edit-prec-${p.id}" value="${p.precio_venta}" style="width: 120px;"></td>
+            renderTablaPaginada('tabla-productos', productosCache, p => {
+                const pId = p.id || p._id;
+                return `<tr>
+                    <td><input type="text" id="edit-nom-${pId}" value="${p.nombre}" style="width: 180px;"></td>
+                    <td>${p.gramaje || 0}g</td>
+                    <td><input type="number" id="edit-prec-${pId}" value="${p.precio_venta || 0}" style="width: 120px;"></td>
                     <td>
-                        <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarEdicionProducto('${p.id}')">✏️ Guardar</button>
-                        <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${p.id}')">❌</button>
+                        <button class="btn-gold" style="padding: 4px 8px;" onclick="guardarEdicionProducto('${pId}')">✏️ Guardar</button>
+                        <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${pId}')">❌</button>
                     </td>
-                </tr>`
-            );
+                </tr>`;
+            });
         }
 
         async function guardarEdicionProducto(id) {
