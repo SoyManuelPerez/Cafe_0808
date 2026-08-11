@@ -864,6 +864,10 @@
         <div id="creditos" class="section admin-only">
             <h1>💳 Cuentas por Cobrar</h1>
             <div class="card">
+                <div style="margin-bottom: 15px; font-size: 18px; color: var(--gold-bright); background: #141414; padding: 12px 18px; border-radius: 6px; border: 1px solid var(--gold-primary); display: flex; justify-content: space-between; align-items: center;">
+                    <span>💳 Total Vendido a Crédito:</span>
+                    <strong id="total-creditos-txt" style="font-size: 22px;">$0</strong>
+                </div>
                 <div class="table-responsive">
                     <table id="tabla-creditos">
                         <thead><tr><th>ID</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
@@ -2004,10 +2008,36 @@
             const ventas = await res.json();
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
 
+            let totalCreditosCOP = 0;
+            creditos.forEach(c => {
+                totalCreditosCOP += (c.total_venta || 0);
+            });
+
+            document.getElementById('total-creditos-txt').innerText = fmtCOP(totalCreditosCOP);
+
             renderTablaPaginada('tabla-creditos', creditos, c => 
-                `<tr><td>${c.consecutivo_str || c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>${fmtCOP(c.total_venta)}</td><td>${c.estado_credito}</td>
-                <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td></tr>`
+                `<tr>
+                    <td>${c.consecutivo_str || c.id.substring(0,8)}</td>
+                    <td>${c.fecha}</td>
+                    <td>${c.cliente}</td>
+                    <td>${fmtCOP(c.total_venta)}</td>
+                    <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
+                    <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td>
+                </tr>`
             );
+
+            let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
+            if (!tfootCreditos) {
+                tfootCreditos = document.createElement('tfoot');
+                document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
+            }
+            tfootCreditos.innerHTML = `
+                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                    <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
+                    <td>${fmtCOP(totalCreditosCOP)}</td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
         }
 
         async function pagarCredito(id) {
