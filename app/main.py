@@ -36,24 +36,27 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    plain_clean = plain_password.strip()
-    if plain_clean == "0808cafe":
-        return True
     try:
-        return bcrypt.checkpw(plain_clean.encode('utf-8'), hashed_password.encode('utf-8'))
+        return bcrypt.checkpw(plain_password.strip().encode('utf-8'), hashed_password.encode('utf-8'))
     except Exception:
         return False
 
-# Asegurar usuario admin principal con rol 'admin'
+# Crear el usuario admin inicial SOLO si no existe en la base de datos
 try:
-    hashed_reset = hash_password("0808cafe")
-    db.usuarios.update_one(
-        {"username": "admin"},
-        {"$set": {"username": "admin", "password_hash": hashed_reset, "rol": "admin"}},
-        upsert=True
-    )
+    admin_existente = db.usuarios.find_one({"username": "admin"})
+    if not admin_existente:
+        hashed_default = hash_password("0808cafe")
+        db.usuarios.insert_one({
+            "username": "admin",
+            "password_hash": hashed_default,
+            "rol": "admin",
+            "creado_en": datetime.utcnow()
+        })
+    else:
+        # Asegurar que conserve su rol admin en la estructura
+        db.usuarios.update_one({"username": "admin"}, {"$set": {"rol": "admin"}})
 except Exception as e:
-    print(f"Error actualizando clave admin: {e}")
+    print(f"Error verificando usuario admin inicial: {e}")
 
 def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
     ret = db.contadores.find_one_and_update(
@@ -75,10 +78,6 @@ def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
 def login(user_data: UserLogin, response: Response):
     username_clean = user_data.username.strip()
     user = db.usuarios.find_one({"username": username_clean})
-    
-    if username_clean == "admin" and user_data.password.strip() == "0808cafe":
-        response.set_cookie(key="session_user", value="admin", httponly=True)
-        return {"mensaje": "Login exitoso", "username": "admin", "rol": "admin"}
 
     if not user or not verify_password(user_data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
