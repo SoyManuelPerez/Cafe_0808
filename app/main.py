@@ -41,7 +41,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
-# Crear el usuario admin inicial SOLO si no existe en la base de datos
 try:
     admin_existente = db.usuarios.find_one({"username": "admin"})
     if not admin_existente:
@@ -53,7 +52,6 @@ try:
             "creado_en": datetime.utcnow()
         })
     else:
-        # Asegurar que conserve su rol admin en la estructura
         db.usuarios.update_one({"username": "admin"}, {"$set": {"rol": "admin"}})
 except Exception as e:
     print(f"Error verificando usuario admin inicial: {e}")
@@ -222,7 +220,7 @@ def resumen_empaques():
     ]))
     dict_compras = {c["_id"]: c for c in compras_agrupadas}
 
-    ventas = list(db.ventas.find())
+    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
     usados = {
         "bolsa_250g": 0,
         "bolsa_500g": 0,
@@ -268,7 +266,7 @@ def ajustar_empaque_manual(data: dict):
     if not tipo_empaque:
         raise HTTPException(status_code=400, detail="Tipo de empaque requerido")
 
-    ventas = list(db.ventas.find())
+    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
     usados = 0
     for v in ventas:
         for item in v.get("items", []):
@@ -414,6 +412,7 @@ def resumen_inventario():
     dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
 
     ventas_agrupadas = list(db.ventas.aggregate([
+        {"$match": {"estado_despacho": {"$ne": "Pendiente"}}},
         {"$unwind": "$items"},
         {"$group": {
             "_id": "$items.nombre",
@@ -451,7 +450,7 @@ def resumen_inventario():
     }
 
 # ==========================================
-# ENDPOINTS VENTAS
+# ENDPOINTS VENTAS Y VENTAS PARCIALES
 # ==========================================
 
 @app.post("/api/ventas", status_code=201)
@@ -464,30 +463,44 @@ def registrar_venta(venta: VentaCreate, request: Request):
     total_venta = 0.0 if es_obsequio else sum(i.subtotal for i in venta.items)
     total_gramos = sum(i.gramos_totales for i in venta.items)
     
+    # Comprobar si hay stock suficiente para despacho inmediato
+    stock_insuficiente = False
+    motivo_faltante = {}
+
     if total_gramos > resumen_cafe["inventario_disponible_g"]:
-        raise HTTPException(status_code=400, detail="Inventario de café insuficiente para procesar la venta.")
+        stock_insuficiente = True
+        motivo_faltante["cafe_g"] = total_gramos - resumen_cafe["inventario_disponible_g"]
 
     req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
-    costo_empaques_total = 0.0
-
     for item in venta.items:
         cant = item.cantidad
         g = item.gramaje
         if g == 250:
             req_empaques["bolsa_250g"] += cant
             req_empaques["etiqueta_250g"] += cant
-            costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
         elif g == 500:
             req_empaques["bolsa_500g"] += cant
             req_empaques["etiqueta_500g"] += cant
-            costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
 
     for k, v_req in req_empaques.items():
         if v_req > resumen_emp[k]["disponibles"]:
-            nombre_legible = k.replace('_', ' ').title()
-            raise HTTPException(status_code=400, detail=f"Inventario insuficiente de empaque: {nombre_legible}. Requeridos: {v_req}, Disponibles: {resumen_emp[k]['disponibles']}")
+            stock_insuficiente = True
+            motivo_faltante[k] = v_req - resumen_emp[k]["disponibles"]
+
+    estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
 
     costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
+    
+    # Calcular costo empaques
+    costo_empaques_total = 0.0
+    for item in venta.items:
+        cant = item.cantidad
+        g = item.gramaje
+        if g == 250:
+            costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
+        elif g == 500:
+            costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
+
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo("factura_num")
 
@@ -498,6 +511,8 @@ def registrar_venta(venta: VentaCreate, request: Request):
         "vendedor": vendedor,
         "tipo_pago": "N/A" if es_obsequio else venta.tipo_pago,
         "tipo_venta": venta.tipo_venta,
+        "estado_despacho": estado_despacho,
+        "faltantes": motivo_faltante if stock_insuficiente else {},
         "estado_credito": "Pendiente" if (venta.tipo_pago == "Crédito" and not es_obsequio) else "N/A",
         "total_venta": total_venta,
         "costo_estimado": costo_est,
@@ -506,12 +521,52 @@ def registrar_venta(venta: VentaCreate, request: Request):
         "creado_en": datetime.utcnow()
     }
     res = db.ventas.insert_one(doc)
-    return {"id": str(res.inserted_id), "consecutivo": consecutivo}
+    return {"id": str(res.inserted_id), "consecutivo": consecutivo, "estado_despacho": estado_despacho}
 
 @app.get("/api/ventas")
 def listar_ventas():
     ventas = list(db.ventas.find().sort("fecha", -1))
     return [fix_id(v) for v in ventas]
+
+@app.put("/api/ventas/{venta_id}/completar-despacho")
+def completar_despacho_venta(venta_id: str):
+    venta = db.ventas.find_one({"_id": ObjectId(venta_id)})
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
+    if venta.get("estado_despacho") == "Completo":
+        return {"mensaje": "La venta ya está completada"}
+
+    # Validar stock actual antes de completar
+    resumen_cafe = resumen_inventario()
+    resumen_emp = resumen_empaques()
+
+    total_gramos = sum(i.get("gramos_totales", 0) for i in venta.get("items", []))
+    if total_gramos > resumen_cafe["inventario_disponible_g"]:
+        raise HTTPException(status_code=400, detail="Inventario de café todavía insuficiente para completar el despacho.")
+
+    req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
+    for item in venta.get("items", []):
+        cant = item.get("cantidad", 0)
+        g = item.get("gramaje", 0)
+        if g == 250:
+            req_empaques["bolsa_250g"] += cant
+            req_empaques["etiqueta_250g"] += cant
+        elif g == 500:
+            req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+
+    for k, v_req in req_empaques.items():
+        if v_req > resumen_emp[k]["disponibles"]:
+            nombre_legible = k.replace('_', ' ').title()
+            raise HTTPException(status_code=400, detail=f"Stock insuficiente de {nombre_legible} para completar.")
+
+    # Marcar como Completo y limpiar faltantes
+    db.ventas.update_one(
+        {"_id": ObjectId(venta_id)},
+        {"$set": {"estado_despacho": "Completo", "faltantes": {}}}
+    )
+    return {"mensaje": "Venta completada y stock descontado exitosamente"}
 
 @app.put("/api/ventas/{venta_id}/pagar-credito")
 def pagar_credito(venta_id: str):
