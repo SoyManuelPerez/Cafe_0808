@@ -308,6 +308,7 @@ def listar_productos_unicos():
         }}
     ]
     unicos = list(db.productos.aggregate(pipeline))
+    unicos.sort(key=lambda p: p.get("nombre", "").lower())
     return unicos
 
 @app.put("/api/productos/actualizar-costo-libra")
@@ -377,6 +378,8 @@ def crear_producto(prod: ProductoCreate):
 @app.get("/api/productos")
 def listar_productos():
     prods = list(db.productos.find())
+    # Ordenar alfabéticamente por nombre y secundariamente por gramaje ascendente (250g -> 500g -> 2500g)
+    prods.sort(key=lambda p: (p.get("nombre", "").lower(), float(p.get("gramaje", 0))))
     return [fix_id(p) for p in prods]
 
 @app.put("/api/productos/{prod_id}")
@@ -424,7 +427,7 @@ def resumen_inventario():
     total_usado_general = sum(dict_usados_nombre.values())
 
     productos = list(db.productos.find())
-    nombres_unicos = list(set([p["nombre"] for p in productos]))
+    nombres_unicos = sorted(list(set([p["nombre"] for p in productos])), key=lambda x: x.lower())
 
     resumen_tarjetas = []
     for nombre in nombres_unicos:
@@ -463,7 +466,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
     total_venta = 0.0 if es_obsequio else sum(i.subtotal for i in venta.items)
     total_gramos = sum(i.gramos_totales for i in venta.items)
     
-    # Comprobar si hay stock suficiente para despacho inmediato
     stock_insuficiente = False
     motivo_faltante = {}
 
@@ -491,7 +493,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
 
     costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
     
-    # Calcular costo empaques
     costo_empaques_total = 0.0
     for item in venta.items:
         cant = item.cantidad
@@ -537,7 +538,6 @@ def completar_despacho_venta(venta_id: str):
     if venta.get("estado_despacho") == "Completo":
         return {"mensaje": "La venta ya está completada"}
 
-    # Validar stock actual antes de completar
     resumen_cafe = resumen_inventario()
     resumen_emp = resumen_empaques()
 
@@ -561,7 +561,7 @@ def completar_despacho_venta(venta_id: str):
             nombre_legible = k.replace('_', ' ').title()
             raise HTTPException(status_code=400, detail=f"Stock insuficiente de {nombre_legible} para completar.")
 
-    # Marcar como Completo y limpiar faltantes
+    db.usuarios if False else None
     db.ventas.update_one(
         {"_id": ObjectId(venta_id)},
         {"$set": {"estado_despacho": "Completo", "faltantes": {}}}
