@@ -380,7 +380,7 @@
         }
 
         .modal-small {
-            max-width: 420px;
+            max-width: 450px;
             height: auto;
         }
 
@@ -401,6 +401,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            overflow-y: auto;
         }
 
         .modal-body object {
@@ -517,6 +518,7 @@
         <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
         
         <!-- Elementos Exclusivos para Administrador -->
+        <button class="nav-button admin-only" id="btn-nav-envios" onclick="showSection('envios-sec', event)">🚛 Envíos Consolidados</button>
         <button class="nav-button admin-only" id="btn-nav-parciales" onclick="showSection('parciales-sec', event)">⏳ Ventas Parciales</button>
         <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
         <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
@@ -754,6 +756,60 @@
             </div>
         </div>
 
+        <!-- MÓDULO ENVÍOS CONSOLIDADOS (EXCLUSIVO ADMIN) -->
+        <div id="envios-sec" class="section admin-only">
+            <h1>🚛 Envíos Consolidados a Vendedores</h1>
+
+            <div class="card">
+                <h3>Registrar Nuevo Envío de Mercancía</h3>
+                <form id="form-envio" onsubmit="guardarEnvioConsolidado(event)">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label>Fecha de Envío:</label>
+                            <input type="date" id="envio-fecha" required>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label>Valor del Envío / Flete (COP):</label>
+                            <input type="number" id="envio-costo" placeholder="Costo del transporte" required min="0">
+                        </div>
+                    </div>
+
+                    <label style="margin-top: 10px; display: block;">Nota / Vendedor Destino:</label>
+                    <input type="text" id="envio-nota" placeholder="Ej. Despacho lote 15 a Vendedor Bogotá" required>
+
+                    <h4 style="color: var(--gold-primary); margin-top: 15px;">Agregar Productos al Envío:</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="select-prod-envio" style="flex: 2;"></select>
+                        <input type="number" id="cant-prod-envio" value="1" min="1" style="flex: 1;" placeholder="Cantidad">
+                        <button type="button" class="btn-gold" style="width: auto; padding: 0 15px;" onclick="agregarProductoAEnvio()">➕ Añadir</button>
+                    </div>
+
+                    <div class="table-responsive" style="margin-top: 10px;">
+                        <table id="tabla-items-envio">
+                            <thead>
+                                <tr><th>Producto</th><th>Gramaje</th><th>Cantidad</th><th>Acción</th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <button type="submit" class="btn-gold" style="margin-top:15px;">💾 Registrar Envío Consolidado</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Histórico de Envíos y Facturas Asociadas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-historico-envios">
+                        <thead>
+                            <tr><th>Fecha</th><th>Nota / Destino</th><th>Costo Flete</th><th>Items Enviados</th><th>Facturas Vinculadas</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- MÓDULO VENTAS PARCIALES (EXCLUSIVO ADMIN) -->
         <div id="parciales-sec" class="section admin-only">
             <h1>⏳ Ventas Parciales y Pendientes de Inventario</h1>
@@ -917,7 +973,7 @@
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
                     <table id="tabla-reportes">
-                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia Neta</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -967,6 +1023,21 @@
 
     </div>
 
+    <!-- MODAL VINCULAR FACTURAS A ENVÍO -->
+    <div id="modal-vincular-facturas" class="modal-overlay">
+        <div class="modal-container modal-small">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold-bright);">🔗 Vincular Facturas al Envío</h3>
+                <button onclick="cerrarModalVincularFacturas()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+            </div>
+            <div class="modal-body" style="align-items: flex-start;">
+                <p style="color:#aaa; font-size:13px; margin-top:0;">Selecciona las ventas pertenecientes a este envío. El costo del flete se dividirá en partes iguales entre ellas.</p>
+                <div id="lista-facturas-vincular" style="width:100%; max-height:300px; overflow-y:auto; border:1px solid var(--border-color); padding:10px; border-radius:6px; box-sizing:border-box;"></div>
+                <button class="btn-gold" style="margin-top:20px; width:100%;" onclick="guardarVinculacionFacturas()">💾 Guardar Vinculación</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL CREAR CLIENTE RÁPIDO -->
     <div id="modal-nuevo-cliente" class="modal-overlay">
         <div class="modal-container modal-small">
@@ -1006,9 +1077,13 @@
     <script>
         let carrito = [];
         let carritoCotizacion = [];
+        let itemsEnvioConsolidado = [];
         let productosCache = [];
         let productosUnicos = [];
         let clientesCache = [];
+        let ventasCache = [];
+        let envioSeleccionadoId = null;
+
         let urlPdfActual = '';
         let blobPdfActual = null;
         let nombrePdfDescarga = 'Documento.pdf';
@@ -1019,14 +1094,12 @@
 
         const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 Horas
 
-        // FUNCION AUXILIAR PARA MONTO MONETARIO CON SEPARADOR DE MILES EN PUNTO (es-CO)
         function fmtCOP(num) {
             const val = Math.round(num || 0);
             const formatted = Math.abs(val).toLocaleString('es-CO');
             return val < 0 ? `$-${formatted}` : `$${formatted}`;
         }
 
-        // ENGINE REUTILIZABLE DE PAGINACIÓN, BÚSQUEDA Y EXPORTACIÓN A EXCEL
         const tableStates = {};
 
         function setupTableToolbar(tableId, options = {}) {
@@ -1102,7 +1175,6 @@
                 });
             }
 
-            // CALLBACK OPCIONAL PARA RECALCULAR TOTALES DINÁMICOS AL FILTRAR
             if (typeof st.options.onFilter === 'function') {
                 st.options.onFilter(filtered);
             }
@@ -1140,7 +1212,6 @@
             if (!table) return;
 
             const cloneTable = table.cloneNode(true);
-            
             const headers = cloneTable.querySelectorAll('th');
             let removeIdxs = [];
             headers.forEach((th, idx) => {
@@ -1162,7 +1233,6 @@
             XLSX.writeFile(wb, filename || 'Reporte_0808.xlsx');
         }
 
-        // CONTROL DE SESIÓN
         function verificarSesionActiva() {
             const loginTimeStr = localStorage.getItem('login_timestamp_0808');
             const savedUser = localStorage.getItem('user_0808');
@@ -1278,6 +1348,7 @@
             if(id === 'ventas') cargarVentasData();
             if(id === 'cotizaciones') cargarCotizacionesData();
             if(id === 'clientes') cargarClientes();
+            if(id === 'envios-sec') cargarModuloEnvios();
             if(id === 'parciales-sec') cargarVentasParciales();
             if(id === 'compras') cargarModuloCompras();
             if(id === 'empaques') cargarModuloEmpaques();
@@ -1287,7 +1358,181 @@
             if(id === 'usuarios-sec') cargarUsuarios();
         }
 
-        // USUARIOS
+        // -------------------------------------------------------------------
+        // MÓDULO DE ENVÍOS CONSOLIDADOS
+        // -------------------------------------------------------------------
+        async function cargarModuloEnvios() {
+            if (productosCache.length === 0) {
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
+            }
+
+            const selectEnvio = document.getElementById('select-prod-envio');
+            selectEnvio.innerHTML = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g)</option>`).join('');
+
+            document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
+            renderItemsEnvio();
+            cargarHistoricoEnvios();
+        }
+
+        function agregarProductoAEnvio() {
+            const pId = document.getElementById('select-prod-envio').value;
+            const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
+            const prod = productosCache.find(p => p.id === pId);
+
+            if (!prod) return;
+
+            const idx = itemsEnvioConsolidado.findIndex(i => i.producto_id === pId);
+            if (idx !== -1) {
+                itemsEnvioConsolidado[idx].cantidad += cant;
+            } else {
+                itemsEnvioConsolidado.push({
+                    producto_id: prod.id,
+                    nombre: prod.nombre,
+                    gramaje: prod.gramaje,
+                    cantidad: cant
+                });
+            }
+
+            document.getElementById('cant-prod-envio').value = 1;
+            renderItemsEnvio();
+        }
+
+        function quitarProductoEnvio(idx) {
+            itemsEnvioConsolidado.splice(idx, 1);
+            renderItemsEnvio();
+        }
+
+        function renderItemsEnvio() {
+            const tbody = document.querySelector('#tabla-items-envio tbody');
+            tbody.innerHTML = itemsEnvioConsolidado.map((i, idx) => `
+                <tr>
+                    <td>${i.nombre}</td>
+                    <td>${i.gramaje}g</td>
+                    <td>${i.cantidad}</td>
+                    <td><button type="button" class="btn-danger" style="padding:2px 8px;" onclick="quitarProductoEnvio(${idx})">❌</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function guardarEnvioConsolidado(e) {
+            e.preventDefault();
+            if (itemsEnvioConsolidado.length === 0) return alert('Debes agregar al menos un producto al envío');
+
+            const payload = {
+                fecha: document.getElementById('envio-fecha').value,
+                valor_envio: parseFloat(document.getElementById('envio-costo').value) || 0,
+                nota: document.getElementById('envio-nota').value,
+                items: itemsEnvioConsolidado
+            };
+
+            const res = await fetch('/api/envios', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Envío consolidado registrado con éxito');
+                document.getElementById('form-envio').reset();
+                itemsEnvioConsolidado = [];
+                renderItemsEnvio();
+                cargarHistoricoEnvios();
+            } else {
+                alert('Error al registrar el envío');
+            }
+        }
+
+        async function cargarHistoricoEnvios() {
+            const resEnv = await fetch('/api/envios');
+            const envios = await resEnv.json();
+
+            renderTablaPaginada('tabla-historico-envios', envios, e => {
+                const itemsSummary = e.items.map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
+                const numFacturas = (e.facturas_ids || []).length;
+
+                return `
+                    <tr>
+                        <td>${e.fecha}</td>
+                        <td><strong>${e.nota}</strong></td>
+                        <td>${fmtCOP(e.valor_envio)}</td>
+                        <td style="font-size:13px; color:#aaa;">${itemsSummary}</td>
+                        <td><strong style="color:var(--gold-bright);">${numFacturas} Factura(s)</strong></td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="abrirModalVincularFacturas('${e.id}')">🔗 Vincular Facturas</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="eliminarEnvio('${e.id}')">❌</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function abrirModalVincularFacturas(envioId) {
+            envioSeleccionadoId = envioId;
+            const resVentas = await fetch('/api/ventas');
+            ventasCache = await resVentas.json();
+
+            const resEnvios = await fetch('/api/envios');
+            const envios = await resEnvios.json();
+            const envioActual = envios.find(e => e.id === envioId);
+            const vinculadasActuales = envioActual ? (envioActual.facturas_ids || []) : [];
+
+            const container = document.getElementById('lista-facturas-vincular');
+            if (ventasCache.length === 0) {
+                container.innerHTML = '<div style="color:#aaa;">No hay ventas registradas</div>';
+            } else {
+                container.innerHTML = ventasCache.map(v => {
+                    const numFact = v.consecutivo_str || v.id.substring(0,8);
+                    const isChecked = vinculadasActuales.includes(v.id) ? 'checked' : '';
+                    return `
+                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer;">
+                            <input type="checkbox" class="chk-factura" value="${v.id}" ${isChecked} style="width:auto; margin:0;">
+                            <span><strong>${numFact}</strong> - ${v.fecha} - ${v.cliente} (${fmtCOP(v.total_venta)})</span>
+                        </label>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('modal-vincular-facturas').style.display = 'flex';
+        }
+
+        function cerrarModalVincularFacturas() {
+            document.getElementById('modal-vincular-facturas').style.display = 'none';
+            envioSeleccionadoId = null;
+        }
+
+        async function guardarVinculacionFacturas() {
+            if (!envioSeleccionadoId) return;
+
+            const selectedCheckboxes = document.querySelectorAll('.chk-factura:checked');
+            const facturasIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+            const res = await fetch(`/api/envios/${envioSeleccionadoId}/asociar-facturas`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ facturas_ids: facturasIds })
+            });
+
+            if (res.ok) {
+                alert('Facturas vinculadas correctamente');
+                cerrarModalVincularFacturas();
+                cargarHistoricoEnvios();
+            } else {
+                alert('Error al vincular facturas');
+            }
+        }
+
+        async function eliminarEnvio(id) {
+            if (confirm('¿Eliminar este envío consolidado?')) {
+                await fetch('/api/envios/' + id, { method: 'DELETE' });
+                cargarHistoricoEnvios();
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // OTROS MÓDULOS (USUARIOS, CLIENTES, PRODUCTOS, COMPRAS, ETC.)
+        // -------------------------------------------------------------------
         async function cargarUsuarios() {
             const res = await fetch('/api/usuarios');
             const usuarios = await res.json();
@@ -1367,7 +1612,6 @@
             }
         }
 
-        // CLIENTES & MODAL RÁPIDO
         async function cargarClientes() {
             const res = await fetch('/api/clientes');
             clientesCache = await res.json();
@@ -1483,7 +1727,6 @@
             }
         }
 
-        // EMPAQUES
         function calcularCostoEmpaqueUnitario() {
             const cant = parseInt(document.getElementById('emp-cantidad').value) || 0;
             const costo = parseFloat(document.getElementById('emp-costo').value) || 0;
@@ -1565,7 +1808,6 @@
             }
         }
 
-        // VENTAS Y COTIZACIONES
         async function cargarVentasData() {
             const resResumen = await fetch('/api/inventario/resumen');
             const dataResumen = await resResumen.json();
@@ -1574,7 +1816,6 @@
             if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
                 gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
             } else {
-                // EXCLUIR PRODUCTOS DE 2.5 KG (2500g) EN LA CUADRÍCULA DE CAFÉ
                 const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
                     const nom = String(p.nombre || '').toLowerCase();
                     const gram = parseFloat(p.gramaje) || 0;
@@ -1645,7 +1886,6 @@
             }
         }
 
-        // MÓDULO VENTAS PARCIALES (ADMIN)
         async function cargarVentasParciales() {
             const res = await fetch('/api/ventas');
             const ventas = await res.json();
@@ -1738,7 +1978,6 @@
 
             if (!prod) return alert('Seleccione un producto válido');
 
-            // PRECIO UNITARIO FINAL = (PRECIO BASE - DESCUENTO) + VALOR AÑADIDO
             const precioBase = prod.precio_venta || 0;
             const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
             const targetCarrito = esCot ? carritoCotizacion : carrito;
@@ -1759,7 +1998,7 @@
                     descuento: descuento,
                     presentacion: pres,
                     gramos_totales: prod.gramaje * cant,
-                    precio_unitario: precioFinalUnitario, // PRECIO UNITARIO FINAL CON VALOR AÑADIDO INCLUIDO
+                    precio_unitario: precioFinalUnitario,
                     subtotal: precioFinalUnitario * cant
                 });
             }
@@ -1883,7 +2122,6 @@
             }
         }
 
-        // COMPRAS DE CAFÉ
         async function cargarModuloCompras() {
             const res = await fetch('/api/productos/unicos');
             productosUnicos = await res.json();
@@ -1968,7 +2206,6 @@
             }
         }
 
-        // PRODUCTOS
         async function guardarProducto(e) {
             e.preventDefault();
             const payload = {
@@ -2032,7 +2269,6 @@
             cargarProductos();
         }
 
-        // CRÉDITOS Y REPORTES
         async function cargarCreditos() {
             const res = await fetch('/api/ventas');
             const ventas = await res.json();
@@ -2075,7 +2311,6 @@
         }
 
         async function cargarReportes() {
-            // Histórico Compras Café
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
 
@@ -2110,7 +2345,6 @@
                 }
             });
 
-            // Histórico Compras Empaques
             const resEmpaques = await fetch('/api/compras-empaques');
             const empaquesList = await resEmpaques.json();
 
@@ -2152,13 +2386,13 @@
                 }
             });
 
-            // Histórico Ventas (RECALCULO AUTOMÁTICO AL FILTRAR POR FECHA/BUSCADOR)
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
 
             renderTablaPaginada('tabla-reportes', ventas, v => {
                 const tot = v.total_venta || 0;
                 const gan = v.ganancia || 0;
+                const fleteApp = v.costo_envio_asociado || 0;
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
                 const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
 
@@ -2171,7 +2405,10 @@
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
                         <td>${estadoTxt}</td>
                         <td>${fmtCOP(tot)}</td>
-                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">${fmtCOP(gan)}</td>
+                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">
+                            ${fmtCOP(gan)}
+                            ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
+                        </td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
@@ -2199,7 +2436,6 @@
                 }
             });
 
-            // Histórico Cotizaciones
             const resCot = await fetch('/api/cotizaciones');
             const cotizaciones = await resCot.json();
 
@@ -2255,7 +2491,6 @@
             }
         }
 
-        // MODAL PREVISUALIZACIÓN UNIFICADA
         async function abrirModalPdf(endpointUrl, tituloModal, filenameDescarga) {
             const container = document.getElementById('modal-body-pdf');
             document.getElementById('modal-titulo-pdf').innerText = '📄 ' + tituloModal;
@@ -2293,7 +2528,6 @@
             }
         }
 
-        // Inicialización
         verificarSesionActiva();
     </script>
 </body>
