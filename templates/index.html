@@ -1078,6 +1078,7 @@
         let carritoCotizacion = [];
         let itemsEnvioConsolidado = [];
         let productosCache = [];
+        let productosEnvioCache = [];
         let productosUnicos = [];
         let clientesCache = [];
         let ventasCache = [];
@@ -1165,7 +1166,7 @@
             const st = tableStates[tableId];
             if (!st) return;
 
-            let filtered = st.data;
+            let filtered = st.data || [];
             if (st.search) {
                 filtered = st.data.filter(item => {
                     return Object.values(item).some(val => 
@@ -1358,17 +1359,149 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS (USANDO ÍNDICES FÍSICOS)
+        // MÓDULO VENTAS & HISTÓRICO DE VENTAS
         // -------------------------------------------------------------------
-        async function cargarModuloEnvios() {
+        async function cargarVentasData() {
+            try {
+                const resResumen = await fetch('/api/inventario/resumen');
+                const dataResumen = await resResumen.json();
+                
+                const gridStock = document.getElementById('grid-detalles-stock');
+                if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
+                    gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
+                } else {
+                    const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
+                        const nom = String(p.nombre || '').toLowerCase();
+                        const gram = parseFloat(p.gramaje) || 0;
+                        return !nom.includes('2.5kg') && !nom.includes('2.5 kg') && gram !== 2500;
+                    });
+
+                    if (productosFiltradosGrid.length === 0) {
+                        gridStock.innerHTML = '<div style="grid-column: 1/-1; color:#aaa;">No hay productos estándar disponibles</div>';
+                    } else {
+                        gridStock.innerHTML = productosFiltradosGrid.map(p => `
+                            <div class="stock-item">
+                                <div class="stock-item-title">${p.nombre}</div>
+                                <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
+                
+                const optionsProds = productosCache.map(p => {
+                    const pId = p.id || p._id;
+                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                }).join('');
+                document.getElementById('select-producto').innerHTML = optionsProds;
+
+                await actualizarSelectsClientes();
+                cargarMisVentas();
+            } catch (err) {
+                console.error("Error al cargar ventas:", err);
+            }
+        }
+
+        async function cargarMisVentas() {
+            try {
+                const res = await fetch('/api/ventas');
+                const ventas = await res.json();
+                
+                const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
+
+                renderTablaPaginada('tabla-mis-ventas', misVentas, v => {
+                    const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
+                    const esPendiente = v.estado_despacho === 'Pendiente';
+                    const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
+                    
+                    const esCredito = v.tipo_pago === 'Crédito';
+                    const creditoPendiente = v.estado_credito === 'Pendiente';
+
+                    return `
+                        <tr>
+                            <td><strong>${numFact}</strong></td>
+                            <td>${v.fecha}</td>
+                            <td>${v.cliente}</td>
+                            <td>${v.tipo_venta || 'Normal'}</td>
+                            <td>${badgeEstado}</td>
+                            <td>
+                                ${fmtCOP(v.total_venta)} 
+                                ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito}</small>` : ''}
+                            </td>
+                            <td>
+                                <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
+                                ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${v.id}')">✅ Pagado</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando histórico de ventas:", err);
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // MÓDULO COTIZACIONES & HISTÓRICO DE COTIZACIONES
+        // -------------------------------------------------------------------
+        async function cargarCotizacionesData() {
             try {
                 const resProds = await fetch('/api/productos');
                 productosCache = await resProds.json();
                 ordenarProductosArray(productosCache);
 
+                const optionsProds = productosCache.map(p => {
+                    const pId = p.id || p._id;
+                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                }).join('');
+                document.getElementById('select-producto-cot').innerHTML = optionsProds;
+
+                await actualizarSelectsClientes();
+                cargarMisCotizaciones();
+            } catch (err) {
+                console.error("Error al cargar cotizaciones:", err);
+            }
+        }
+
+        async function cargarMisCotizaciones() {
+            try {
+                const res = await fetch('/api/cotizaciones');
+                const cotizaciones = await res.json();
+                
+                const misCot = (rolActual === 'admin') ? cotizaciones : cotizaciones.filter(c => c.vendedor === usuarioActual);
+
+                renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
+                    const numCot = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
+                    return `
+                        <tr>
+                            <td><strong>${numCot}</strong></td>
+                            <td>${c.fecha}</td>
+                            <td>${c.cliente}</td>
+                            <td>${c.tipo_pago || 'N/A'}</td>
+                            <td>${fmtCOP(c.total_venta)}</td>
+                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando histórico de cotizaciones:", err);
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // MÓDULO DE ENVÍOS CONSOLIDADOS (INDEPENDIENTE)
+        // -------------------------------------------------------------------
+        async function cargarModuloEnvios() {
+            try {
+                const resProds = await fetch('/api/productos');
+                productosEnvioCache = await resProds.json();
+                ordenarProductosArray(productosEnvioCache);
+
                 const selectEnvio = document.getElementById('select-prod-envio');
                 
-                selectEnvio.innerHTML = productosCache.map((p, idx) => {
+                selectEnvio.innerHTML = productosEnvioCache.map((p, idx) => {
                     return `<option value="${idx}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
                 }).join('');
 
@@ -1384,13 +1517,13 @@
             const selectEnvio = document.getElementById('select-prod-envio');
             const idxSeleccionado = parseInt(selectEnvio.value);
 
-            if (isNaN(idxSeleccionado) || !productosCache || !productosCache[idxSeleccionado]) {
+            if (isNaN(idxSeleccionado) || !productosEnvioCache || !productosEnvioCache[idxSeleccionado]) {
                 const resProds = await fetch('/api/productos');
-                productosCache = await resProds.json();
-                ordenarProductosArray(productosCache);
+                productosEnvioCache = await resProds.json();
+                ordenarProductosArray(productosEnvioCache);
             }
 
-            const prod = productosCache[idxSeleccionado];
+            const prod = productosEnvioCache[idxSeleccionado];
 
             if (!prod) {
                 alert("Por favor selecciona un producto válido.");
@@ -1427,14 +1560,16 @@
 
         function renderItemsEnvio() {
             const tbody = document.querySelector('#tabla-items-envio tbody');
-            tbody.innerHTML = itemsEnvioConsolidado.map((i, idx) => `
-                <tr>
-                    <td>${i.nombre}</td>
-                    <td>${i.gramaje}g</td>
-                    <td>${i.cantidad}</td>
-                    <td><button type="button" class="btn-danger" style="padding:2px 8px;" onclick="quitarProductoEnvio(${idx})">❌</button></td>
-                </tr>
-            `).join('');
+            if (tbody) {
+                tbody.innerHTML = itemsEnvioConsolidado.map((i, idx) => `
+                    <tr>
+                        <td>${i.nombre}</td>
+                        <td>${i.gramaje}g</td>
+                        <td>${i.cantidad}</td>
+                        <td><button type="button" class="btn-danger" style="padding:2px 8px;" onclick="quitarProductoEnvio(${idx})">❌</button></td>
+                    </tr>
+                `).join('');
+            }
         }
 
         async function guardarEnvioConsolidado(e) {
@@ -1504,7 +1639,7 @@
                 container.innerHTML = '<div style="color:#aaa;">No hay ventas registradas</div>';
             } else {
                 container.innerHTML = ventasCache.map(v => {
-                    const numFact = v.consecutivo_str || v.id.substring(0,8);
+                    const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
                     const isChecked = vinculadasActuales.includes(v.id) ? 'checked' : '';
                     return `
                         <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer;">
@@ -1552,8 +1687,217 @@
         }
 
         // -------------------------------------------------------------------
-        // OTROS MÓDULOS (USUARIOS, CLIENTES, PRODUCTOS, COMPRAS, ETC.)
+        // OTROS MÓDULOS Y FUNCIONALIDADES SECUNDARIAS
         // -------------------------------------------------------------------
+        async function pagarCreditoVendedor(id) {
+            if(confirm('¿Marcar este crédito como pagado?')) {
+                await fetch(`/api/ventas/${id}/pagar-credito`, { method: 'PUT' });
+                cargarMisVentas();
+            }
+        }
+
+        async function cargarVentasParciales() {
+            const res = await fetch('/api/ventas');
+            const ventas = await res.json();
+            const parciales = ventas.filter(v => v.estado_despacho === 'Pendiente');
+
+            renderTablaPaginada('tabla-parciales', parciales, v => {
+                const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
+                let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
+                return `
+                    <tr>
+                        <td><strong>${numFact}</strong></td>
+                        <td>${v.fecha}</td>
+                        <td>${v.cliente}</td>
+                        <td>${v.vendedor || 'admin'}</td>
+                        <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
+                        <td>${fmtCOP(v.total_venta)}</td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function completarDespacho(id) {
+            if(confirm('¿Deseas completar esta venta, descontar el stock faltante del inventario y pasarla a venta normal?')) {
+                const res = await fetch(`/api/ventas/${id}/completar-despacho`, { method: 'PUT' });
+                if(res.ok) {
+                    alert('¡Venta completada y stock descontado con éxito!');
+                    cargarVentasParciales();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al completar despacho. Asegúrate de tener suficiente inventario.');
+                }
+            }
+        }
+
+        function toggleTipoVenta() {
+            const tipo = document.getElementById('tipo-venta').value;
+            document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
+            renderCarrito('venta');
+        }
+
+        function agregarAlCarrito(modo) {
+            const esCot = modo === 'cotizacion';
+            const suffix = esCot ? '-cot' : '';
+
+            const pId = document.getElementById('select-producto' + suffix).value;
+            const cant = parseInt(document.getElementById('cant-producto' + suffix).value) || 1;
+            const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
+            const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
+            const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
+            const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
+
+            if (!prod) return alert('Seleccione un producto válido');
+
+            const prodIdFinal = prod.id || prod._id;
+            const precioBase = prod.precio_venta || 0;
+            const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+
+            const indexExistente = targetCarrito.findIndex(item => String(item.producto_id) === String(prodIdFinal) && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
+            
+            if (indexExistente !== -1) {
+                targetCarrito[indexExistente].cantidad += cant;
+                targetCarrito[indexExistente].gramos_totales = targetCarrito[indexExistente].gramaje * targetCarrito[indexExistente].cantidad;
+                targetCarrito[indexExistente].subtotal = precioFinalUnitario * targetCarrito[indexExistente].cantidad;
+            } else {
+                targetCarrito.push({
+                    producto_id: prodIdFinal,
+                    nombre: prod.nombre,
+                    gramaje: prod.gramaje || 0,
+                    cantidad: cant,
+                    valor_add: valorAdd,
+                    descuento: descuento,
+                    presentacion: pres,
+                    gramos_totales: (prod.gramaje || 0) * cant,
+                    precio_unitario: precioFinalUnitario,
+                    subtotal: precioFinalUnitario * cant
+                });
+            }
+
+            document.getElementById('cant-producto' + suffix).value = 1;
+            document.getElementById('add-producto' + suffix).value = 0;
+            document.getElementById('desc-producto' + suffix).value = 0;
+
+            renderCarrito(modo);
+        }
+
+        function quitarDelCarrito(index, modo) {
+            if(modo === 'cotizacion') {
+                carritoCotizacion.splice(index, 1);
+            } else {
+                carrito.splice(index, 1);
+            }
+            renderCarrito(modo);
+        }
+
+        function vaciarCarrito(modo) {
+            const target = modo === 'cotizacion' ? carritoCotizacion : carrito;
+            if (target.length === 0) return;
+            if (confirm('¿Vaciar carrito?')) {
+                if(modo === 'cotizacion') carritoCotizacion = [];
+                else carrito = [];
+                renderCarrito(modo);
+            }
+        }
+
+        function renderCarrito(modo) {
+            const esCot = modo === 'cotizacion';
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+            const tbody = document.querySelector(esCot ? '#tabla-carrito-cot tbody' : '#tabla-carrito tbody');
+            const esObsequio = !esCot && document.getElementById('tipo-venta').value === 'Obsequio';
+            let total = 0;
+
+            tbody.innerHTML = targetCarrito.map((i, index) => {
+                const sub = esObsequio ? 0 : i.subtotal;
+                total += sub;
+                return `
+                    <tr>
+                        <td>${i.nombre}</td>
+                        <td><strong>${i.presentacion}</strong></td>
+                        <td>${i.gramaje}g</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
+                        <td>${i.cantidad}</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
+                        <td>${fmtCOP(sub)}</td>
+                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const txtTotal = document.getElementById(esCot ? 'total-carrito-txt-cot' : 'total-carrito-txt');
+            txtTotal.innerText = fmtCOP(total);
+        }
+
+        async function procesarVenta() {
+            if (carrito.length === 0) return alert('El carrito está vacío');
+
+            const tipoVenta = document.getElementById('tipo-venta').value;
+            const payload = {
+                fecha: new Date().toISOString().split('T')[0],
+                cliente: document.getElementById('select-cliente-venta').value,
+                vendedor: usuarioActual,
+                tipo_pago: tipoVenta === 'Obsequio' ? 'N/A' : document.getElementById('pago-venta').value,
+                tipo_venta: tipoVenta,
+                items: carrito
+            };
+
+            const res = await fetch('/api/ventas', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.estado_despacho === 'Pendiente') {
+                    alert('⚠️ Advertencia: No hay suficiente stock/empaques. La venta se registró con éxito como Venta Parcial (Pendiente).');
+                } else {
+                    alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
+                }
+                carrito = [];
+                renderCarrito('venta');
+                cargarVentasData();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al procesar la venta');
+            }
+        }
+
+        async function procesarCotizacion() {
+            if (carritoCotizacion.length === 0) return alert('El carrito de cotización está vacío');
+
+            const payload = {
+                fecha: new Date().toISOString().split('T')[0],
+                cliente: document.getElementById('select-cliente-cot').value,
+                vendedor: usuarioActual,
+                tipo_pago: document.getElementById('pago-cot').value,
+                items: carritoCotizacion
+            };
+
+            const res = await fetch('/api/cotizaciones', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Cotización N° ${data.consecutivo} registrada con éxito`);
+                carritoCotizacion = [];
+                renderCarrito('cotizacion');
+                cargarCotizacionesData();
+                abrirModalPdf(`/api/cotizaciones/${data.id}/pdf`, `Cotización N° ${data.consecutivo}`, `Cotizacion_${data.consecutivo}.pdf`);
+            } else {
+                alert('Error al generar cotización');
+            }
+        }
+
         async function cargarUsuarios() {
             const res = await fetch('/api/usuarios');
             const usuarios = await res.json();
@@ -1829,327 +2173,6 @@
             }
         }
 
-        async function cargarVentasData() {
-            const resResumen = await fetch('/api/inventario/resumen');
-            const dataResumen = await resResumen.json();
-            
-            const gridStock = document.getElementById('grid-detalles-stock');
-            if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
-                gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
-            } else {
-                const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
-                    const nom = String(p.nombre || '').toLowerCase();
-                    const gram = parseFloat(p.gramaje) || 0;
-                    return !nom.includes('2.5kg') && !nom.includes('2.5 kg') && gram !== 2500;
-                });
-
-                if (productosFiltradosGrid.length === 0) {
-                    gridStock.innerHTML = '<div style="grid-column: 1/-1; color:#aaa;">No hay productos estándar disponibles</div>';
-                } else {
-                    gridStock.innerHTML = productosFiltradosGrid.map(p => `
-                        <div class="stock-item">
-                            <div class="stock-item-title">${p.nombre}</div>
-                            <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
-                        </div>
-                    `).join('');
-                }
-            }
-
-            const resProds = await fetch('/api/productos');
-            productosCache = await resProds.json();
-            ordenarProductosArray(productosCache);
-            
-            const optionsProds = productosCache.map(p => {
-                const pId = p.id || p._id;
-                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-            }).join('');
-            document.getElementById('select-producto').innerHTML = optionsProds;
-
-            await actualizarSelectsClientes();
-            cargarMisVentas();
-        }
-
-        async function cargarMisVentas() {
-            const res = await fetch('/api/ventas');
-            const ventas = await res.json();
-            
-            const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
-
-            renderTablaPaginada('tabla-mis-ventas', misVentas, v => {
-                const numFact = v.consecutivo_str || v.id.substring(0,8);
-                const esPendiente = v.estado_despacho === 'Pendiente';
-                const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
-                
-                const esCredito = v.tipo_pago === 'Crédito';
-                const creditoPendiente = v.estado_credito === 'Pendiente';
-
-                return `
-                    <tr>
-                        <td><strong>${numFact}</strong></td>
-                        <td>${v.fecha}</td>
-                        <td>${v.cliente}</td>
-                        <td>${v.tipo_venta || 'Normal'}</td>
-                        <td>${badgeEstado}</td>
-                        <td>
-                            ${fmtCOP(v.total_venta)} 
-                            ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito}</small>` : ''}
-                        </td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                            ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${v.id}')">✅ Pagado</button>` : ''}
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function pagarCreditoVendedor(id) {
-            if(confirm('¿Marcar este crédito como pagado?')) {
-                await fetch(`/api/ventas/${id}/pagar-credito`, { method: 'PUT' });
-                cargarMisVentas();
-            }
-        }
-
-        async function cargarVentasParciales() {
-            const res = await fetch('/api/ventas');
-            const ventas = await res.json();
-            const parciales = ventas.filter(v => v.estado_despacho === 'Pendiente');
-
-            renderTablaPaginada('tabla-parciales', parciales, v => {
-                const numFact = v.consecutivo_str || v.id.substring(0,8);
-                let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
-                return `
-                    <tr>
-                        <td><strong>${numFact}</strong></td>
-                        <td>${v.fecha}</td>
-                        <td>${v.cliente}</td>
-                        <td>${v.vendedor || 'admin'}</td>
-                        <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
-                        <td>${fmtCOP(v.total_venta)}</td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function completarDespacho(id) {
-            if(confirm('¿Deseas completar esta venta, descontar el stock faltante del inventario y pasarla a venta normal?')) {
-                const res = await fetch(`/api/ventas/${id}/completar-despacho`, { method: 'PUT' });
-                if(res.ok) {
-                    alert('¡Venta completada y stock descontado con éxito!');
-                    cargarVentasParciales();
-                } else {
-                    const err = await res.json();
-                    alert(err.detail || 'Error al completar despacho. Asegúrate de tener suficiente inventario.');
-                }
-            }
-        }
-
-        async function cargarCotizacionesData() {
-            if(productosCache.length === 0) {
-                const resProds = await fetch('/api/productos');
-                productosCache = await resProds.json();
-                ordenarProductosArray(productosCache);
-            }
-
-            const optionsProds = productosCache.map(p => {
-                const pId = p.id || p._id;
-                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-            }).join('');
-            document.getElementById('select-producto-cot').innerHTML = optionsProds;
-
-            await actualizarSelectsClientes();
-            cargarMisCotizaciones();
-        }
-
-        async function cargarMisCotizaciones() {
-            const res = await fetch('/api/cotizaciones');
-            const cotizaciones = await res.json();
-            
-            const misCot = (rolActual === 'admin') ? cotizaciones : cotizaciones.filter(c => c.vendedor === usuarioActual);
-
-            renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
-                const numCot = c.consecutivo_str || c.id.substring(0,8);
-                return `
-                    <tr>
-                        <td><strong>${numCot}</strong></td>
-                        <td>${c.fecha}</td>
-                        <td>${c.cliente}</td>
-                        <td>${c.tipo_pago || 'N/A'}</td>
-                        <td>${fmtCOP(c.total_venta)}</td>
-                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
-                    </tr>
-                `;
-            });
-        }
-
-        function toggleTipoVenta() {
-            const tipo = document.getElementById('tipo-venta').value;
-            document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
-            renderCarrito('venta');
-        }
-
-        function agregarAlCarrito(modo) {
-            const esCot = modo === 'cotizacion';
-            const suffix = esCot ? '-cot' : '';
-
-            const pId = document.getElementById('select-producto' + suffix).value;
-            const cant = parseInt(document.getElementById('cant-producto' + suffix).value) || 1;
-            const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
-            const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
-            const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
-            const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
-
-            if (!prod) return alert('Seleccione un producto válido');
-
-            const prodIdFinal = prod.id || prod._id;
-            const precioBase = prod.precio_venta || 0;
-            const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
-            const targetCarrito = esCot ? carritoCotizacion : carrito;
-
-            const indexExistente = targetCarrito.findIndex(item => String(item.producto_id) === String(prodIdFinal) && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
-            
-            if (indexExistente !== -1) {
-                targetCarrito[indexExistente].cantidad += cant;
-                targetCarrito[indexExistente].gramos_totales = targetCarrito[indexExistente].gramaje * targetCarrito[indexExistente].cantidad;
-                targetCarrito[indexExistente].subtotal = precioFinalUnitario * targetCarrito[indexExistente].cantidad;
-            } else {
-                targetCarrito.push({
-                    producto_id: prodIdFinal,
-                    nombre: prod.nombre,
-                    gramaje: prod.gramaje || 0,
-                    cantidad: cant,
-                    valor_add: valorAdd,
-                    descuento: descuento,
-                    presentacion: pres,
-                    gramos_totales: (prod.gramaje || 0) * cant,
-                    precio_unitario: precioFinalUnitario,
-                    subtotal: precioFinalUnitario * cant
-                });
-            }
-
-            document.getElementById('cant-producto' + suffix).value = 1;
-            document.getElementById('add-producto' + suffix).value = 0;
-            document.getElementById('desc-producto' + suffix).value = 0;
-
-            renderCarrito(modo);
-        }
-
-        function quitarDelCarrito(index, modo) {
-            if(modo === 'cotizacion') {
-                carritoCotizacion.splice(index, 1);
-            } else {
-                carrito.splice(index, 1);
-            }
-            renderCarrito(modo);
-        }
-
-        function vaciarCarrito(modo) {
-            const target = modo === 'cotizacion' ? carritoCotizacion : carrito;
-            if (target.length === 0) return;
-            if (confirm('¿Vaciar carrito?')) {
-                if(modo === 'cotizacion') carritoCotizacion = [];
-                else carrito = [];
-                renderCarrito(modo);
-            }
-        }
-
-        function renderCarrito(modo) {
-            const esCot = modo === 'cotizacion';
-            const targetCarrito = esCot ? carritoCotizacion : carrito;
-            const tbody = document.querySelector(esCot ? '#tabla-carrito-cot tbody' : '#tabla-carrito tbody');
-            const esObsequio = !esCot && document.getElementById('tipo-venta').value === 'Obsequio';
-            let total = 0;
-
-            tbody.innerHTML = targetCarrito.map((i, index) => {
-                const sub = esObsequio ? 0 : i.subtotal;
-                total += sub;
-                return `
-                    <tr>
-                        <td>${i.nombre}</td>
-                        <td><strong>${i.presentacion}</strong></td>
-                        <td>${i.gramaje}g</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
-                        <td>${i.cantidad}</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
-                        <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
-                        <td>${fmtCOP(sub)}</td>
-                        <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
-                    </tr>
-                `;
-            }).join('');
-
-            const txtTotal = document.getElementById(esCot ? 'total-carrito-txt-cot' : 'total-carrito-txt');
-            txtTotal.innerText = fmtCOP(total);
-        }
-
-        async function procesarVenta() {
-            if (carrito.length === 0) return alert('El carrito está vacío');
-
-            const tipoVenta = document.getElementById('tipo-venta').value;
-            const payload = {
-                fecha: new Date().toISOString().split('T')[0],
-                cliente: document.getElementById('select-cliente-venta').value,
-                vendedor: usuarioActual,
-                tipo_pago: tipoVenta === 'Obsequio' ? 'N/A' : document.getElementById('pago-venta').value,
-                tipo_venta: tipoVenta,
-                items: carrito
-            };
-
-            const res = await fetch('/api/ventas', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                if (data.estado_despacho === 'Pendiente') {
-                    alert('⚠️ Advertencia: No hay suficiente stock/empaques. La venta se registró con éxito como Venta Parcial (Pendiente).');
-                } else {
-                    alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
-                }
-                carrito = [];
-                renderCarrito('venta');
-                cargarVentasData();
-            } else {
-                const err = await res.json();
-                alert(err.detail || 'Error al procesar la venta');
-            }
-        }
-
-        async function procesarCotizacion() {
-            if (carritoCotizacion.length === 0) return alert('El carrito de cotización está vacío');
-
-            const payload = {
-                fecha: new Date().toISOString().split('T')[0],
-                cliente: document.getElementById('select-cliente-cot').value,
-                vendedor: usuarioActual,
-                tipo_pago: document.getElementById('pago-cot').value,
-                items: carritoCotizacion
-            };
-
-            const res = await fetch('/api/cotizaciones', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                alert(`Cotización N° ${data.consecutivo} registrada con éxito`);
-                carritoCotizacion = [];
-                renderCarrito('cotizacion');
-                cargarCotizacionesData();
-                abrirModalPdf(`/api/cotizaciones/${data.id}/pdf`, `Cotización N° ${data.consecutivo}`, `Cotizacion_${data.consecutivo}.pdf`);
-            } else {
-                alert('Error al generar cotización');
-            }
-        }
-
         async function cargarModuloCompras() {
             const res = await fetch('/api/productos/unicos');
             productosUnicos = await res.json();
@@ -2307,35 +2330,36 @@
             const ventas = await res.json();
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
 
-            renderTablaPaginada('tabla-creditos', creditos, c => 
-                `<tr>
-                    <td>${c.consecutivo_str || c.id.substring(0,8)}</td>
+            renderTablaPaginada('tabla-creditos', creditos, c => {
+                const numFact = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
+                return `<tr>
+                    <td>${numFact}</td>
                     <td>${c.fecha}</td>
                     <td>${c.cliente}</td>
                     <td>${fmtCOP(c.total_venta)}</td>
                     <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
                     <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td>
-                </tr>`,
-                {
-                    onFilter: (filteredList) => {
-                        let sum = filteredList.reduce((acc, c) => acc + (c.total_venta || 0), 0);
-                        document.getElementById('total-creditos-txt').innerText = fmtCOP(sum);
+                </tr>`;
+            },
+            {
+                onFilter: (filteredList) => {
+                    let sum = filteredList.reduce((acc, c) => acc + (c.total_venta || 0), 0);
+                    document.getElementById('total-creditos-txt').innerText = fmtCOP(sum);
 
-                        let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
-                        if (!tfootCreditos) {
-                            tfootCreditos = document.createElement('tfoot');
-                            document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
-                        }
-                        tfootCreditos.innerHTML = `
-                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                                <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
-                                <td>${fmtCOP(sum)}</td>
-                                <td colspan="2"></td>
-                            </tr>
-                        `;
+                    let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
+                    if (!tfootCreditos) {
+                        tfootCreditos = document.createElement('tfoot');
+                        document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
                     }
+                    tfootCreditos.innerHTML = `
+                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                            <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
+                            <td>${fmtCOP(sum)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    `;
                 }
-            );
+            });
         }
 
         async function pagarCredito(id) {
@@ -2426,7 +2450,7 @@
                 const tot = v.total_venta || 0;
                 const gan = v.ganancia || 0;
                 const fleteApp = v.costo_envio_asociado || 0;
-                const numFact = v.consecutivo_str || v.id.substring(0,8);
+                const numFact = v.consecutivo_str || (v.id ? v.id.substring(0,8) : 'N/A');
                 const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
 
                 return `
@@ -2474,7 +2498,7 @@
 
             renderTablaPaginada('tabla-reporte-cotizaciones', cotizaciones, c => {
                 const tot = c.total_venta || 0;
-                const numCot = c.consecutivo_str || c.id.substring(0,8);
+                const numCot = c.consecutivo_str || (c.id ? c.id.substring(0,8) : 'N/A');
 
                 return `
                     <tr>
