@@ -23,9 +23,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # -------------------------------------------------------------------
-# CONEXIÓN MONGODB (Lee variable de entorno para Render / Fallback local)
+# CONEXIÓN MONGODB (Lee la variable MONGO_URI configurada en Render)
 # -------------------------------------------------------------------
-MONGO_URI = os.getenv("MONGO_URL", "mongodb://localhost:27017/")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+
+if "localhost" in MONGO_URI:
+    print("⚠️ ADVERTENCIA: Conectando a localhost. Si estás en Render, verifica tus variables de entorno.")
+else:
+    print("✅ Conectando a base de datos remota MongoDB mediante MONGO_URI.")
+
 client = pymongo.MongoClient(MONGO_URI)
 db = client["cafe_0808_db"]
 
