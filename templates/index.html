@@ -367,6 +367,8 @@
         <button class="nav-button active" id="btn-nav-ventas" onclick="showSection('ventas', event)">🛒 Ventas</button>
         <button class="nav-button" id="btn-nav-cotizaciones" onclick="showSection('cotizaciones', event)">📑 Cotizaciones</button>
         <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
+        
+        <!-- Elementos Exclusivos para Administrador -->
         <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
         <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
         <button class="nav-button admin-only" id="btn-nav-inventario" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
@@ -743,7 +745,7 @@
                     <input type="password" id="usr-password" placeholder="Contraseña" required>
                     <label style="margin-top:5px; display:block;">Rol de Acceso:</label>
                     <select id="usr-rol" required>
-                        <option value="ventas">Ventas (Solo crear ventas/cotizaciones/clientes)</option>
+                        <option value="ventas">Ventas (Solo ventas/cotizaciones/clientes)</option>
                         <option value="admin">Administrador (Acceso Total)</option>
                     </select>
                     <button type="submit" class="btn-gold" style="margin-top:10px;">💾 Crear Usuario</button>
@@ -794,12 +796,23 @@
         let rolActual = localStorage.getItem('rol_0808') || 'ventas';
 
         function aplicarPermisosUI() {
-            document.getElementById('lbl-user-info').innerText = `👤 ${usuarioActual.toUpperCase()} (${rolActual.toUpperCase()})`;
+            const labelUser = document.getElementById('lbl-user-info');
+            if (labelUser) {
+                labelUser.innerText = `👤 ${usuarioActual.toUpperCase()} (${rolActual.toUpperCase()})`;
+            }
 
             if (rolActual === 'admin') {
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'block';
+                });
             } else {
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
+                const secActiva = document.querySelector('.section.active');
+                if (secActiva && secActiva.classList.contains('admin-only')) {
+                    showSection('ventas');
+                }
             }
         }
 
@@ -1118,7 +1131,6 @@
                 clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
             document.getElementById('select-cliente-venta').innerHTML = optionsCli;
 
-            // Cargar histórico propio de ventas
             cargarMisVentas();
         }
 
@@ -1126,7 +1138,6 @@
             const res = await fetch('/api/ventas');
             const ventas = await res.json();
             
-            // Si es ventas, filtra solo las del usuario actual
             const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
 
             const tbody = document.querySelector('#tabla-mis-ventas tbody');
@@ -1162,7 +1173,6 @@
                 clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
             document.getElementById('select-cliente-cot').innerHTML = optionsCli;
 
-            // Cargar histórico propio de cotizaciones
             cargarMisCotizaciones();
         }
 
