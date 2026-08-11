@@ -56,6 +56,8 @@ class VentaCreate(BaseModel):
     fecha: str
     cliente: str
     tipo_pago: str
-    tipo_venta: Optional[str] = "Normal"
+    tipo_venta: Optional[str] = "Normal" # "Normal", "Obsequio", "Parcial"
+    estado_despacho: Optional[str] = "Completo" # "Completo" o "Pendiente"
     vendedor: Optional[str] = None
     items: List[ItemVenta]
+
