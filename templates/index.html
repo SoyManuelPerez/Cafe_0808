@@ -225,7 +225,6 @@
             color: #000 !important;
         }
 
-        /* TOOLBAR PARA BÚSQUEDA, EXCEL Y PAGINACIÓN */
         .table-toolbar {
             display: flex;
             justify-content: space-between;
@@ -1359,7 +1358,7 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS (CORREGIDO PARA AGREGAR ÍTEMS CORRECTAMENTE)
+        // MÓDULO DE ENVÍOS CONSOLIDADOS (CON MISMA LÓGICA QUE CARRITO DE VENTAS)
         // -------------------------------------------------------------------
         async function cargarModuloEnvios() {
             const resProds = await fetch('/api/productos');
@@ -1368,10 +1367,10 @@
 
             const selectEnvio = document.getElementById('select-prod-envio');
             
+            // Misma lógica de mapeo que en el selector de Ventas
             selectEnvio.innerHTML = productosCache.map(p => {
-                const prodId = p.id || p._id;
-                const gram = p.gramaje ? `${p.gramaje}g` : 'N/A';
-                return `<option value="${prodId}">${p.nombre} (${gram})</option>`;
+                const pId = p.id || p._id;
+                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
             }).join('');
 
             document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
@@ -1383,6 +1382,7 @@
             const pId = document.getElementById('select-prod-envio').value;
             const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
             
+            // Misma lógica de búsqueda exacta que en el Carrito de Ventas
             const prod = productosCache.find(p => (p.id || p._id) === pId);
 
             if (!prod) {
@@ -1393,9 +1393,9 @@
             const prodIdFinal = prod.id || prod._id;
             const gramajeFinal = prod.gramaje || 0;
 
-            const idx = itemsEnvioConsolidado.findIndex(i => i.producto_id === prodIdFinal);
-            if (idx !== -1) {
-                itemsEnvioConsolidado[idx].cantidad += cant;
+            const idxExistente = itemsEnvioConsolidado.findIndex(i => i.producto_id === prodIdFinal);
+            if (idxExistente !== -1) {
+                itemsEnvioConsolidado[idxExistente].cantidad += cant;
             } else {
                 itemsEnvioConsolidado.push({
                     producto_id: prodIdFinal,
