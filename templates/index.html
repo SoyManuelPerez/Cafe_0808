@@ -91,6 +91,13 @@
             color: var(--gold-bright);
             font-size: 18px;
             font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .user-badge {
+            color: #aaa;
+            font-size: 13px;
             margin-bottom: 15px;
             text-align: center;
         }
@@ -355,15 +362,18 @@
     <div class="sidebar" id="main-sidebar">
         <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
         <div class="brand-title">0808 CAFÉ</div>
-        <button class="nav-button active" onclick="showSection('ventas', event)">🛒 Ventas</button>
-        <button class="nav-button" onclick="showSection('cotizaciones', event)">📑 Cotizaciones</button>
-        <button class="nav-button" onclick="showSection('clientes', event)">👥 Clientes</button>
-        <button class="nav-button" onclick="showSection('compras', event)">📦 Compras de Café</button>
-        <button class="nav-button" onclick="showSection('empaques', event)">🛍️ Empaques</button>
-        <button class="nav-button" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
-        <button class="nav-button" onclick="showSection('creditos', event)">💳 Créditos</button>
-        <button class="nav-button" onclick="showSection('reportes', event)">📈 Reportes</button>
-        <button class="nav-button" onclick="showSection('usuarios-sec', event)">👤 Usuarios</button>
+        <div class="user-badge" id="lbl-user-info">👤 Carga...</div>
+
+        <button class="nav-button active" id="btn-nav-ventas" onclick="showSection('ventas', event)">🛒 Ventas</button>
+        <button class="nav-button" id="btn-nav-cotizaciones" onclick="showSection('cotizaciones', event)">📑 Cotizaciones</button>
+        <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
+        <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
+        <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
+        <button class="nav-button admin-only" id="btn-nav-inventario" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
+        <button class="nav-button admin-only" id="btn-nav-creditos" onclick="showSection('creditos', event)">💳 Créditos</button>
+        <button class="nav-button admin-only" id="btn-nav-reportes" onclick="showSection('reportes', event)">📈 Reportes</button>
+        <button class="nav-button admin-only" id="btn-nav-usuarios" onclick="showSection('usuarios-sec', event)">👤 Usuarios</button>
+        
         <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar Sesión</button>
     </div>
 
@@ -446,11 +456,24 @@
 
                 <button class="btn-gold" onclick="procesarVenta()">🚀 Procesar Venta</button>
             </div>
+
+            <!-- HISTÓRICO INTEGRADO PARA VENDEDORES -->
+            <div class="card" id="card-mis-ventas">
+                <h3>📋 Mi Histórico de Ventas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-mis-ventas">
+                        <thead>
+                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO COTIZACIONES -->
         <div id="cotizaciones" class="section">
-            <h1>📑 Módulo de Cotizaciones (Sin Descuento de Stock)</h1>
+            <h1>📑 Módulo de Cotizaciones</h1>
 
             <div class="card">
                 <h3>Agregar Producto a la Cotización</h3>
@@ -510,6 +533,19 @@
 
                 <button class="btn-gold" onclick="procesarCotizacion()">📄 Generar Cotización</button>
             </div>
+
+            <!-- HISTÓRICO INTEGRADO PARA COTIZACIONES -->
+            <div class="card" id="card-mis-cotizaciones">
+                <h3>📋 Mi Histórico de Cotizaciones</h3>
+                <div class="table-responsive">
+                    <table id="tabla-mis-cotizaciones">
+                        <thead>
+                            <tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO CLIENTES -->
@@ -538,7 +574,7 @@
         </div>
 
         <!-- MÓDULO COMPRAS DE CAFÉ -->
-        <div id="compras" class="section">
+        <div id="compras" class="section admin-only">
             <h1>📦 Compras de Materia Prima (Café)</h1>
             <div class="card">
                 <h3>Registrar Nueva Compra de Café</h3>
@@ -572,7 +608,7 @@
         </div>
 
         <!-- MÓDULO EMPAQUES -->
-        <div id="empaques" class="section">
+        <div id="empaques" class="section admin-only">
             <h1>🛍️ Inventario de Empaques y Etiquetas</h1>
             <div class="card">
                 <h3>Registrar Compra de Insumos</h3>
@@ -610,7 +646,7 @@
         </div>
 
         <!-- MÓDULO INVENTARIO Y PRODUCTOS -->
-        <div id="inventario" class="section">
+        <div id="inventario" class="section admin-only">
             <h1>📊 Productos e Inventario</h1>
             <div class="card">
                 <h3>Crear Producto</h3>
@@ -635,7 +671,7 @@
         </div>
 
         <!-- MÓDULO CRÉDITOS -->
-        <div id="creditos" class="section">
+        <div id="creditos" class="section admin-only">
             <h1>💳 Cuentas por Cobrar</h1>
             <div class="card">
                 <div class="table-responsive">
@@ -648,8 +684,8 @@
         </div>
 
         <!-- MÓDULO REPORTES -->
-        <div id="reportes" class="section">
-            <h1>📈 Reportes e Históricos</h1>
+        <div id="reportes" class="section admin-only">
+            <h1>📈 Reportes e Históricos Generales</h1>
             
             <div class="card">
                 <h3>📦 Histórico de Compras de Materia Prima (Café)</h3>
@@ -679,7 +715,7 @@
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
                     <table id="tabla-reportes">
-                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -689,7 +725,7 @@
                 <h3>📑 Histórico de Cotizaciones</h3>
                 <div class="table-responsive">
                     <table id="tabla-reporte-cotizaciones">
-                        <thead><tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -697,7 +733,7 @@
         </div>
 
         <!-- MÓDULO GESTIÓN DE USUARIOS -->
-        <div id="usuarios-sec" class="section">
+        <div id="usuarios-sec" class="section admin-only">
             <h1>👤 Gestión de Usuarios</h1>
 
             <div class="card">
@@ -705,7 +741,12 @@
                 <form id="form-usuario" onsubmit="guardarUsuario(event)">
                     <input type="text" id="usr-username" placeholder="Nombre de usuario" required>
                     <input type="password" id="usr-password" placeholder="Contraseña" required>
-                    <button type="submit" class="btn-gold">💾 Crear Usuario</button>
+                    <label style="margin-top:5px; display:block;">Rol de Acceso:</label>
+                    <select id="usr-rol" required>
+                        <option value="ventas">Ventas (Solo crear ventas/cotizaciones/clientes)</option>
+                        <option value="admin">Administrador (Acceso Total)</option>
+                    </select>
+                    <button type="submit" class="btn-gold" style="margin-top:10px;">💾 Crear Usuario</button>
                 </form>
             </div>
 
@@ -714,7 +755,7 @@
                 <div class="table-responsive">
                     <table id="tabla-usuarios">
                         <thead>
-                            <tr><th>Usuario</th><th>Nueva Contraseña (Opcional)</th><th>Acciones</th></tr>
+                            <tr><th>Usuario</th><th>Rol</th><th>Nueva Contraseña (Opcional)</th><th>Acciones</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -749,6 +790,19 @@
         let blobPdfActual = null;
         let nombrePdfDescarga = 'Documento.pdf';
 
+        let usuarioActual = localStorage.getItem('user_0808') || '';
+        let rolActual = localStorage.getItem('rol_0808') || 'ventas';
+
+        function aplicarPermisosUI() {
+            document.getElementById('lbl-user-info').innerText = `👤 ${usuarioActual.toUpperCase()} (${rolActual.toUpperCase()})`;
+
+            if (rolActual === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+            } else {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        }
+
         async function ejecutarLogin(e) {
             e.preventDefault();
             const u = document.getElementById('login-user').value;
@@ -761,7 +815,15 @@
             });
 
             if (res.ok) {
+                const data = await res.json();
+                usuarioActual = data.username;
+                rolActual = data.rol;
+                
+                localStorage.setItem('user_0808', usuarioActual);
+                localStorage.setItem('rol_0808', rolActual);
+
                 document.getElementById('login-screen').style.display = 'none';
+                aplicarPermisosUI();
                 cargarVentasData();
             } else {
                 alert('Usuario o contraseña incorrectos');
@@ -770,6 +832,8 @@
 
         async function ejecutarLogout() {
             await fetch('/api/logout', { method: 'POST' });
+            localStorage.removeItem('user_0808');
+            localStorage.removeItem('rol_0808');
             document.getElementById('login-screen').style.display = 'flex';
         }
 
@@ -806,8 +870,14 @@
             const tbody = document.querySelector('#tabla-usuarios tbody');
             tbody.innerHTML = usuarios.map(u => `
                 <tr>
-                    <td><input type="text" id="usr-name-${u.id}" value="${u.username}" style="width: 180px;"></td>
-                    <td><input type="password" id="usr-pass-${u.id}" placeholder="Dejar en blanco para mantener" style="width: 220px;"></td>
+                    <td><input type="text" id="usr-name-${u.id}" value="${u.username}" style="width: 150px;"></td>
+                    <td>
+                        <select id="usr-rol-${u.id}" style="width: 110px;">
+                            <option value="ventas" ${u.rol === 'ventas' ? 'selected' : ''}>Ventas</option>
+                            <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Admin</option>
+                        </select>
+                    </td>
+                    <td><input type="password" id="usr-pass-${u.id}" placeholder="Dejar en blanco para mantener" style="width: 180px;"></td>
                     <td>
                         <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionUsuario('${u.id}')">✏️ Guardar</button>
                         ${u.username !== 'admin' ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarUsuario('${u.id}')">❌ Eliminar</button>` : '<span style="color:#aaa; font-size:12px; margin-left:5px;">(Admin Principal)</span>'}
@@ -820,11 +890,12 @@
             e.preventDefault();
             const username = document.getElementById('usr-username').value;
             const password = document.getElementById('usr-password').value;
+            const rol = document.getElementById('usr-rol').value;
 
             const res = await fetch('/api/usuarios', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password, rol })
             });
 
             if (res.ok) {
@@ -840,13 +911,14 @@
         async function guardarEdicionUsuario(id) {
             const nuevoUsername = document.getElementById(`usr-name-${id}`).value;
             const nuevaPassword = document.getElementById(`usr-pass-${id}`).value;
+            const nuevoRol = document.getElementById(`usr-rol-${id}`).value;
 
             if (!nuevoUsername) return alert('El usuario no puede estar vacío');
 
             const res = await fetch('/api/usuarios/' + id, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: nuevoUsername, password: nuevaPassword || null })
+                body: JSON.stringify({ username: nuevoUsername, password: nuevaPassword || null, rol: nuevoRol })
             });
 
             if (res.ok) {
@@ -1016,7 +1088,7 @@
             }
         }
 
-        // VENTAS Y COTIZACIONES (LÓGICA CARRITO COMPARTIDA)
+        // VENTAS Y COTIZACIONES
         async function cargarVentasData() {
             const resResumen = await fetch('/api/inventario/resumen');
             const dataResumen = await resResumen.json();
@@ -1045,6 +1117,32 @@
             const optionsCli = '<option value="Cliente General">Cliente General</option>' +
                 clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
             document.getElementById('select-cliente-venta').innerHTML = optionsCli;
+
+            // Cargar histórico propio de ventas
+            cargarMisVentas();
+        }
+
+        async function cargarMisVentas() {
+            const res = await fetch('/api/ventas');
+            const ventas = await res.json();
+            
+            // Si es ventas, filtra solo las del usuario actual
+            const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
+
+            const tbody = document.querySelector('#tabla-mis-ventas tbody');
+            tbody.innerHTML = misVentas.map(v => {
+                const numFact = v.consecutivo_str || v.id.substring(0,8);
+                return `
+                    <tr>
+                        <td><strong>${numFact}</strong></td>
+                        <td>${v.fecha}</td>
+                        <td>${v.cliente}</td>
+                        <td>${v.tipo_venta || 'Normal'}</td>
+                        <td>$${(v.total_venta || 0).toLocaleString()}</td>
+                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function cargarCotizacionesData() {
@@ -1063,6 +1161,31 @@
             const optionsCli = '<option value="Cliente General">Cliente General</option>' +
                 clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
             document.getElementById('select-cliente-cot').innerHTML = optionsCli;
+
+            // Cargar histórico propio de cotizaciones
+            cargarMisCotizaciones();
+        }
+
+        async function cargarMisCotizaciones() {
+            const res = await fetch('/api/cotizaciones');
+            const cotizaciones = await res.json();
+            
+            const misCot = (rolActual === 'admin') ? cotizaciones : cotizaciones.filter(c => c.vendedor === usuarioActual);
+
+            const tbody = document.querySelector('#tabla-mis-cotizaciones tbody');
+            tbody.innerHTML = misCot.map(c => {
+                const numCot = c.consecutivo_str || c.id.substring(0,8);
+                return `
+                    <tr>
+                        <td><strong>${numCot}</strong></td>
+                        <td>${c.fecha}</td>
+                        <td>${c.cliente}</td>
+                        <td>${c.tipo_pago || 'N/A'}</td>
+                        <td>$${(c.total_venta || 0).toLocaleString()}</td>
+                        <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function toggleTipoVenta() {
@@ -1166,6 +1289,7 @@
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
                 cliente: document.getElementById('select-cliente-venta').value,
+                vendedor: usuarioActual,
                 tipo_pago: tipoVenta === 'Obsequio' ? 'N/A' : document.getElementById('pago-venta').value,
                 tipo_venta: tipoVenta,
                 items: carrito
@@ -1194,6 +1318,7 @@
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
                 cliente: document.getElementById('select-cliente-cot').value,
+                vendedor: usuarioActual,
                 tipo_pago: document.getElementById('pago-cot').value,
                 items: carritoCotizacion
             };
@@ -1209,6 +1334,7 @@
                 alert(`Cotización N° ${data.consecutivo} registrada con éxito`);
                 carritoCotizacion = [];
                 renderCarrito('cotizacion');
+                cargarCotizacionesData();
                 abrirModalPdf(`/api/cotizaciones/${data.id}/pdf`, `Cotización N° ${data.consecutivo}`, `Cotizacion_${data.consecutivo}.pdf`);
             } else {
                 alert('Error al generar cotización');
@@ -1491,6 +1617,7 @@
                         <td><strong>${numFact}</strong></td>
                         <td>${v.fecha}</td>
                         <td>${v.cliente}</td>
+                        <td>${v.vendedor || 'admin'}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
                         <td>$${tot.toLocaleString()}</td>
                         <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
@@ -1507,7 +1634,7 @@
             }
             tfootVentas.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="4" style="text-align: right;">TOTALES:</td>
+                    <td colspan="5" style="text-align: right;">TOTALES:</td>
                     <td>$${totalVentasCOP.toLocaleString()}</td>
                     <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">$${totalGananciaCOP.toLocaleString()}</td>
                     <td colspan="2"></td>
@@ -1531,6 +1658,7 @@
                         <td><strong>${numCot}</strong></td>
                         <td>${c.fecha}</td>
                         <td>${c.cliente}</td>
+                        <td>${c.vendedor || 'admin'}</td>
                         <td>${c.tipo_pago || 'N/A'}</td>
                         <td>$${tot.toLocaleString()}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
@@ -1546,7 +1674,7 @@
             }
             tfootCot.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="4" style="text-align: right;">TOTAL COTIZADO:</td>
+                    <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
                     <td>$${totalCotizacionesCOP.toLocaleString()}</td>
                     <td colspan="2"></td>
                 </tr>
@@ -1606,6 +1734,9 @@
         }
 
         // Inicialización
+        if(usuarioActual) {
+            aplicarPermisosUI();
+        }
         cargarVentasData();
     </script>
 </body>
