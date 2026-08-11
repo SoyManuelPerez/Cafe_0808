@@ -840,7 +840,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -1358,32 +1358,40 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS (CON MISMA LÓGICA QUE CARRITO DE VENTAS)
+        // MÓDULO DE ENVÍOS CONSOLIDADOS (CORREGIDO Y OPTIMIZADO)
         // -------------------------------------------------------------------
         async function cargarModuloEnvios() {
-            const resProds = await fetch('/api/productos');
-            productosCache = await resProds.json();
-            ordenarProductosArray(productosCache);
+            try {
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
 
-            const selectEnvio = document.getElementById('select-prod-envio');
-            
-            // Misma lógica de mapeo que en el selector de Ventas
-            selectEnvio.innerHTML = productosCache.map(p => {
-                const pId = p.id || p._id;
-                return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-            }).join('');
+                const selectEnvio = document.getElementById('select-prod-envio');
+                
+                selectEnvio.innerHTML = productosCache.map(p => {
+                    const pId = p.id || p._id;
+                    return `<option value="${pId}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
+                }).join('');
 
-            document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
-            renderItemsEnvio();
-            cargarHistoricoEnvios();
+                document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
+                renderItemsEnvio();
+                cargarHistoricoEnvios();
+            } catch (err) {
+                console.error("Error cargando productos en envíos:", err);
+            }
         }
 
-        function agregarProductoAEnvio() {
+        async function agregarProductoAEnvio() {
             const pId = document.getElementById('select-prod-envio').value;
             const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
             
-            // Misma lógica de búsqueda exacta que en el Carrito de Ventas
-            const prod = productosCache.find(p => (p.id || p._id) === pId);
+            if (!productosCache || productosCache.length === 0) {
+                const resProds = await fetch('/api/productos');
+                productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
+            }
+
+            const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
 
             if (!prod) {
                 alert("Por favor selecciona un producto válido.");
@@ -1393,7 +1401,7 @@
             const prodIdFinal = prod.id || prod._id;
             const gramajeFinal = prod.gramaje || 0;
 
-            const idxExistente = itemsEnvioConsolidado.findIndex(i => i.producto_id === prodIdFinal);
+            const idxExistente = itemsEnvioConsolidado.findIndex(i => String(i.producto_id) === String(prodIdFinal));
             if (idxExistente !== -1) {
                 itemsEnvioConsolidado[idxExistente].cantidad += cant;
             } else {
@@ -1990,7 +1998,7 @@
             const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
             const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
             const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
-            const prod = productosCache.find(p => (p.id || p._id) === pId);
+            const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
 
             if (!prod) return alert('Seleccione un producto válido');
 
@@ -1999,7 +2007,7 @@
             const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
             const targetCarrito = esCot ? carritoCotizacion : carrito;
 
-            const indexExistente = targetCarrito.findIndex(item => item.producto_id === prodIdFinal && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
+            const indexExistente = targetCarrito.findIndex(item => String(item.producto_id) === String(prodIdFinal) && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
             
             if (indexExistente !== -1) {
                 targetCarrito[indexExistente].cantidad += cant;
