@@ -1,14 +1,17 @@
+import os
+import uuid
+import datetime
+import math
+from io import BytesIO
+from typing import List, Optional
+
+import pymongo
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import List, Optional
-import pymongo
-import uuid
-import datetime
-import math
-from io import BytesIO
+
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -19,8 +22,11 @@ app = FastAPI(title="0808 Café de Especialidad")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Conexión MongoDB
-client = pymongo.MongoClient("mongodb://localhost:27017/")
+# -------------------------------------------------------------------
+# CONEXIÓN MONGODB (Lee variable de entorno para Render / Fallback local)
+# -------------------------------------------------------------------
+MONGO_URI = os.getenv("MONGO_URL", "mongodb://localhost:27017/")
+client = pymongo.MongoClient(MONGO_URI)
 db = client["cafe_0808_db"]
 
 # -------------------------------------------------------------------
@@ -127,13 +133,16 @@ def obtener_siguiente_consecutivo(tipo: str) -> int:
 
 # Crear usuario admin inicial si no existe
 def init_db():
-    if db.usuarios.count_documents({"username": "admin"}) == 0:
-        db.usuarios.insert_one({
-            "id": str(uuid.uuid4()),
-            "username": "admin",
-            "password": "123",
-            "rol": "admin"
-        })
+    try:
+        if db.usuarios.count_documents({"username": "admin"}) == 0:
+            db.usuarios.insert_one({
+                "id": str(uuid.uuid4()),
+                "username": "admin",
+                "password": "123",
+                "rol": "admin"
+            })
+    except Exception as e:
+        print(f"Advertencia inicializando base de datos: {e}")
 
 init_db()
 
@@ -319,7 +328,6 @@ async def resumen_empaques():
         comprados = sum([c["cantidad"] for c in compras])
         ultimo_costo = compras[-1]["costo_unitario"] if compras else 0.0
 
-        # Ventas procesadas que consumieron empaques
         ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
         usados = 0
         for v in ventas:
@@ -333,7 +341,6 @@ async def resumen_empaques():
                     if t == "etiqueta_250g" and g == 250: usados += cant
                     elif t == "etiqueta_500g" and g == 500: usados += cant
 
-        # Ajustes manuales
         ajuste = db.ajustes_empaques.find_one({"tipo_empaque": t})
         disponibles = ajuste["disponibles"] if ajuste else (comprados - usados)
         costo_u = ajuste["costo_unitario"] if ajuste else ultimo_costo
@@ -422,7 +429,6 @@ async def listar_ventas():
     ventas = list(db.ventas.find({}, {"_id": 0}))
     envios = list(db.envios.find({}, {"_id": 0}))
 
-    # Mapeo de flete prorrateado por cada factura asociada
     fletes_por_factura = {}
     for env in envios:
         facturas = env.get("facturas_ids", [])
@@ -435,7 +441,6 @@ async def listar_ventas():
     for v in ventas:
         flete_aplicado = fletes_por_factura.get(v["id"], 0.0)
         v["costo_envio_asociado"] = flete_aplicado
-        # La ganancia neta resta el flete prorrateado a la ganancia bruta
         v["ganancia"] = v.get("ganancia_bruta", v.get("ganancia", 0.0)) - flete_aplicado
 
     return ventas
@@ -445,27 +450,23 @@ async def registrar_venta(v: VentaCreate):
     consecutivo = obtener_siguiente_consecutivo("ventas")
     consecutivo_str = f"FACT-{consecutivo:05d}"
 
-    # Resumen de empaques e inventario para validar despacho
     resumen_emp = await resumen_empaques()
     resumen_inv = await resumen_inventario()
 
     faltantes = {}
     es_obsequio = (v.tipo_venta == "Obsequio")
 
-    # Validar stock e insumos
     for item in v.items:
         g = item.gramaje
         cant = item.cantidad
         nom = item.nombre
 
-        # Validar Café
         stock_item = next((s for s in resumen_inv["productos_stock"] if s["nombre"] == nom), None)
         lbs_necesarias = (g * cant) / 500.0
         if not stock_item or stock_item["libras_disponibles"] < lbs_necesarias:
             disp = stock_item["libras_disponibles"] if stock_item else 0
             faltantes[f"Café {nom}"] = f"Req: {lbs_necesarias} Lbs, Disp: {disp} Lbs"
 
-        # Validar Bolsas y Etiquetas
         if g in [250, 500]:
             k_bolsa = f"bolsa_{int(g)}g"
             k_etiq = f"etiqueta_{int(g)}g"
@@ -477,7 +478,6 @@ async def registrar_venta(v: VentaCreate):
 
     estado_despacho = "Pendiente" if len(faltantes) > 0 else "Completo"
 
-    # Calcular costo de producción y ganancia
     costo_total_venta = 0.0
     total_venta = 0.0
 
