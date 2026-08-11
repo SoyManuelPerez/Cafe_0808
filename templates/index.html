@@ -547,21 +547,25 @@
                 <label>Producto:</label>
                 <select id="select-producto"></select>
                 
-                <div style="display: flex; gap: 10px;">
-                    <div style="flex: 1;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 130px;">
                         <label>Presentación:</label>
                         <select id="pres-producto">
                             <option value="Grano">☕ Grano</option>
                             <option value="Molido">☕ Molido</option>
                         </select>
                     </div>
-                    <div style="flex: 1;">
+                    <div style="flex: 1; min-width: 100px;">
                         <label>Cantidad:</label>
                         <input type="number" id="cant-producto" value="1" min="1">
                     </div>
-                    <div style="flex: 1;">
+                    <div style="flex: 1; min-width: 140px;">
+                        <label>Valor Añadido / Unit (COP):</label>
+                        <input type="number" id="add-producto" value="0" min="0" placeholder="Valor extra">
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
                         <label>Descuento / Unit (COP):</label>
-                        <input type="number" id="desc-producto" value="0" min="0">
+                        <input type="number" id="desc-producto" value="0" min="0" placeholder="Descuento">
                     </div>
                 </div>
 
@@ -583,7 +587,7 @@
                 <div class="table-responsive">
                     <table id="tabla-carrito">
                         <thead>
-                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. Final</th><th>Cant.</th><th>Añadido/U.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -642,21 +646,25 @@
                 <label>Producto:</label>
                 <select id="select-producto-cot"></select>
                 
-                <div style="display: flex; gap: 10px;">
-                    <div style="flex: 1;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 130px;">
                         <label>Presentación:</label>
                         <select id="pres-producto-cot">
                             <option value="Grano">☕ Grano</option>
                             <option value="Molido">☕ Molido</option>
                         </select>
                     </div>
-                    <div style="flex: 1;">
+                    <div style="flex: 1; min-width: 100px;">
                         <label>Cantidad:</label>
                         <input type="number" id="cant-producto-cot" value="1" min="1">
                     </div>
-                    <div style="flex: 1;">
+                    <div style="flex: 1; min-width: 140px;">
+                        <label>Valor Añadido / Unit (COP):</label>
+                        <input type="number" id="add-producto-cot" value="0" min="0" placeholder="Valor extra">
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
                         <label>Descuento / Unit (COP):</label>
-                        <input type="number" id="desc-producto-cot" value="0" min="0">
+                        <input type="number" id="desc-producto-cot" value="0" min="0" placeholder="Descuento">
                     </div>
                 </div>
 
@@ -678,7 +686,7 @@
                 <div class="table-responsive">
                     <table id="tabla-carrito-cot">
                         <thead>
-                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. Final</th><th>Cant.</th><th>Añadido/U.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -1723,16 +1731,19 @@
 
             const pId = document.getElementById('select-producto' + suffix).value;
             const cant = parseInt(document.getElementById('cant-producto' + suffix).value) || 1;
+            const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
             const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
             const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
             const prod = productosCache.find(p => p.id === pId);
 
             if (!prod) return alert('Seleccione un producto válido');
 
-            const precioFinalUnitario = Math.max(0, prod.precio_venta - descuento);
+            // PRECIO UNITARIO FINAL = (PRECIO BASE - DESCUENTO) + VALOR AÑADIDO
+            const precioBase = prod.precio_venta || 0;
+            const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
             const targetCarrito = esCot ? carritoCotizacion : carrito;
 
-            const indexExistente = targetCarrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.presentacion === pres);
+            const indexExistente = targetCarrito.findIndex(item => item.producto_id === pId && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
             
             if (indexExistente !== -1) {
                 targetCarrito[indexExistente].cantidad += cant;
@@ -1744,15 +1755,17 @@
                     nombre: prod.nombre,
                     gramaje: prod.gramaje,
                     cantidad: cant,
+                    valor_add: valorAdd,
                     descuento: descuento,
                     presentacion: pres,
                     gramos_totales: prod.gramaje * cant,
-                    precio_unitario: prod.precio_venta,
+                    precio_unitario: precioFinalUnitario, // PRECIO UNITARIO FINAL CON VALOR AÑADIDO INCLUIDO
                     subtotal: precioFinalUnitario * cant
                 });
             }
 
             document.getElementById('cant-producto' + suffix).value = 1;
+            document.getElementById('add-producto' + suffix).value = 0;
             document.getElementById('desc-producto' + suffix).value = 0;
 
             renderCarrito(modo);
@@ -1794,6 +1807,7 @@
                         <td>${i.gramaje}g</td>
                         <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
                         <td>${i.cantidad}</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
                         <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
                         <td>${fmtCOP(sub)}</td>
                         <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
