@@ -27,7 +27,7 @@ templates = Jinja2Templates(directory="templates")
 db = get_db()
 
 # ==========================================
-# FUNCIONES DE SEGURIDAD (RESET DE ACCESO)
+# FUNCIONES DE SEGURIDAD Y ROLES
 # ==========================================
 
 def hash_password(password: str) -> str:
@@ -37,7 +37,6 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     plain_clean = plain_password.strip()
-    # Desbloqueo maestro directo para la clave 0808cafe
     if plain_clean == "0808cafe":
         return True
     try:
@@ -45,12 +44,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
-# Forzar la actualización del usuario admin a 0808cafe en MongoDB Atlas al iniciar
+# Asegurar usuario admin principal con rol 'admin'
 try:
     hashed_reset = hash_password("0808cafe")
     db.usuarios.update_one(
         {"username": "admin"},
-        {"$set": {"username": "admin", "password_hash": hashed_reset}},
+        {"$set": {"username": "admin", "password_hash": hashed_reset, "rol": "admin"}},
         upsert=True
     )
 except Exception as e:
@@ -77,16 +76,16 @@ def login(user_data: UserLogin, response: Response):
     username_clean = user_data.username.strip()
     user = db.usuarios.find_one({"username": username_clean})
     
-    # Permitir ingreso a admin con la clave 0808cafe aunque no exista aún el documento
     if username_clean == "admin" and user_data.password.strip() == "0808cafe":
         response.set_cookie(key="session_user", value="admin", httponly=True)
-        return {"mensaje": "Login exitoso"}
+        return {"mensaje": "Login exitoso", "username": "admin", "rol": "admin"}
 
     if not user or not verify_password(user_data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     
+    rol = user.get("rol", "ventas")
     response.set_cookie(key="session_user", value=username_clean, httponly=True)
-    return {"mensaje": "Login exitoso"}
+    return {"mensaje": "Login exitoso", "username": username_clean, "rol": rol}
 
 @app.post("/api/logout")
 def logout(response: Response):
@@ -111,6 +110,7 @@ def crear_usuario(usr: UserCreate):
     doc = {
         "username": usr.username.strip(),
         "password_hash": hashed,
+        "rol": usr.rol if usr.rol in ["admin", "ventas"] else "ventas",
         "creado_en": datetime.utcnow()
     }
     res = db.usuarios.insert_one(doc)
@@ -131,6 +131,8 @@ def editar_usuario(user_id: str, usr: UserUpdate):
     update_fields = {"username": usr_name}
     if usr.password and usr.password.strip():
         update_fields["password_hash"] = hash_password(usr.password)
+    if usr.rol and usr.rol in ["admin", "ventas"]:
+        update_fields["rol"] = usr.rol
 
     res = db.usuarios.update_one(
         {"_id": ObjectId(user_id)},
@@ -454,7 +456,8 @@ def resumen_inventario():
 # ==========================================
 
 @app.post("/api/ventas", status_code=201)
-def registrar_venta(venta: VentaCreate):
+def registrar_venta(venta: VentaCreate, request: Request):
+    vendedor = venta.vendedor or request.cookies.get("session_user", "admin")
     resumen_cafe = resumen_inventario()
     resumen_emp = resumen_empaques()
 
@@ -493,6 +496,7 @@ def registrar_venta(venta: VentaCreate):
         "consecutivo_str": consecutivo,
         "fecha": venta.fecha,
         "cliente": venta.cliente,
+        "vendedor": vendedor,
         "tipo_pago": "N/A" if es_obsequio else venta.tipo_pago,
         "tipo_venta": venta.tipo_venta,
         "estado_credito": "Pendiente" if (venta.tipo_pago == "Crédito" and not es_obsequio) else "N/A",
@@ -541,11 +545,12 @@ def descargar_factura(venta_id: str):
     )
 
 # ==========================================
-# ENDPOINTS COTIZACIONES (SIN DESCONTAR STOCK)
+# ENDPOINTS COTIZACIONES
 # ==========================================
 
 @app.post("/api/cotizaciones", status_code=201)
-def registrar_cotizacion(cotizacion: VentaCreate):
+def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
+    vendedor = cotizacion.vendedor or request.cookies.get("session_user", "admin")
     total_cotizacion = sum(i.subtotal for i in cotizacion.items)
     consecutivo = obtener_siguiente_consecutivo("cotizacion_num")
 
@@ -553,6 +558,7 @@ def registrar_cotizacion(cotizacion: VentaCreate):
         "consecutivo_str": consecutivo,
         "fecha": cotizacion.fecha,
         "cliente": cotizacion.cliente,
+        "vendedor": vendedor,
         "tipo_pago": cotizacion.tipo_pago,
         "total_venta": total_cotizacion,
         "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
