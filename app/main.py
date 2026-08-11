@@ -1,440 +1,560 @@
 import os
-import uuid
-import datetime
-import math
-from io import BytesIO
-from typing import List, Optional
-
-import pymongo
-from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.responses import HTMLResponse, Response
+import sys
+import bcrypt
+from datetime import datetime
+from bson import ObjectId
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from app.database import get_db, fix_id
+from app.models import (
+    CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, 
+    ClienteCreate, VentaCreate, UserLogin, UserCreate, UserUpdate
+)
+from app.pdf_generator import generar_factura_pdf
 
 app = FastAPI(title="0808 Café de Especialidad")
 
-# Montar estáticos y plantillas
+os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# -------------------------------------------------------------------
-# CONEXIÓN MONGODB (Lee la variable MONGO_URI configurada en Render)
-# -------------------------------------------------------------------
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+db = get_db()
 
-if "localhost" in MONGO_URI:
-    print("⚠️ ADVERTENCIA: Conectando a localhost. Si estás en Render, verifica tus variables de entorno.")
-else:
-    print("✅ Conectando a base de datos remota MongoDB mediante MONGO_URI.")
+# ==========================================
+# FUNCIONES DE SEGURIDAD Y ROLES
+# ==========================================
 
-client = pymongo.MongoClient(MONGO_URI)
-db = client["gestion_cafe"]
+def hash_password(password: str) -> str:
+    pwd_bytes = password.strip().encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
-# -------------------------------------------------------------------
-# MODELOS DE DATOS (PYDANTIC)
-# -------------------------------------------------------------------
-class ItemCarrito(BaseModel):
-    producto_id: str
-    nombre: str
-    gramaje: float
-    cantidad: int
-    valor_add: Optional[float] = 0.0
-    descuento: Optional[float] = 0.0
-    presentacion: Optional[str] = "Grano"
-    gramos_totales: float
-    precio_unitario: float
-    subtotal: float
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain_password.strip().encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
-class VentaCreate(BaseModel):
-    fecha: str
-    cliente: str
-    vendedor: str
-    tipo_pago: str
-    tipo_venta: Optional[str] = "Normal"
-    items: List[ItemCarrito]
+try:
+    admin_existente = db.usuarios.find_one({"username": "admin"})
+    if not admin_existente:
+        hashed_default = hash_password("0808cafe")
+        db.usuarios.insert_one({
+            "username": "admin",
+            "password_hash": hashed_default,
+            "rol": "admin",
+            "creado_en": datetime.utcnow()
+        })
+    else:
+        db.usuarios.update_one({"username": "admin"}, {"$set": {"rol": "admin"}})
+except Exception as e:
+    print(f"Error verificando usuario admin inicial: {e}")
 
-class CotizacionCreate(BaseModel):
-    fecha: str
-    cliente: str
-    vendedor: str
-    tipo_pago: str
-    items: List[ItemCarrito]
-
-class ProductoCreate(BaseModel):
-    nombre: str
-    gramaje: float
-    precio_venta: float
-
-class ProductoUpdate(BaseModel):
-    nombre: str
-    precio_venta: float
-
-class ClienteCreate(BaseModel):
-    nombre: str
-    celular: Optional[str] = ""
-
-class CompraCreate(BaseModel):
-    fecha: str
-    libras: float
-    costo_total: float
-    producto_id: Optional[str] = None
-
-class CompraEmpaqueCreate(BaseModel):
-    tipo_empaque: str
-    fecha: str
-    cantidad: int
-    costo_total: float
-
-class AjusteEmpaque(BaseModel):
-    tipo_empaque: str
-    disponibles: int
-    costo_unitario: float
-
-class UsuarioCreate(BaseModel):
-    username: str
-    password: str
-    rol: str
-
-class UsuarioUpdate(BaseModel):
-    username: str
-    password: Optional[str] = None
-    rol: str
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-# MODELOS PARA ENVÍOS CONSOLIDADOS
-class ItemEnvio(BaseModel):
-    producto_id: str
-    nombre: str
-    gramaje: float
-    cantidad: int
-
-class EnvioCreate(BaseModel):
-    fecha: str
-    nota: str
-    valor_envio: float
-    items: List[ItemEnvio]
-
-class AsociarFacturasRequest(BaseModel):
-    facturas_ids: List[str]
-
-# -------------------------------------------------------------------
-# FUNCIONES AUXILIARES DE CONSECUTIVOS Y BBDD
-# -------------------------------------------------------------------
-def obtener_siguiente_consecutivo(tipo: str) -> int:
-    doc = db.consecutivos.find_one_and_update(
-        {"_id": tipo},
+def obtener_siguiente_consecutivo(tipo_contador="factura_num"):
+    ret = db.contadores.find_one_and_update(
+        {"_id": tipo_contador},
         {"$inc": {"seq": 1}},
         upsert=True,
-        return_document=pymongo.ReturnDocument.AFTER
+        return_document=True
     )
-    return doc["seq"]
+    num_seq = ret.get("seq", 1)
+    if num_seq > 5000:
+        num_seq = ((num_seq - 1) % 5000) + 1
+    return f"{num_seq:04d}"
 
-# Crear usuario admin inicial si no existe
-def init_db():
-    try:
-        if db.usuarios.count_documents({"username": "admin"}) == 0:
-            db.usuarios.insert_one({
-                "id": str(uuid.uuid4()),
-                "username": "admin",
-                "password": "123",
-                "rol": "admin"
-            })
-    except Exception as e:
-        print(f"Advertencia inicializando base de datos: {e}")
-
-init_db()
-
-# -------------------------------------------------------------------
-# RUTAS VISTAS Y AUTENTICACIÓN
-# -------------------------------------------------------------------
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+# ==========================================
+# RUTAS AUTENTICACIÓN Y VISTAS
+# ==========================================
 
 @app.post("/api/login")
-async def login(req: LoginRequest):
-    user = db.usuarios.find_one({"username": req.username, "password": req.password})
-    if not user:
+def login(user_data: UserLogin, response: Response):
+    username_clean = user_data.username.strip()
+    user = db.usuarios.find_one({"username": username_clean})
+
+    if not user or not verify_password(user_data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
-    return {"username": user["username"], "rol": user["rol"]}
+    
+    rol = user.get("rol", "ventas")
+    response.set_cookie(key="session_user", value=username_clean, httponly=True)
+    return {"mensaje": "Login exitoso", "username": username_clean, "rol": rol}
 
 @app.post("/api/logout")
-async def logout():
-    return {"status": "ok"}
+def logout(response: Response):
+    response.delete_cookie("session_user")
+    return {"mensaje": "Sesión cerrada"}
 
-# -------------------------------------------------------------------
-# RUTAS USUARIOS
-# -------------------------------------------------------------------
-@app.get("/api/usuarios")
-async def listar_usuarios():
-    return list(db.usuarios.find({}, {"_id": 0}))
+@app.get("/")
+def home(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
 
-@app.post("/api/usuarios")
-async def crear_usuario(u: UsuarioCreate):
-    if db.usuarios.find_one({"username": u.username}):
-        raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
-    usr = {"id": str(uuid.uuid4()), "username": u.username, "password": u.password, "rol": u.rol}
-    db.usuarios.insert_one(usr)
-    return {"status": "ok"}
+# ==========================================
+# ENDPOINTS GESTIÓN DE USUARIOS
+# ==========================================
 
-@app.put("/api/usuarios/{usr_id}")
-async def actualizar_usuario(usr_id: str, u: UsuarioUpdate):
-    usr = db.usuarios.find_one({"id": usr_id})
-    if not usr:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+@app.post("/api/usuarios", status_code=201)
+def crear_usuario(usr: UserCreate):
+    usuario_existente = db.usuarios.find_one({"username": usr.username.strip()})
+    if usuario_existente:
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya existe.")
     
-    update_data = {"username": u.username, "rol": u.rol}
-    if u.password and u.password.strip():
-        update_data["password"] = u.password.strip()
+    hashed = hash_password(usr.password)
+    doc = {
+        "username": usr.username.strip(),
+        "password_hash": hashed,
+        "rol": usr.rol if usr.rol in ["admin", "ventas"] else "ventas",
+        "creado_en": datetime.utcnow()
+    }
+    res = db.usuarios.insert_one(doc)
+    return {"id": str(res.inserted_id), "mensaje": "Usuario creado exitosamente"}
 
-    db.usuarios.update_one({"id": usr_id}, {"$set": update_data})
-    return {"status": "ok"}
+@app.get("/api/usuarios")
+def listar_usuarios():
+    usuarios = list(db.usuarios.find({}, {"password_hash": 0}).sort("username", 1))
+    return [fix_id(u) for u in usuarios]
 
-@app.delete("/api/usuarios/{usr_id}")
-async def eliminar_usuario(usr_id: str):
-    usr = db.usuarios.find_one({"id": usr_id})
-    if usr and usr["username"] == "admin":
-        raise HTTPException(status_code=400, detail="No se puede eliminar el usuario admin principal")
-    db.usuarios.delete_one({"id": usr_id})
-    return {"status": "ok"}
+@app.put("/api/usuarios/{user_id}")
+def editar_usuario(user_id: str, usr: UserUpdate):
+    usr_name = usr.username.strip()
+    existente = db.usuarios.find_one({"username": usr_name, "_id": {"$ne": ObjectId(user_id)}})
+    if existente:
+        raise HTTPException(status_code=400, detail="Ese nombre de usuario ya está en uso.")
 
-# -------------------------------------------------------------------
-# RUTAS CLIENTES
-# -------------------------------------------------------------------
+    update_fields = {"username": usr_name}
+    if usr.password and usr.password.strip():
+        update_fields["password_hash"] = hash_password(usr.password)
+    if usr.rol and usr.rol in ["admin", "ventas"]:
+        update_fields["rol"] = usr.rol
+
+    res = db.usuarios.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": update_fields}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {"mensaje": "Usuario actualizado exitosamente"}
+
+@app.delete("/api/usuarios/{user_id}")
+def eliminar_usuario(user_id: str):
+    user_to_delete = db.usuarios.find_one({"_id": ObjectId(user_id)})
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if user_to_delete.get("username") == "admin":
+        raise HTTPException(status_code=400, detail="No se puede eliminar el usuario administrador principal ('admin').")
+
+    db.usuarios.delete_one({"_id": ObjectId(user_id)})
+    return {"mensaje": "Usuario eliminado correctamente"}
+
+# ==========================================
+# ENDPOINTS CLIENTES
+# ==========================================
+
+@app.post("/api/clientes", status_code=201)
+def crear_cliente(cli: ClienteCreate):
+    doc = cli.model_dump() if hasattr(cli, "model_dump") else cli.dict()
+    doc["creado_en"] = datetime.utcnow()
+    res = db.clientes.insert_one(doc)
+    return {"id": str(res.inserted_id)}
+
 @app.get("/api/clientes")
-async def listar_clientes():
-    return list(db.clientes.find({}, {"_id": 0}))
+def listar_clientes():
+    clientes = list(db.clientes.find().sort("nombre", 1))
+    return [fix_id(c) for c in clientes]
 
-@app.post("/api/clientes")
-async def crear_cliente(c: ClienteCreate):
-    cli = {"id": str(uuid.uuid4()), "nombre": c.nombre, "celular": c.celular or ""}
-    db.clientes.insert_one(cli)
-    return {"status": "ok", "nombre": c.nombre}
+@app.put("/api/clientes/{cliente_id}")
+def editar_cliente(cliente_id: str, cli: ClienteCreate):
+    res = db.clientes.update_one(
+        {"_id": ObjectId(cliente_id)},
+        {"$set": {"nombre": cli.nombre, "celular": cli.celular}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return {"mensaje": "Cliente actualizado exitosamente"}
 
-@app.put("/api/clientes/{cli_id}")
-async def actualizar_cliente(cli_id: str, c: ClienteCreate):
-    db.clientes.update_one({"id": cli_id}, {"$set": {"nombre": c.nombre, "celular": c.celular or ""}})
-    return {"status": "ok"}
+@app.delete("/api/clientes/{cliente_id}")
+def eliminar_cliente(cliente_id: str):
+    res = db.clientes.delete_one({"_id": ObjectId(cliente_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return {"mensaje": "Cliente eliminado"}
 
-@app.delete("/api/clientes/{cli_id}")
-async def eliminar_cliente(cli_id: str):
-    db.clientes.delete_one({"id": cli_id})
-    return {"status": "ok"}
+# ==========================================
+# ENDPOINTS COMPRAS DE EMPAQUES
+# ==========================================
 
-# -------------------------------------------------------------------
-# RUTAS PRODUCTOS & INVENTARIO
-# -------------------------------------------------------------------
-@app.get("/api/productos")
-async def listar_productos():
-    return list(db.productos.find({}, {"_id": 0}))
-
-@app.get("/api/productos/unicos")
-async def listar_productos_unicos():
-    prods = list(db.productos.find({}, {"_id": 0}))
-    unicos = {}
-    for p in prods:
-        if p["nombre"] not in unicos:
-            unicos[p["nombre"]] = p
-    return list(unicos.values())
-
-@app.post("/api/productos")
-async def crear_producto(p: ProductoCreate):
-    prod = {
-        "id": str(uuid.uuid4()),
-        "nombre": p.nombre,
-        "gramaje": p.gramaje,
-        "precio_venta": p.precio_venta,
-        "costo_por_libra": 0.0
+@app.post("/api/compras-empaques", status_code=201)
+def crear_compra_empaque(compra: CompraEmpaqueCreate):
+    costo_unitario = (compra.costo_total / compra.cantidad) if compra.cantidad > 0 else 0.0
+    doc = {
+        "fecha": compra.fecha,
+        "tipo_empaque": compra.tipo_empaque,
+        "cantidad": compra.cantidad,
+        "costo_total": compra.costo_total,
+        "costo_unitario": costo_unitario,
+        "creado_en": datetime.utcnow()
     }
-    db.productos.insert_one(prod)
-    return {"status": "ok"}
-
-@app.put("/api/productos/{prod_id}")
-async def actualizar_producto(prod_id: str, p: ProductoUpdate):
-    db.productos.update_one({"id": prod_id}, {"$set": {"nombre": p.nombre, "precio_venta": p.precio_venta}})
-    return {"status": "ok"}
-
-@app.delete("/api/productos/{prod_id}")
-async def eliminar_producto(prod_id: str):
-    db.productos.delete_one({"id": prod_id})
-    return {"status": "ok"}
-
-@app.put("/api/productos/actualizar-costo-libra")
-async def actualizar_costo_libra(data: dict):
-    nombre = data.get("nombre")
-    costo = float(data.get("costo_por_libra", 0))
-    db.productos.update_many({"nombre": nombre}, {"$set": {"costo_por_libra": costo}})
-    return {"status": "ok"}
-
-# -------------------------------------------------------------------
-# COMPRAS DE CAFÉ Y EMPAQUES
-# -------------------------------------------------------------------
-@app.get("/api/compras")
-async def listar_compras():
-    compras = list(db.compras.find({}, {"_id": 0}))
-    for c in compras:
-        c["costo_por_libra"] = (c["costo_total"] / c["libras"]) if c["libras"] > 0 else 0
-    return compras
-
-@app.post("/api/compras")
-async def registrar_compra(c: CompraCreate):
-    costo_libra = (c.costo_total / c.libras) if c.libras > 0 else 0
-    prod_nombre = None
-    if c.producto_id:
-        p = db.productos.find_one({"id": c.producto_id})
-        if p:
-            prod_nombre = p["nombre"]
-            db.productos.update_many({"nombre": prod_nombre}, {"$set": {"costo_por_libra": costo_libra}})
-
-    compra_doc = {
-        "id": str(uuid.uuid4()),
-        "fecha": c.fecha,
-        "libras": c.libras,
-        "costo_total": c.costo_total,
-        "producto_id": c.producto_id,
-        "producto_nombre": prod_nombre,
-        "costo_por_libra": costo_libra
-    }
-    db.compras.insert_one(compra_doc)
-    return {"status": "ok"}
+    res = db.compras_empaques.insert_one(doc)
+    return {"id": str(res.inserted_id)}
 
 @app.get("/api/compras-empaques")
-async def listar_compras_empaques():
-    return list(db.compras_empaques.find({}, {"_id": 0}))
-
-@app.post("/api/compras-empaques")
-async def registrar_compra_empaque(e: CompraEmpaqueCreate):
-    costo_unit = (e.costo_total / e.cantidad) if e.cantidad > 0 else 0
-    doc = {
-        "id": str(uuid.uuid4()),
-        "tipo_empaque": e.tipo_empaque,
-        "fecha": e.fecha,
-        "cantidad": e.cantidad,
-        "costo_total": e.costo_total,
-        "costo_unitario": costo_unit
-    }
-    db.compras_empaques.insert_one(doc)
-    return {"status": "ok"}
+def listar_compras_empaques():
+    compras = list(db.compras_empaques.find().sort("fecha", -1))
+    return [fix_id(c) for c in compras]
 
 @app.get("/api/empaques/resumen")
-async def resumen_empaques():
+def resumen_empaques():
     tipos = ["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
+    
+    compras_agrupadas = list(db.compras_empaques.aggregate([
+        {"$group": {
+            "_id": "$tipo_empaque",
+            "total_cant": {"$sum": "$cantidad"},
+            "total_costo": {"$sum": "$costo_total"}
+        }}
+    ]))
+    dict_compras = {c["_id"]: c for c in compras_agrupadas}
+
+    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
+    usados = {
+        "bolsa_250g": 0,
+        "bolsa_500g": 0,
+        "etiqueta_250g": 0,
+        "etiqueta_500g": 0
+    }
+
+    for v in ventas:
+        for item in v.get("items", []):
+            cant = item.get("cantidad", 0)
+            gramaje = item.get("gramaje", 0)
+            if gramaje == 250:
+                usados["bolsa_250g"] += cant
+                usados["etiqueta_250g"] += cant
+            elif gramaje == 500:
+                usados["bolsa_500g"] += cant
+                usados["etiqueta_500g"] += cant
+
     resumen = {}
-
     for t in tipos:
-        compras = list(db.compras_empaques.find({"tipo_empaque": t}))
-        comprados = sum([c["cantidad"] for c in compras])
-        ultimo_costo = compras[-1]["costo_unitario"] if compras else 0.0
-
-        ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
-        usados = 0
-        for v in ventas:
-            for item in v.get("items", []):
-                g = item.get("gramaje", 0)
-                cant = item.get("cantidad", 0)
-                if "bolsa" in t:
-                    if t == "bolsa_250g" and g == 250: usados += cant
-                    elif t == "bolsa_500g" and g == 500: usados += cant
-                elif "etiqueta" in t:
-                    if t == "etiqueta_250g" and g == 250: usados += cant
-                    elif t == "etiqueta_500g" and g == 500: usados += cant
-
+        compra_info = dict_compras.get(t, {"total_cant": 0, "total_costo": 0.0})
+        total_cant = compra_info["total_cant"]
+        total_costo = compra_info["total_costo"]
+        cant_usada = usados.get(t, 0)
+        
+        # Verificar si hay ajustes manuales
         ajuste = db.ajustes_empaques.find_one({"tipo_empaque": t})
-        disponibles = ajuste["disponibles"] if ajuste else (comprados - usados)
-        costo_u = ajuste["costo_unitario"] if ajuste else ultimo_costo
+        if ajuste:
+            disponibles = ajuste.get("disponibles", 0)
+            costo_unitario = ajuste.get("costo_unitario", 0.0)
+        else:
+            disponibles = max(0, total_cant - cant_usada)
+            costo_unitario = (total_costo / total_cant) if total_cant > 0 else 0.0
 
         resumen[t] = {
-            "comprados": comprados,
-            "usados": usados,
-            "disponibles": max(0, disponibles),
-            "costo_unitario": costo_u
+            "comprados": total_cant,
+            "usados": cant_usada,
+            "disponibles": disponibles,
+            "costo_unitario": round(costo_unitario, 2)
         }
+
     return resumen
 
 @app.put("/api/empaques/ajuste-manual")
-async def ajuste_manual_empaque(a: AjusteEmpaque):
+def ajustar_empaque_manual(data: dict):
+    tipo_empaque = data.get("tipo_empaque")
+    disponibles_deseados = int(data.get("disponibles", 0))
+    nuevo_costo_unitario = float(data.get("costo_unitario", 0.0))
+
+    if not tipo_empaque:
+        raise HTTPException(status_code=400, detail="Tipo de empaque requerido")
+
     db.ajustes_empaques.update_one(
-        {"tipo_empaque": a.tipo_empaque},
-        {"$set": {"disponibles": a.disponibles, "costo_unitario": a.costo_unitario}},
+        {"tipo_empaque": tipo_empaque},
+        {"$set": {"disponibles": disponibles_deseados, "costo_unitario": nuevo_costo_unitario}},
         upsert=True
     )
-    return {"status": "ok"}
+
+    return {"mensaje": f"Empaque {tipo_empaque} actualizado correctamente"}
+
+# ==========================================
+# ENDPOINTS PRODUCTOS & COMPRAS
+# ==========================================
+
+@app.get("/api/productos/unicos")
+def listar_productos_unicos():
+    pipeline = [
+        {"$group": {
+            "_id": "$nombre",
+            "id": {"$first": {"$toString": "$_id"}},
+            "nombre": {"$first": "$nombre"},
+            "costo_por_libra": {"$first": "$costo_por_libra"}
+        }}
+    ]
+    unicos = list(db.productos.aggregate(pipeline))
+    return unicos
+
+@app.put("/api/productos/actualizar-costo-libra")
+def actualizar_costo_libra_manual(data: dict):
+    nombre = data.get("nombre")
+    costo_por_libra = float(data.get("costo_por_libra", 0))
+    if not nombre:
+        raise HTTPException(status_code=400, detail="Nombre requerido")
+    
+    db.productos.update_many(
+        {"nombre": nombre},
+        {"$set": {"costo_por_libra": costo_por_libra}}
+    )
+    return {"mensaje": "Costo por libra actualizado"}
+
+@app.post("/api/compras", status_code=201)
+def crear_compra(compra: CompraCreate):
+    gramos = compra.libras * 500.0
+    costo_por_gramo = (compra.costo_total / gramos) if gramos > 0 else 0.0
+    costo_por_libra = (compra.costo_total / compra.libras) if compra.libras > 0 else 0.0
+
+    nombre_producto = "Materia Prima General"
+    if compra.producto_id:
+        try:
+            prod = db.productos.find_one({"_id": ObjectId(compra.producto_id)})
+            if prod:
+                nombre_producto = prod["nombre"]
+                db.productos.update_many(
+                    {"nombre": prod["nombre"]},
+                    {"$set": {"costo_por_libra": costo_por_libra}}
+                )
+        except Exception:
+            pass
+
+    doc = {
+        "fecha": compra.fecha,
+        "libras": compra.libras,
+        "gramos": gramos,
+        "costo_total": compra.costo_total,
+        "costo_por_gramo": costo_por_gramo,
+        "costo_por_libra": costo_por_libra,
+        "producto_id": compra.producto_id,
+        "producto_nombre": nombre_producto,
+        "creado_en": datetime.utcnow()
+    }
+    res = db.compras.insert_one(doc)
+    return {"id": str(res.inserted_id)}
+
+@app.get("/api/compras")
+def listar_compras():
+    compras = list(db.compras.find().sort("fecha", -1))
+    prods_map = {str(p["_id"]): p["nombre"] for p in db.productos.find()}
+    
+    for c in compras:
+        if "producto_nombre" not in c or not c["producto_nombre"]:
+            p_id = str(c.get("producto_id", ""))
+            c["producto_nombre"] = prods_map.get(p_id, "Materia Prima General")
+
+    return [fix_id(c) for c in compras]
+
+@app.post("/api/productos", status_code=201)
+def crear_producto(prod: ProductoCreate):
+    doc = prod.model_dump() if hasattr(prod, "model_dump") else prod.dict()
+    doc["creado_en"] = datetime.utcnow()
+    if "costo_por_libra" not in doc or doc["costo_por_libra"] is None:
+        doc["costo_por_libra"] = 0.0
+    res = db.productos.insert_one(doc)
+    return {"id": str(res.inserted_id)}
+
+@app.get("/api/productos")
+def listar_productos():
+    prods = list(db.productos.find())
+    return [fix_id(p) for p in prods]
+
+@app.put("/api/productos/{prod_id}")
+def editar_producto(prod_id: str, prod: ProductoUpdate):
+    res = db.productos.update_one(
+        {"_id": ObjectId(prod_id)},
+        {"$set": {"nombre": prod.nombre, "precio_venta": prod.precio_venta}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return {"mensaje": "Producto actualizado"}
+
+@app.delete("/api/productos/{prod_id}")
+def eliminar_producto(prod_id: str):
+    usos = db.ventas.count_documents({"items.producto_id": prod_id})
+    if usos > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el producto tiene ventas asociadas.")
+    db.productos.delete_one({"_id": ObjectId(prod_id)})
+    return {"mensaje": "Producto eliminado exitosamente"}
 
 @app.get("/api/inventario/resumen")
-async def resumen_inventario():
-    productos = list(db.productos.find({}, {"_id": 0}))
-    compras = list(db.compras.find({}, {"_id": 0}))
-    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}, {"_id": 0}))
+def resumen_inventario():
+    compras_agrupadas = list(db.compras.aggregate([
+        {"$group": {
+            "_id": "$producto_nombre",
+            "total_g": {"$sum": "$gramos"},
+            "total_costo": {"$sum": "$costo_total"}
+        }}
+    ]))
+    
+    total_comprado_general = sum(c["total_g"] for c in compras_agrupadas)
+    total_inversion_general = sum(c["total_costo"] for c in compras_agrupadas)
+    dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
 
-    resumen_prods = []
-    unicos_nombres = list(set([p["nombre"] for p in productos]))
+    ventas_agrupadas = list(db.ventas.aggregate([
+        {"$match": {"estado_despacho": {"$ne": "Pendiente"}}},
+        {"$unwind": "$items"},
+        {"$group": {
+            "_id": "$items.nombre",
+            "usados_g": {"$sum": "$items.gramos_totales"}
+        }}
+    ]))
+    
+    dict_usados_nombre = {v["_id"]: v["usados_g"] for v in ventas_agrupadas if v["_id"]}
+    total_usado_general = sum(dict_usados_nombre.values())
 
-    for nom in unicos_nombres:
-        lbs_compradas = sum([c["libras"] for c in compras if c.get("producto_nombre") == nom])
+    productos = list(db.productos.find())
+    nombres_unicos = list(set([p["nombre"] for p in productos]))
+
+    resumen_tarjetas = []
+    for nombre in nombres_unicos:
+        comprado_g = dict_compras_nombre.get(nombre, 0.0)
+        usado_g = dict_usados_nombre.get(nombre, 0.0)
         
-        lbs_vendidas = 0.0
-        for v in ventas:
-            for item in v.get("items", []):
-                if item.get("nombre") == nom:
-                    gramos_totales = item.get("gramos_totales", item.get("gramaje", 0) * item.get("cantidad", 0))
-                    lbs_vendidas += (gramos_totales / 500.0)
+        disp_g = max(0.0, comprado_g - usado_g)
 
-        lbs_disponibles = max(0.0, round(lbs_compradas - lbs_vendidas, 2))
-        resumen_prods.append({
-            "nombre": nom,
-            "libras_compradas": lbs_compradas,
-            "libras_vendidas": round(lbs_vendidas, 2),
-            "libras_disponibles": lbs_disponibles
+        resumen_tarjetas.append({
+            "nombre": nombre,
+            "libras_disponibles": round(disp_g / 500.0, 1)
         })
 
-    return {"productos_stock": resumen_prods}
-
-# -------------------------------------------------------------------
-# ENVÍOS CONSOLIDADOS A VENDEDORES
-# -------------------------------------------------------------------
-@app.get("/api/envios")
-async def listar_envios():
-    return list(db.envios.find({}, {"_id": 0}))
-
-@app.post("/api/envios")
-async def crear_envio(data: EnvioCreate):
-    nuevo_envio = {
-        "id": str(uuid.uuid4()),
-        "fecha": data.fecha,
-        "nota": data.nota,
-        "valor_envio": data.valor_envio,
-        "items": [item.dict() for item in data.items],
-        "facturas_ids": []
+    return {
+        "inventario_disponible_g": max(0.0, total_comprado_general - total_usado_general),
+        "costo_promedio_gramo": (total_inversion_general / total_comprado_general) if total_comprado_general > 0 else 0.0,
+        "productos_stock": resumen_tarjetas
     }
-    db.envios.insert_one(nuevo_envio)
-    return {"status": "ok", "id": nuevo_envio["id"]}
+
+# ==========================================
+# ENDPOINTS ENVÍOS CONSOLIDADOS
+# ==========================================
+
+@app.get("/api/envios")
+def listar_envios():
+    envios = list(db.envios.find().sort("fecha", -1))
+    return [fix_id(e) for e in envios]
+
+@app.post("/api/envios", status_code=201)
+def crear_envio(data: dict):
+    doc = {
+        "fecha": data.get("fecha"),
+        "nota": data.get("nota"),
+        "valor_envio": float(data.get("valor_envio", 0.0)),
+        "items": data.get("items", []),
+        "facturas_ids": [],
+        "creado_en": datetime.utcnow()
+    }
+    res = db.envios.insert_one(doc)
+    return {"id": str(res.inserted_id), "mensaje": "Envío registrado"}
 
 @app.put("/api/envios/{envio_id}/asociar-facturas")
-async def asociar_facturas_envio(envio_id: str, req: AsociarFacturasRequest):
-    db.envios.update_one({"id": envio_id}, {"$set": {"facturas_ids": req.facturas_ids}})
-    return {"status": "ok"}
+def asociar_facturas_envio(envio_id: str, data: dict):
+    facturas_ids = data.get("facturas_ids", [])
+    res = db.envios.update_one(
+        {"_id": ObjectId(envio_id)},
+        {"$set": {"facturas_ids": facturas_ids}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Envío no encontrado")
+    return {"mensaje": "Facturas asociadas correctamente"}
 
 @app.delete("/api/envios/{envio_id}")
-async def eliminar_envio(envio_id: str):
-    db.envios.delete_one({"id": envio_id})
-    return {"status": "ok"}
+def eliminar_envio(envio_id: str):
+    res = db.envios.delete_one({"_id": ObjectId(envio_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Envío no encontrado")
+    return {"mensaje": "Envío eliminado"}
 
-# -------------------------------------------------------------------
-# RUTAS VENTAS Y COTIZACIONES
-# -------------------------------------------------------------------
+# ==========================================
+# ENDPOINTS VENTAS Y VENTAS PARCIALES
+# ==========================================
+
+@app.post("/api/ventas", status_code=201)
+def registrar_venta(venta: VentaCreate, request: Request):
+    vendedor = venta.vendedor or request.cookies.get("session_user", "admin")
+    resumen_cafe = resumen_inventario()
+    resumen_emp = resumen_empaques()
+
+    es_obsequio = (venta.tipo_venta == "Obsequio")
+    total_venta = 0.0 if es_obsequio else sum(i.subtotal for i in venta.items)
+    total_gramos = sum(i.gramos_totales for i in venta.items)
+    
+    # Comprobar si hay stock suficiente para despacho inmediato
+    stock_insuficiente = False
+    motivo_faltante = {}
+
+    if total_gramos > resumen_cafe["inventario_disponible_g"]:
+        stock_insuficiente = True
+        motivo_faltante["cafe_g"] = total_gramos - resumen_cafe["inventario_disponible_g"]
+
+    req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
+    for item in venta.items:
+        cant = item.cantidad
+        g = item.gramaje
+        if g == 250:
+            req_empaques["bolsa_250g"] += cant
+            req_empaques["etiqueta_250g"] += cant
+        elif g == 500:
+            req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+
+    for k, v_req in req_empaques.items():
+        if v_req > resumen_emp[k]["disponibles"]:
+            stock_insuficiente = True
+            motivo_faltante[k] = v_req - resumen_emp[k]["disponibles"]
+
+    estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
+
+    costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
+    
+    # Calcular costo empaques
+    costo_empaques_total = 0.0
+    for item in venta.items:
+        cant = item.cantidad
+        g = item.gramaje
+        if g == 250:
+            costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
+        elif g == 500:
+            costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
+
+    costo_est = round(costo_cafe + costo_empaques_total)
+    consecutivo = obtener_siguiente_consecutivo("factura_num")
+
+    doc = {
+        "consecutivo_str": consecutivo,
+        "fecha": venta.fecha,
+        "cliente": venta.cliente,
+        "vendedor": vendedor,
+        "tipo_pago": "N/A" if es_obsequio else venta.tipo_pago,
+        "tipo_venta": venta.tipo_venta,
+        "estado_despacho": estado_despacho,
+        "faltantes": motivo_faltante if stock_insuficiente else {},
+        "estado_credito": "Pendiente" if (venta.tipo_pago == "Crédito" and not es_obsequio) else "N/A",
+        "total_venta": total_venta,
+        "costo_estimado": costo_est,
+        "ganancia": total_venta - costo_est,
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in venta.items],
+        "creado_en": datetime.utcnow()
+    }
+    res = db.ventas.insert_one(doc)
+    return {"id": str(res.inserted_id), "consecutivo": consecutivo, "estado_despacho": estado_despacho}
+
 @app.get("/api/ventas")
-async def listar_ventas():
-    ventas = list(db.ventas.find({}, {"_id": 0}))
-    envios = list(db.envios.find({}, {"_id": 0}))
+def listar_ventas():
+    ventas = list(db.ventas.find().sort("fecha", -1))
+    envios = list(db.envios.find())
 
+    # Calcular fletes por factura de forma segura
     fletes_por_factura = {}
     for env in envios:
         facturas = env.get("facturas_ids", [])
@@ -442,263 +562,140 @@ async def listar_ventas():
         if num_facturas > 0:
             flete_unitario = env.get("valor_envio", 0.0) / num_facturas
             for f_id in facturas:
-                fletes_por_factura[f_id] = fletes_por_factura.get(f_id, 0.0) + flete_unitario
+                fletes_por_factura[str(f_id)] = fletes_por_factura.get(str(f_id), 0.0) + flete_unitario
 
+    ventas_formateadas = []
     for v in ventas:
-        flete_aplicado = fletes_por_factura.get(v["id"], 0.0)
-        v["costo_envio_asociado"] = flete_aplicado
-        v["ganancia"] = v.get("ganancia_bruta", v.get("ganancia", 0.0)) - flete_aplicado
+        v_clean = fix_id(v)
+        v_id = str(v_clean.get("id", ""))
+        
+        flete_aplicado = fletes_por_factura.get(v_id, 0.0)
+        v_clean["costo_envio_asociado"] = flete_aplicado
+        
+        ganancia_base = float(v_clean.get("ganancia", 0.0))
+        v_clean["ganancia"] = ganancia_base - flete_aplicado
+        
+        ventas_formateadas.append(v_clean)
 
-    return ventas
-
-@app.post("/api/ventas")
-async def registrar_venta(v: VentaCreate):
-    consecutivo = obtener_siguiente_consecutivo("ventas")
-    consecutivo_str = f"FACT-{consecutivo:05d}"
-
-    resumen_emp = await resumen_empaques()
-    resumen_inv = await resumen_inventario()
-
-    faltantes = {}
-    es_obsequio = (v.tipo_venta == "Obsequio")
-
-    for item in v.items:
-        g = item.gramaje
-        cant = item.cantidad
-        nom = item.nombre
-
-        stock_item = next((s for s in resumen_inv["productos_stock"] if s["nombre"] == nom), None)
-        lbs_necesarias = (g * cant) / 500.0
-        if not stock_item or stock_item["libras_disponibles"] < lbs_necesarias:
-            disp = stock_item["libras_disponibles"] if stock_item else 0
-            faltantes[f"Café {nom}"] = f"Req: {lbs_necesarias} Lbs, Disp: {disp} Lbs"
-
-        if g in [250, 500]:
-            k_bolsa = f"bolsa_{int(g)}g"
-            k_etiq = f"etiqueta_{int(g)}g"
-
-            if resumen_emp[k_bolsa]["disponibles"] < cant:
-                faltantes[f"Bolsas {g}g"] = f"Req: {cant}, Disp: {resumen_emp[k_bolsa]['disponibles']}"
-            if resumen_emp[k_etiq]["disponibles"] < cant:
-                faltantes[f"Etiquetas {g}g"] = f"Req: {cant}, Disp: {resumen_emp[k_etiq]['disponibles']}"
-
-    estado_despacho = "Pendiente" if len(faltantes) > 0 else "Completo"
-
-    costo_total_venta = 0.0
-    total_venta = 0.0
-
-    items_procesados = []
-    for item in v.items:
-        p = db.productos.find_one({"id": item.producto_id})
-        costo_lb = p.get("costo_por_libra", 0.0) if p else 0.0
-        costo_cafe = (item.gramos_totales / 500.0) * costo_lb
-
-        g = item.gramaje
-        costo_bolsa = resumen_emp.get(f"bolsa_{int(g)}g", {}).get("costo_unitario", 0.0)
-        costo_etiq = resumen_emp.get(f"etiqueta_{int(g)}g", {}).get("costo_unitario", 0.0)
-        costo_insumos = (costo_bolsa + costo_etiq) * item.cantidad
-
-        costo_item = costo_cafe + costo_insumos
-        costo_total_venta += costo_item
-
-        subt = 0.0 if es_obsequio else item.subtotal
-        total_venta += subt
-
-        item_dict = item.dict()
-        item_dict["costo_produccion"] = costo_item
-        items_procesados.append(item_dict)
-
-    ganancia_bruta = 0.0 if es_obsequio else (total_venta - costo_total_venta)
-
-    venta_doc = {
-        "id": str(uuid.uuid4()),
-        "consecutivo": consecutivo,
-        "consecutivo_str": consecutivo_str,
-        "fecha": v.fecha,
-        "cliente": v.cliente,
-        "vendedor": v.vendedor,
-        "tipo_pago": v.tipo_pago,
-        "tipo_venta": v.tipo_venta or "Normal",
-        "estado_despacho": estado_despacho,
-        "estado_credito": "Pendiente" if v.tipo_pago == "Crédito" else "N/A",
-        "faltantes": faltantes,
-        "items": items_procesados,
-        "costo_total_produccion": costo_total_venta,
-        "total_venta": total_venta,
-        "ganancia_bruta": ganancia_bruta,
-        "ganancia": ganancia_bruta
-    }
-
-    db.ventas.insert_one(venta_doc)
-    return {"status": "ok", "id": venta_doc["id"], "consecutivo": consecutivo_str, "estado_despacho": estado_despacho}
+    return ventas_formateadas
 
 @app.put("/api/ventas/{venta_id}/completar-despacho")
-async def completar_despacho(venta_id: str):
-    v = db.ventas.find_one({"id": venta_id})
-    if not v:
+def completar_despacho_venta(venta_id: str):
+    venta = db.ventas.find_one({"_id": ObjectId(venta_id)})
+    if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
+    if venta.get("estado_despacho") == "Completo":
+        return {"mensaje": "La venta ya está completada"}
 
-    db.ventas.update_one({"id": venta_id}, {"$set": {"estado_despacho": "Completo", "faltantes": {}}})
-    return {"status": "ok"}
+    # Validar stock actual antes de completar
+    resumen_cafe = resumen_inventario()
+    resumen_emp = resumen_empaques()
+
+    total_gramos = sum(i.get("gramos_totales", 0) for i in venta.get("items", []))
+    if total_gramos > resumen_cafe["inventario_disponible_g"]:
+        raise HTTPException(status_code=400, detail="Inventario de café todavía insuficiente para completar el despacho.")
+
+    req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
+    for item in venta.get("items", []):
+        cant = item.get("cantidad", 0)
+        g = item.get("gramaje", 0)
+        if g == 250:
+            req_empaques["bolsa_250g"] += cant
+            req_empaques["etiqueta_250g"] += cant
+        elif g == 500:
+            req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+
+    for k, v_req in req_empaques.items():
+        if v_req > resumen_emp[k]["disponibles"]:
+            nombre_legible = k.replace('_', ' ').title()
+            raise HTTPException(status_code=400, detail=f"Stock insuficiente de {nombre_legible} para completar.")
+
+    # Marcar como Completo y limpiar faltantes
+    db.ventas.update_one(
+        {"_id": ObjectId(venta_id)},
+        {"$set": {"estado_despacho": "Completo", "faltantes": {}}}
+    )
+    return {"mensaje": "Venta completada y stock descontado exitosamente"}
 
 @app.put("/api/ventas/{venta_id}/pagar-credito")
-async def pagar_credito_venta(venta_id: str):
-    db.ventas.update_one({"id": venta_id}, {"$set": {"estado_credito": "Pagado"}})
-    return {"status": "ok"}
+def pagar_credito(venta_id: str):
+    res = db.ventas.update_one({"_id": ObjectId(venta_id)}, {"$set": {"estado_credito": "Pagado"}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    return {"mensaje": "Crédito pagado"}
 
 @app.delete("/api/ventas/{venta_id}")
-async def eliminar_venta(venta_id: str):
-    db.ventas.delete_one({"id": venta_id})
-    return {"status": "ok"}
-
-@app.get("/api/cotizaciones")
-async def listar_cotizaciones():
-    return list(db.cotizaciones.find({}, {"_id": 0}))
-
-@app.post("/api/cotizaciones")
-async def registrar_cotizacion(c: CotizacionCreate):
-    consecutivo = obtener_siguiente_consecutivo("cotizaciones")
-    consecutivo_str = f"COT-{consecutivo:05d}"
-    total = sum([item.subtotal for item in c.items])
-
-    cot_doc = {
-        "id": str(uuid.uuid4()),
-        "consecutivo": consecutivo,
-        "consecutivo_str": consecutivo_str,
-        "fecha": c.fecha,
-        "cliente": c.cliente,
-        "vendedor": c.vendedor,
-        "tipo_pago": c.tipo_pago,
-        "items": [item.dict() for item in c.items],
-        "total_venta": total
-    }
-    db.cotizaciones.insert_one(cot_doc)
-    return {"status": "ok", "id": cot_doc["id"], "consecutivo": consecutivo_str}
-
-@app.delete("/api/cotizaciones/{cot_id}")
-async def eliminar_cotizacion(cot_id: str):
-    db.cotizaciones.delete_one({"id": cot_id})
-    return {"status": "ok"}
-
-# -------------------------------------------------------------------
-# GENERACIÓN DE PDFS (FACTURAS Y COTIZACIONES)
-# -------------------------------------------------------------------
-def generar_pdf_documento(titulo_doc: str, num_doc: str, fecha: str, cliente: str, vendedor: str, tipo_pago: str, items: list, total: float) -> bytes:
-    buffer = BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    w, h = letter
-
-    # Encabezado
-    p.setFillColor(colors.HexColor("#0D0D0D"))
-    p.rect(0, h - 100, w, 100, fill=1)
-
-    p.setFillColor(colors.HexColor("#D4AF37"))
-    p.setFont("Helvetica-Bold", 20)
-    p.drawString(40, h - 45, "0808 CAFÉ DE ESPECIALIDAD")
-
-    p.setFont("Helvetica", 10)
-    p.setFillColor(colors.white)
-    p.drawString(40, h - 65, "Barbosa, Antioquia, Colombia | WhatsApp: +57 300 000 0000")
-
-    p.setFillColor(colors.HexColor("#FFD700"))
-    p.setFont("Helvetica-Bold", 14)
-    p.drawRightString(w - 40, h - 45, titulo_doc)
-    p.drawString(w - 160, h - 65, f"N°: {num_doc}")
-
-    # Información Cliente y Transacción
-    p.setFillColor(colors.HexColor("#1A1A1A"))
-    p.rect(40, h - 170, w - 80, 55, fill=1, stroke=0)
-
-    p.setFillColor(colors.HexColor("#D4AF37"))
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(50, h - 130, f"FECHA: {fecha}")
-    p.drawString(50, h - 150, f"CLIENTE: {cliente}")
-
-    p.drawString(w/2 + 20, h - 130, f"VENDEDOR: {vendedor}")
-    p.drawString(w/2 + 20, h - 150, f"FORMA DE PAGO: {tipo_pago}")
-
-    # Tabla de Productos
-    y = h - 200
-    p.setFillColor(colors.HexColor("#1A1813"))
-    p.rect(40, y, w - 80, 20, fill=1, stroke=0)
-
-    p.setFillColor(colors.HexColor("#D4AF37"))
-    p.setFont("Helvetica-Bold", 9)
-    p.drawString(50, y + 6, "PRODUCTO")
-    p.drawString(220, y + 6, "PRES.")
-    p.drawString(280, y + 6, "GRAMAJE")
-    p.drawString(350, y + 6, "CANT.")
-    p.drawString(410, y + 6, "PRECIO UNIT.")
-    p.drawRightString(w - 50, y + 6, "SUBTOTAL")
-
-    y -= 20
-    p.setFont("Helvetica", 9)
-    p.setFillColor(colors.black)
-
-    for item in items:
-        p.drawString(50, y + 5, str(item.get("nombre", "")))
-        p.drawString(220, y + 5, str(item.get("presentacion", "Grano")))
-        p.drawString(280, y + 5, f"{item.get('gramaje', 0)}g")
-        p.drawString(350, y + 5, str(item.get("cantidad", 0)))
-        
-        pu = item.get("precio_unitario", 0)
-        sub = item.get("subtotal", 0)
-        p.drawString(410, y + 5, f"${pu:,.0f}".replace(",", "."))
-        p.drawRightString(w - 50, y + 5, f"${sub:,.0f}".replace(",", "."))
-
-        p.setStrokeColor(colors.HexColor("#E0E0E0"))
-        p.line(40, y, w - 40, y)
-        y -= 20
-
-    # Total General
-    y -= 10
-    p.setFillColor(colors.HexColor("#1A1A1A"))
-    p.rect(w - 240, y - 10, 200, 25, fill=1, stroke=0)
-
-    p.setFillColor(colors.HexColor("#FFD700"))
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(w - 230, y, "TOTAL:")
-    p.drawRightString(w - 50, y, f"${total:,.0f}".replace(",", "."))
-
-    p.save()
-    pdf_out = buffer.getvalue()
-    buffer.close()
-    return pdf_out
+def eliminar_venta(venta_id: str):
+    res = db.ventas.delete_one({"_id": ObjectId(venta_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    return {"mensaje": "Venta eliminada correctamente"}
 
 @app.get("/api/ventas/{venta_id}/pdf")
-async def descargar_pdf_venta(venta_id: str):
-    v = db.ventas.find_one({"id": venta_id})
-    if not v:
+def descargar_factura(venta_id: str):
+    venta = db.ventas.find_one({"_id": ObjectId(venta_id)})
+    if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    pdf_bytes = generar_pdf_documento(
-        titulo_doc="FACTURA DE VENTA",
-        num_doc=v.get("consecutivo_str", v["id"][:8]),
-        fecha=v["fecha"],
-        cliente=v["cliente"],
-        vendedor=v.get("vendedor", "admin"),
-        tipo_pago=v.get("tipo_pago", "Efectivo"),
-        items=v.get("items", []),
-        total=v.get("total_venta", 0.0)
+    pdf_bytes = generar_factura_pdf(venta, venta["items"], es_cotizacion=False)
+    num_factura = venta.get("consecutivo_str", str(venta_id)[:8])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename=Factura_{num_factura}.pdf"
+        }
     )
 
-    return Response(content=pdf_bytes, media_type="application/pdf")
+# ==========================================
+# ENDPOINTS COTIZACIONES
+# ==========================================
 
-@app.get("/api/cotizaciones/{cot_id}/pdf")
-async def descargar_pdf_cotizacion(cot_id: str):
-    c = db.cotizaciones.find_one({"id": cot_id})
-    if not c:
+@app.post("/api/cotizaciones", status_code=201)
+def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
+    vendedor = cotizacion.vendedor or request.cookies.get("session_user", "admin")
+    total_cotizacion = sum(i.subtotal for i in cotizacion.items)
+    consecutivo = obtener_siguiente_consecutivo("cotizacion_num")
+
+    doc = {
+        "consecutivo_str": consecutivo,
+        "fecha": cotizacion.fecha,
+        "cliente": cotizacion.cliente,
+        "vendedor": vendedor,
+        "tipo_pago": cotizacion.tipo_pago,
+        "total_venta": total_cotizacion,
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
+        "creado_en": datetime.utcnow()
+    }
+    res = db.cotizaciones.insert_one(doc)
+    return {"id": str(res.inserted_id), "consecutivo": consecutivo}
+
+@app.get("/api/cotizaciones")
+def listar_cotizaciones():
+    cotizaciones = list(db.cotizaciones.find().sort("fecha", -1))
+    return [fix_id(c) for c in cotizaciones]
+
+@app.get("/api/cotizaciones/{cotizacion_id}/pdf")
+def descargar_cotizacion_pdf(cotizacion_id: str):
+    cotizacion = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
+    if not cotizacion:
         raise HTTPException(status_code=404, detail="Cotización no encontrada")
 
-    pdf_bytes = generar_pdf_documento(
-        titulo_doc="COTIZACIÓN",
-        num_doc=c.get("consecutivo_str", c["id"][:8]),
-        fecha=c["fecha"],
-        cliente=c["cliente"],
-        vendedor=c.get("vendedor", "admin"),
-        tipo_pago=c.get("tipo_pago", "Efectivo"),
-        items=c.get("items", []),
-        total=c.get("total_venta", 0.0)
+    pdf_bytes = generar_factura_pdf(cotizacion, cotizacion["items"], es_cotizacion=True)
+    num_cot = cotizacion.get("consecutivo_str", str(cotizacion_id)[:8])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename=Cotizacion_{num_cot}.pdf"
+        }
     )
 
-    return Response(content=pdf_bytes, media_type="application/pdf")
+@app.delete("/api/cotizaciones/{cotizacion_id}")
+def eliminar_cotizacion(cotizacion_id: str):
+    res = db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    return {"mensaje": "Cotización eliminada correctamente"}
