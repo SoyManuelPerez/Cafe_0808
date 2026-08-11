@@ -6,6 +6,9 @@
     <title>0808 Café de Especialidad</title>
     <link rel="icon" type="image/png" href="/static/logo.png">
 
+    <!-- Librería para Exportar a Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         :root {
             --bg-color: #0D0D0D;
@@ -219,6 +222,93 @@
 
         button.btn-danger:hover, button.btn-danger:active {
             background-color: #ff6b6b;
+            color: #000 !important;
+        }
+
+        /* TOOLBAR PARA BÚSQUEDA, EXCEL Y PAGINACIÓN */
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .table-toolbar .search-box {
+            flex: 1;
+            min-width: 200px;
+            max-width: 320px;
+        }
+
+        .table-toolbar input[type="text"] {
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #141414;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            border-radius: 4px;
+        }
+
+        .table-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pagination-controls button {
+            width: auto !important;
+            padding: 5px 12px !important;
+            margin: 0 !important;
+            font-size: 13px !important;
+            background-color: #222;
+            color: var(--gold-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination-controls button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination-controls button:hover:not(:disabled) {
+            background-color: var(--gold-primary);
+            color: #000;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .btn-excel {
+            background-color: #1a331e !important;
+            color: #2ecc71 !important;
+            border: 1px solid #2ecc71 !important;
+            width: auto !important;
+            padding: 6px 14px !important;
+            margin: 0 !important;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px !important;
+            border-radius: 4px;
+            display: inline-flex !important;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-excel:hover {
+            background-color: #2ecc71 !important;
             color: #000 !important;
         }
 
@@ -915,8 +1005,140 @@
         let usuarioActual = '';
         let rolActual = 'ventas';
 
-        const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 Horas en milisegundos
+        const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 Horas
 
+        // ENGINE REUTILIZABLE DE PAGINACIÓN, BÚSQUEDA Y EXPORTACIÓN A EXCEL
+        const tableStates = {};
+
+        function setupTableToolbar(tableId, options = {}) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            const tableResponsive = table.closest('.table-responsive');
+            if (!tableResponsive) return;
+
+            let toolbar = tableResponsive.previousElementSibling;
+            if (!toolbar || !toolbar.classList.contains('table-toolbar')) {
+                toolbar = document.createElement('div');
+                toolbar.className = 'table-toolbar';
+                
+                const enableExcel = options.enableExcel || false;
+                const excelName = options.excelFileName || `${tableId}.xlsx`;
+
+                toolbar.innerHTML = `
+                    <div class="search-box">
+                        <input type="text" id="search-${tableId}" placeholder="🔍 Buscar en la tabla..." oninput="filtrarTablaState('${tableId}')">
+                    </div>
+                    <div class="table-toolbar-right">
+                        ${enableExcel ? `<button type="button" class="btn-excel" onclick="exportarTablaExcel('${tableId}', '${excelName}')">📊 Descargar Excel</button>` : ''}
+                        <div class="pagination-controls" id="pag-controls-${tableId}">
+                            <button type="button" id="btn-prev-${tableId}" onclick="cambiarPaginaTabla('${tableId}', -1)">◀ Ant.</button>
+                            <span class="pagination-info" id="pag-info-${tableId}">Pág. 1 de 1</span>
+                            <button type="button" id="btn-next-${tableId}" onclick="cambiarPaginaTabla('${tableId}', 1)">Sig. ▶</button>
+                        </div>
+                    </div>
+                `;
+                tableResponsive.parentNode.insertBefore(toolbar, tableResponsive);
+            }
+        }
+
+        function renderTablaPaginada(tableId, dataArray, renderRowFn, options = {}) {
+            setupTableToolbar(tableId, options);
+
+            if (!tableStates[tableId]) {
+                tableStates[tableId] = { page: 1, search: '', data: dataArray, renderFn: renderRowFn, options: options };
+            } else {
+                tableStates[tableId].data = dataArray;
+                tableStates[tableId].renderFn = renderRowFn;
+                tableStates[tableId].options = options;
+            }
+
+            actualizarRenderTabla(tableId);
+        }
+
+        function filtrarTablaState(tableId) {
+            const input = document.getElementById(`search-${tableId}`);
+            if (!input || !tableStates[tableId]) return;
+            tableStates[tableId].search = input.value.trim().toLowerCase();
+            tableStates[tableId].page = 1;
+            actualizarRenderTabla(tableId);
+        }
+
+        function cambiarPaginaTabla(tableId, delta) {
+            if (!tableStates[tableId]) return;
+            tableStates[tableId].page += delta;
+            actualizarRenderTabla(tableId);
+        }
+
+        function actualizarRenderTabla(tableId) {
+            const st = tableStates[tableId];
+            if (!st) return;
+
+            let filtered = st.data;
+            if (st.search) {
+                filtered = st.data.filter(item => {
+                    return Object.values(item).some(val => 
+                        val !== null && val !== undefined && String(val).toLowerCase().includes(st.search)
+                    );
+                });
+            }
+
+            const pageSize = st.options.pageSize || 10;
+            const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+            
+            if (st.page > totalPages) st.page = totalPages;
+            if (st.page < 1) st.page = 1;
+
+            const start = (st.page - 1) * pageSize;
+            const pageData = filtered.slice(start, start + pageSize);
+
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            if (tbody) {
+                if (pageData.length === 0) {
+                    const colCount = document.querySelectorAll(`#${tableId} thead th`).length || 1;
+                    tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; color:#aaa;">No se encontraron registros</td></tr>`;
+                } else {
+                    tbody.innerHTML = pageData.map((item, idx) => st.renderFn(item, start + idx)).join('');
+                }
+            }
+
+            const btnPrev = document.getElementById(`btn-prev-${tableId}`);
+            const btnNext = document.getElementById(`btn-next-${tableId}`);
+            const pagInfo = document.getElementById(`pag-info-${tableId}`);
+
+            if (btnPrev) btnPrev.disabled = (st.page <= 1);
+            if (btnNext) btnNext.disabled = (st.page >= totalPages);
+            if (pagInfo) pagInfo.innerText = `Pág. ${st.page} de ${totalPages} (${filtered.length} reg.)`;
+        }
+
+        function exportarTablaExcel(tableId, filename) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            const cloneTable = table.cloneNode(true);
+            
+            const headers = cloneTable.querySelectorAll('th');
+            let removeIdxs = [];
+            headers.forEach((th, idx) => {
+                const txt = th.innerText.trim().toLowerCase();
+                if (txt.includes('acción') || txt.includes('acciones') || txt.includes('vista previa')) {
+                    removeIdxs.push(idx);
+                }
+            });
+
+            removeIdxs.reverse().forEach(removeIdx => {
+                cloneTable.querySelectorAll('tr').forEach(row => {
+                    if (row.children[removeIdx]) {
+                        row.children[removeIdx].remove();
+                    }
+                });
+            });
+
+            const wb = XLSX.utils.table_to_book(cloneTable, { sheet: "Reporte" });
+            XLSX.writeFile(wb, filename || 'Reporte_0808.xlsx');
+        }
+
+        // CONTROL DE SESIÓN
         function verificarSesionActiva() {
             const loginTimeStr = localStorage.getItem('login_timestamp_0808');
             const savedUser = localStorage.getItem('user_0808');
@@ -935,7 +1157,6 @@
                 }
             }
 
-            // Si la sesión expiró o no existe, limpia datos y muestra el login
             localStorage.removeItem('user_0808');
             localStorage.removeItem('rol_0808');
             localStorage.removeItem('login_timestamp_0808');
@@ -988,7 +1209,6 @@
                 usuarioActual = data.username;
                 rolActual = data.rol;
                 
-                // Guardar credenciales y marca de tiempo
                 localStorage.setItem('user_0808', usuarioActual);
                 localStorage.setItem('rol_0808', rolActual);
                 localStorage.setItem('login_timestamp_0808', Date.now().toString());
@@ -1048,8 +1268,7 @@
             const res = await fetch('/api/usuarios');
             const usuarios = await res.json();
 
-            const tbody = document.querySelector('#tabla-usuarios tbody');
-            tbody.innerHTML = usuarios.map(u => `
+            renderTablaPaginada('tabla-usuarios', usuarios, u => `
                 <tr>
                     <td><input type="text" id="usr-name-${u.id}" value="${u.username}" style="width: 150px;"></td>
                     <td>
@@ -1064,7 +1283,7 @@
                         ${u.username !== 'admin' ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarUsuario('${u.id}')">❌ Eliminar</button>` : '<span style="color:#aaa; font-size:12px; margin-left:5px;">(Admin Principal)</span>'}
                     </td>
                 </tr>
-            `).join('');
+            `);
         }
 
         async function guardarUsuario(e) {
@@ -1129,19 +1348,16 @@
             const res = await fetch('/api/clientes');
             clientesCache = await res.json();
 
-            const tbody = document.querySelector('#tabla-clientes tbody');
-            if (tbody) {
-                tbody.innerHTML = clientesCache.map(c => `
-                    <tr>
-                        <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
-                        <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
+            renderTablaPaginada('tabla-clientes', clientesCache, c => `
+                <tr>
+                    <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
+                    <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
+                    <td>
+                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
+                        <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
+                    </td>
+                </tr>
+            `);
         }
 
         async function actualizarSelectsClientes(clienteSeleccionar = null) {
@@ -1285,23 +1501,24 @@
                 "etiqueta_500g": "Etiqueta 500g"
             };
 
-            const tbody = document.querySelector('#tabla-resumen-empaques tbody');
-            tbody.innerHTML = Object.keys(data).map(k => `
+            const list = Object.keys(data).map(k => ({ key: k, ...data[k] }));
+
+            renderTablaPaginada('tabla-resumen-empaques', list, item => `
                 <tr>
-                    <td><strong>${nombresLegibles[k]}</strong></td>
-                    <td>${data[k].comprados.toLocaleString()} u.</td>
-                    <td>${data[k].usados.toLocaleString()} u.</td>
+                    <td><strong>${nombresLegibles[item.key] || item.key}</strong></td>
+                    <td>${item.comprados.toLocaleString()} u.</td>
+                    <td>${item.usados.toLocaleString()} u.</td>
                     <td>
-                        <input type="number" id="edit-disp-${k}" value="${data[k].disponibles}" min="0" style="width: 100px;"> u.
+                        <input type="number" id="edit-disp-${item.key}" value="${item.disponibles}" min="0" style="width: 100px;"> u.
                     </td>
                     <td>
-                        <input type="number" id="edit-costo-${k}" value="${data[k].costo_unitario}" min="0" step="any" style="width: 110px;">
+                        <input type="number" id="edit-costo-${item.key}" value="${item.costo_unitario}" min="0" step="any" style="width: 110px;">
                     </td>
                     <td>
-                        <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="guardarAjusteEmpaque('${k}')">💾 Guardar</button>
+                        <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="guardarAjusteEmpaque('${item.key}')">💾 Guardar</button>
                     </td>
                 </tr>
-            `).join('');
+            `);
         }
 
         async function guardarAjusteEmpaque(tipoEmpaque) {
@@ -1358,8 +1575,7 @@
             
             const misVentas = (rolActual === 'admin') ? ventas : ventas.filter(v => v.vendedor === usuarioActual);
 
-            const tbody = document.querySelector('#tabla-mis-ventas tbody');
-            tbody.innerHTML = misVentas.map(v => {
+            renderTablaPaginada('tabla-mis-ventas', misVentas, v => {
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
                 const esPendiente = v.estado_despacho === 'Pendiente';
                 const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
@@ -1384,7 +1600,7 @@
                         </td>
                     </tr>
                 `;
-            }).join('');
+            });
         }
 
         async function pagarCreditoVendedor(id) {
@@ -1400,13 +1616,7 @@
             const ventas = await res.json();
             const parciales = ventas.filter(v => v.estado_despacho === 'Pendiente');
 
-            const tbody = document.querySelector('#tabla-parciales tbody');
-            if(parciales.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">No hay ventas pendientes de inventario.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = parciales.map(v => {
+            renderTablaPaginada('tabla-parciales', parciales, v => {
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
                 let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
                 return `
@@ -1423,7 +1633,7 @@
                         </td>
                     </tr>
                 `;
-            }).join('');
+            });
         }
 
         async function completarDespacho(id) {
@@ -1459,8 +1669,7 @@
             
             const misCot = (rolActual === 'admin') ? cotizaciones : cotizaciones.filter(c => c.vendedor === usuarioActual);
 
-            const tbody = document.querySelector('#tabla-mis-cotizaciones tbody');
-            tbody.innerHTML = misCot.map(c => {
+            renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
                 const numCot = c.consecutivo_str || c.id.substring(0,8);
                 return `
                     <tr>
@@ -1472,7 +1681,7 @@
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
                     </tr>
                 `;
-            }).join('');
+            });
         }
 
         function toggleTipoVenta() {
@@ -1684,13 +1893,7 @@
             const resResumen = await fetch('/api/inventario/resumen');
             const dataResumen = await resResumen.json();
 
-            const tbody = document.querySelector('#tabla-existencias tbody');
-            if (productosUnicos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4">No hay productos registrados</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = productosUnicos.map(p => {
+            renderTablaPaginada('tabla-existencias', productosUnicos, p => {
                 const itemStock = dataResumen.productos_stock.find(s => s.nombre === p.nombre);
                 const totalLbs = itemStock ? itemStock.libras_disponibles : 0;
 
@@ -1706,7 +1909,7 @@
                         </td>
                     </tr>
                 `;
-            }).join('');
+            });
         }
 
         async function guardarCostoManual(nombre, id) {
@@ -1751,7 +1954,7 @@
             productosCache = await res.json();
             ordenarProductosArray(productosCache);
 
-            document.querySelector('#tabla-productos tbody').innerHTML = productosCache.map(p => 
+            renderTablaPaginada('tabla-productos', productosCache, p => 
                 `<tr>
                     <td><input type="text" id="edit-nom-${p.id}" value="${p.nombre}" style="width: 180px;"></td>
                     <td>${p.gramaje}g</td>
@@ -1761,7 +1964,7 @@
                         <button class="btn-danger" style="padding: 4px 8px;" onclick="eliminarProducto('${p.id}')">❌</button>
                     </td>
                 </tr>`
-            ).join('');
+            );
         }
 
         async function guardarEdicionProducto(id) {
@@ -1793,10 +1996,11 @@
             const res = await fetch('/api/ventas');
             const ventas = await res.json();
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
-            document.querySelector('#tabla-creditos tbody').innerHTML = creditos.map(c => 
+
+            renderTablaPaginada('tabla-creditos', creditos, c => 
                 `<tr><td>${c.consecutivo_str || c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>$${c.total_venta.toLocaleString()}</td><td>${c.estado_credito}</td>
                 <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td></tr>`
-            ).join('');
+            );
         }
 
         async function pagarCredito(id) {
@@ -1811,24 +2015,20 @@
             
             let totalLibrasCompradas = 0;
             let totalInversionCompras = 0;
+            compras.forEach(c => {
+                totalLibrasCompradas += (c.libras || 0);
+                totalInversionCompras += (c.costo_total || 0);
+            });
 
-            const tbodyCompras = document.querySelector('#tabla-reporte-compras tbody');
-            tbodyCompras.innerHTML = compras.map(c => {
-                const lbs = c.libras || 0;
-                const costo = c.costo_total || 0;
-                totalLibrasCompradas += lbs;
-                totalInversionCompras += costo;
-
-                return `
-                    <tr>
-                        <td>${c.fecha}</td>
-                        <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
-                        <td>${lbs.toLocaleString()} Lbs</td>
-                        <td>$${costo.toLocaleString()}</td>
-                        <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
-                    </tr>
-                `;
-            }).join('');
+            renderTablaPaginada('tabla-reporte-compras', compras, c => `
+                <tr>
+                    <td>${c.fecha}</td>
+                    <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
+                    <td>${(c.libras || 0).toLocaleString()} Lbs</td>
+                    <td>$${(c.costo_total || 0).toLocaleString()}</td>
+                    <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
+                </tr>
+            `, { enableExcel: true, excelFileName: 'Reporte_Compras_Cafe.xlsx' });
 
             let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
             if (!tfootCompras) {
@@ -1857,24 +2057,20 @@
 
             let totalCantEmpaques = 0;
             let totalInversionEmpaques = 0;
+            empaquesList.forEach(e => {
+                totalCantEmpaques += (e.cantidad || 0);
+                totalInversionEmpaques += (e.costo_total || 0);
+            });
 
-            const tbodyEmp = document.querySelector('#tabla-reporte-empaques tbody');
-            tbodyEmp.innerHTML = empaquesList.map(e => {
-                const cant = e.cantidad || 0;
-                const costo = e.costo_total || 0;
-                totalCantEmpaques += cant;
-                totalInversionEmpaques += costo;
-
-                return `
-                    <tr>
-                        <td>${e.fecha}</td>
-                        <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
-                        <td>${cant.toLocaleString()} u.</td>
-                        <td>$${costo.toLocaleString()}</td>
-                        <td>$${Math.round(e.costo_unitario || 0).toLocaleString()}</td>
-                    </tr>
-                `;
-            }).join('');
+            renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
+                <tr>
+                    <td>${e.fecha}</td>
+                    <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
+                    <td>${(e.cantidad || 0).toLocaleString()} u.</td>
+                    <td>$${(e.costo_total || 0).toLocaleString()}</td>
+                    <td>$${Math.round(e.costo_unitario || 0).toLocaleString()}</td>
+                </tr>
+            `, { enableExcel: true, excelFileName: 'Reporte_Compras_Empaques.xlsx' });
 
             let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
             if (!tfootEmp) {
@@ -1896,14 +2092,14 @@
 
             let totalVentasCOP = 0;
             let totalGananciaCOP = 0;
+            ventas.forEach(v => {
+                totalVentasCOP += (v.total_venta || 0);
+                totalGananciaCOP += (v.ganancia || 0);
+            });
 
-            const tbodyVentas = document.querySelector('#tabla-reportes tbody');
-            tbodyVentas.innerHTML = ventas.map(v => {
+            renderTablaPaginada('tabla-reportes', ventas, v => {
                 const tot = v.total_venta || 0;
                 const gan = v.ganancia || 0;
-                totalVentasCOP += tot;
-                totalGananciaCOP += gan;
-
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
                 const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
 
@@ -1921,7 +2117,7 @@
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
                 `;
-            }).join('');
+            }, { enableExcel: true, excelFileName: 'Historico_Ventas.xlsx' });
 
             let tfootVentas = document.querySelector('#tabla-reportes tfoot');
             if (!tfootVentas) {
@@ -1942,11 +2138,12 @@
             const cotizaciones = await resCot.json();
 
             let totalCotizacionesCOP = 0;
+            cotizaciones.forEach(c => {
+                totalCotizacionesCOP += (c.total_venta || 0);
+            });
 
-            const tbodyCot = document.querySelector('#tabla-reporte-cotizaciones tbody');
-            tbodyCot.innerHTML = cotizaciones.map(c => {
+            renderTablaPaginada('tabla-reporte-cotizaciones', cotizaciones, c => {
                 const tot = c.total_venta || 0;
-                totalCotizacionesCOP += tot;
                 const numCot = c.consecutivo_str || c.id.substring(0,8);
 
                 return `
@@ -1961,7 +2158,7 @@
                         <td><button class="btn-danger" onclick="eliminarCotizacion('${c.id}')">❌</button></td>
                     </tr>
                 `;
-            }).join('');
+            }, { enableExcel: true, excelFileName: 'Historico_Cotizaciones.xlsx' });
 
             let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
             if (!tfootCot) {
@@ -2029,7 +2226,7 @@
             }
         }
 
-        // Inicialización con control de expiración de sesión (12 Horas)
+        // Inicialización
         verificarSesionActiva();
     </script>
 </body>
