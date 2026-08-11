@@ -815,6 +815,14 @@
         let usuarioActual = localStorage.getItem('user_0808') || '';
         let rolActual = localStorage.getItem('rol_0808') || 'ventas';
 
+        function ordenarProductosArray(arr) {
+            return arr.sort((a, b) => {
+                const cmpNombre = a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+                if (cmpNombre !== 0) return cmpNombre;
+                return (a.gramaje || 0) - (b.gramaje || 0);
+            });
+        }
+
         function aplicarPermisosUI() {
             const labelUser = document.getElementById('lbl-user-info');
             if (labelUser) {
@@ -1149,6 +1157,7 @@
 
             const resProds = await fetch('/api/productos');
             productosCache = await resProds.json();
+            ordenarProductosArray(productosCache);
             
             const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
             document.getElementById('select-producto').innerHTML = optionsProds;
@@ -1237,6 +1246,7 @@
             if(productosCache.length === 0) {
                 const resProds = await fetch('/api/productos');
                 productosCache = await resProds.json();
+                ordenarProductosArray(productosCache);
             }
             if(clientesCache.length === 0) {
                 const resCli = await fetch('/api/clientes');
@@ -1549,6 +1559,8 @@
         async function cargarProductos() {
             const res = await fetch('/api/productos');
             productosCache = await res.json();
+            ordenarProductosArray(productosCache);
+
             document.querySelector('#tabla-productos tbody').innerHTML = productosCache.map(p => 
                 `<tr>
                     <td><input type="text" id="edit-nom-${p.id}" value="${p.nombre}" style="width: 180px;"></td>
