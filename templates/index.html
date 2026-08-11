@@ -1094,6 +1094,11 @@
                 });
             }
 
+            // CALLBACK OPCIONAL PARA RECALCULAR TOTALES DINÁMICOS AL FILTRAR
+            if (typeof st.options.onFilter === 'function') {
+                st.options.onFilter(filtered);
+            }
+
             const pageSize = st.options.pageSize || 10;
             const totalPages = Math.ceil(filtered.length / pageSize) || 1;
             
@@ -1561,12 +1566,23 @@
             if (!dataResumen.productos_stock || dataResumen.productos_stock.length === 0) {
                 gridStock.innerHTML = '<div style="grid-column: 1/-1;">No hay productos en el catálogo</div>';
             } else {
-                gridStock.innerHTML = dataResumen.productos_stock.map(p => `
-                    <div class="stock-item">
-                        <div class="stock-item-title">${p.nombre}</div>
-                        <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
-                    </div>
-                `).join('');
+                // EXCLUIR PRODUCTOS DE 2.5 KG (2500g) EN LA CUADRÍCULA DE CAFÉ
+                const productosFiltradosGrid = dataResumen.productos_stock.filter(p => {
+                    const nom = String(p.nombre || '').toLowerCase();
+                    const gram = parseFloat(p.gramaje) || 0;
+                    return !nom.includes('2.5kg') && !nom.includes('2.5 kg') && gram !== 2500;
+                });
+
+                if (productosFiltradosGrid.length === 0) {
+                    gridStock.innerHTML = '<div style="grid-column: 1/-1; color:#aaa;">No hay productos estándar disponibles</div>';
+                } else {
+                    gridStock.innerHTML = productosFiltradosGrid.map(p => `
+                        <div class="stock-item">
+                            <div class="stock-item-title">${p.nombre}</div>
+                            <div class="stock-item-qty">${p.libras_disponibles} Lbs</div>
+                        </div>
+                    `).join('');
+                }
             }
 
             const resProds = await fetch('/api/productos');
@@ -2008,13 +2024,6 @@
             const ventas = await res.json();
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
 
-            let totalCreditosCOP = 0;
-            creditos.forEach(c => {
-                totalCreditosCOP += (c.total_venta || 0);
-            });
-
-            document.getElementById('total-creditos-txt').innerText = fmtCOP(totalCreditosCOP);
-
             renderTablaPaginada('tabla-creditos', creditos, c => 
                 `<tr>
                     <td>${c.consecutivo_str || c.id.substring(0,8)}</td>
@@ -2023,21 +2032,27 @@
                     <td>${fmtCOP(c.total_venta)}</td>
                     <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
                     <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td>
-                </tr>`
-            );
+                </tr>`,
+                {
+                    onFilter: (filteredList) => {
+                        let sum = filteredList.reduce((acc, c) => acc + (c.total_venta || 0), 0);
+                        document.getElementById('total-creditos-txt').innerText = fmtCOP(sum);
 
-            let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
-            if (!tfootCreditos) {
-                tfootCreditos = document.createElement('tfoot');
-                document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
-            }
-            tfootCreditos.innerHTML = `
-                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
-                    <td>${fmtCOP(totalCreditosCOP)}</td>
-                    <td colspan="2"></td>
-                </tr>
-            `;
+                        let tfootCreditos = document.querySelector('#tabla-creditos tfoot');
+                        if (!tfootCreditos) {
+                            tfootCreditos = document.createElement('tfoot');
+                            document.querySelector('#tabla-creditos').appendChild(tfootCreditos);
+                        }
+                        tfootCreditos.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
+                                <td>${fmtCOP(sum)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        `;
+                    }
+                }
+            );
         }
 
         async function pagarCredito(id) {
@@ -2049,13 +2064,6 @@
             // Histórico Compras Café
             const resCompras = await fetch('/api/compras');
             const compras = await resCompras.json();
-            
-            let totalLibrasCompradas = 0;
-            let totalInversionCompras = 0;
-            compras.forEach(c => {
-                totalLibrasCompradas += (c.libras || 0);
-                totalInversionCompras += (c.costo_total || 0);
-            });
 
             renderTablaPaginada('tabla-reporte-compras', compras, c => `
                 <tr>
@@ -2065,21 +2073,28 @@
                     <td>${fmtCOP(c.costo_total)}</td>
                     <td>${fmtCOP(c.costo_por_libra)}</td>
                 </tr>
-            `, { enableExcel: true, excelFileName: 'Reporte_Compras_Cafe.xlsx' });
-
-            let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
-            if (!tfootCompras) {
-                tfootCompras = document.createElement('tfoot');
-                document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
-            }
-            tfootCompras.innerHTML = `
-                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="2" style="text-align: right;">TOTALES:</td>
-                    <td>${totalLibrasCompradas.toFixed(1)} Lbs</td>
-                    <td>${fmtCOP(totalInversionCompras)}</td>
-                    <td>-</td>
-                </tr>
-            `;
+            `, {
+                enableExcel: true,
+                excelFileName: 'Reporte_Compras_Cafe.xlsx',
+                onFilter: (filtered) => {
+                    let totalLbs = filtered.reduce((acc, c) => acc + (c.libras || 0), 0);
+                    let totalInv = filtered.reduce((acc, c) => acc + (c.costo_total || 0), 0);
+                    
+                    let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
+                    if (!tfootCompras) {
+                        tfootCompras = document.createElement('tfoot');
+                        document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
+                    }
+                    tfootCompras.innerHTML = `
+                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                            <td colspan="2" style="text-align: right;">TOTALES:</td>
+                            <td>${totalLbs.toFixed(1)} Lbs</td>
+                            <td>${fmtCOP(totalInv)}</td>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+            });
 
             // Histórico Compras Empaques
             const resEmpaques = await fetch('/api/compras-empaques');
@@ -2092,13 +2107,6 @@
                 "etiqueta_500g": "Etiqueta 500g"
             };
 
-            let totalCantEmpaques = 0;
-            let totalInversionEmpaques = 0;
-            empaquesList.forEach(e => {
-                totalCantEmpaques += (e.cantidad || 0);
-                totalInversionEmpaques += (e.costo_total || 0);
-            });
-
             renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
                 <tr>
                     <td>${e.fecha}</td>
@@ -2107,32 +2115,32 @@
                     <td>${fmtCOP(e.costo_total)}</td>
                     <td>${fmtCOP(e.costo_unitario)}</td>
                 </tr>
-            `, { enableExcel: true, excelFileName: 'Reporte_Compras_Empaques.xlsx' });
+            `, {
+                enableExcel: true,
+                excelFileName: 'Reporte_Compras_Empaques.xlsx',
+                onFilter: (filtered) => {
+                    let totalCant = filtered.reduce((acc, e) => acc + (e.cantidad || 0), 0);
+                    let totalInv = filtered.reduce((acc, e) => acc + (e.costo_total || 0), 0);
 
-            let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
-            if (!tfootEmp) {
-                tfootEmp = document.createElement('tfoot');
-                document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
-            }
-            tfootEmp.innerHTML = `
-                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="2" style="text-align: right;">TOTALES:</td>
-                    <td>${totalCantEmpaques.toLocaleString('es-CO')} u.</td>
-                    <td>${fmtCOP(totalInversionEmpaques)}</td>
-                    <td>-</td>
-                </tr>
-            `;
+                    let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
+                    if (!tfootEmp) {
+                        tfootEmp = document.createElement('tfoot');
+                        document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
+                    }
+                    tfootEmp.innerHTML = `
+                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                            <td colspan="2" style="text-align: right;">TOTALES:</td>
+                            <td>${totalCant.toLocaleString('es-CO')} u.</td>
+                            <td>${fmtCOP(totalInv)}</td>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+            });
 
-            // Histórico Ventas
+            // Histórico Ventas (RECALCULO AUTOMÁTICO AL FILTRAR POR FECHA/BUSCADOR)
             const resVentas = await fetch('/api/ventas');
             const ventas = await resVentas.json();
-
-            let totalVentasCOP = 0;
-            let totalGananciaCOP = 0;
-            ventas.forEach(v => {
-                totalVentasCOP += (v.total_venta || 0);
-                totalGananciaCOP += (v.ganancia || 0);
-            });
 
             renderTablaPaginada('tabla-reportes', ventas, v => {
                 const tot = v.total_venta || 0;
@@ -2154,30 +2162,32 @@
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
                 `;
-            }, { enableExcel: true, excelFileName: 'Historico_Ventas.xlsx' });
+            }, {
+                enableExcel: true,
+                excelFileName: 'Historico_Ventas.xlsx',
+                onFilter: (filteredVentas) => {
+                    let totalVentas = filteredVentas.reduce((acc, v) => acc + (v.total_venta || 0), 0);
+                    let totalGanancia = filteredVentas.reduce((acc, v) => acc + (v.ganancia || 0), 0);
 
-            let tfootVentas = document.querySelector('#tabla-reportes tfoot');
-            if (!tfootVentas) {
-                tfootVentas = document.createElement('tfoot');
-                document.querySelector('#tabla-reportes').appendChild(tfootVentas);
-            }
-            tfootVentas.innerHTML = `
-                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="6" style="text-align: right;">TOTALES:</td>
-                    <td>${fmtCOP(totalVentasCOP)}</td>
-                    <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">${fmtCOP(totalGananciaCOP)}</td>
-                    <td colspan="2"></td>
-                </tr>
-            `;
+                    let tfootVentas = document.querySelector('#tabla-reportes tfoot');
+                    if (!tfootVentas) {
+                        tfootVentas = document.createElement('tfoot');
+                        document.querySelector('#tabla-reportes').appendChild(tfootVentas);
+                    }
+                    tfootVentas.innerHTML = `
+                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                            <td colspan="6" style="text-align: right;">TOTALES FILTRADOS:</td>
+                            <td>${fmtCOP(totalVentas)}</td>
+                            <td style="color: ${totalGanancia < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">${fmtCOP(totalGanancia)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    `;
+                }
+            });
 
             // Histórico Cotizaciones
             const resCot = await fetch('/api/cotizaciones');
             const cotizaciones = await resCot.json();
-
-            let totalCotizacionesCOP = 0;
-            cotizaciones.forEach(c => {
-                totalCotizacionesCOP += (c.total_venta || 0);
-            });
 
             renderTablaPaginada('tabla-reporte-cotizaciones', cotizaciones, c => {
                 const tot = c.total_venta || 0;
@@ -2195,20 +2205,26 @@
                         <td><button class="btn-danger" onclick="eliminarCotizacion('${c.id}')">❌</button></td>
                     </tr>
                 `;
-            }, { enableExcel: true, excelFileName: 'Historico_Cotizaciones.xlsx' });
+            }, {
+                enableExcel: true,
+                excelFileName: 'Historico_Cotizaciones.xlsx',
+                onFilter: (filteredCot) => {
+                    let totalCot = filteredCot.reduce((acc, c) => acc + (c.total_venta || 0), 0);
 
-            let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
-            if (!tfootCot) {
-                tfootCot = document.createElement('tfoot');
-                document.querySelector('#tabla-reporte-cotizaciones').appendChild(tfootCot);
-            }
-            tfootCot.innerHTML = `
-                <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
-                    <td>${fmtCOP(totalCotizacionesCOP)}</td>
-                    <td colspan="2"></td>
-                </tr>
-            `;
+                    let tfootCot = document.querySelector('#tabla-reporte-cotizaciones tfoot');
+                    if (!tfootCot) {
+                        tfootCot = document.createElement('tfoot');
+                        document.querySelector('#tabla-reporte-cotizaciones').appendChild(tfootCot);
+                    }
+                    tfootCot.innerHTML = `
+                        <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                            <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
+                            <td>${fmtCOP(totalCot)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    `;
+                }
+            });
         }
 
         async function eliminarVenta(id) {
