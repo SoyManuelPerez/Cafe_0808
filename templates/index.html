@@ -76,6 +76,7 @@
             padding: 20px 10px;
             transition: all 0.3s ease;
             z-index: 1000;
+            overflow-y: auto;
         }
 
         .logo {
@@ -370,6 +371,7 @@
         <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
         
         <!-- Elementos Exclusivos para Administrador -->
+        <button class="nav-button admin-only" id="btn-nav-parciales" onclick="showSection('parciales-sec', event)">⏳ Ventas Parciales</button>
         <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
         <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
         <button class="nav-button admin-only" id="btn-nav-inventario" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
@@ -466,7 +468,7 @@
                 <div class="table-responsive">
                     <table id="tabla-mis-ventas">
                         <thead>
-                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Total</th><th>Acción</th></tr>
+                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Estado</th><th>Total</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -569,6 +571,23 @@
                     <table id="tabla-clientes">
                         <thead>
                             <tr><th>Nombre</th><th>Celular</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO VENTAS PARCIALES (EXCLUSIVO ADMIN) -->
+        <div id="parciales-sec" class="section admin-only">
+            <h1>⏳ Ventas Parciales y Pendientes de Inventario</h1>
+            <div class="card">
+                <h3>📋 Listado de Ventas con Falta de Stock / Insumos</h3>
+                <p style="color:#aaa; font-size:14px;">Aquí aparecen las ventas que se procesaron sin stock suficiente. Al reabastecer el inventario, haz clic en "Completar Despacho" para descontar el stock faltante y pasarlas a ventas normales.</p>
+                <div class="table-responsive">
+                    <table id="tabla-parciales">
+                        <thead>
+                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Faltantes Detallados</th><th>Total</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -718,7 +737,7 @@
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
                     <table id="tabla-reportes">
-                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -803,12 +822,10 @@
             }
 
             if (rolActual === 'admin') {
-                // Mostrar todos los botones y secciones asignadas a admin respetando su propiedad de despliegue original
                 document.querySelectorAll('.admin-only').forEach(el => {
                     el.style.display = '';
                 });
             } else {
-                // Ocultar componentes administrativos si es usuario de ventas
                 document.querySelectorAll('.admin-only').forEach(el => {
                     el.style.display = 'none';
                 });
@@ -878,6 +895,7 @@
             if(id === 'ventas') cargarVentasData();
             if(id === 'cotizaciones') cargarCotizacionesData();
             if(id === 'clientes') cargarClientes();
+            if(id === 'parciales-sec') cargarVentasParciales();
             if(id === 'compras') cargarModuloCompras();
             if(id === 'empaques') cargarModuloEmpaques();
             if(id === 'inventario') cargarProductos();
@@ -1154,17 +1172,65 @@
             const tbody = document.querySelector('#tabla-mis-ventas tbody');
             tbody.innerHTML = misVentas.map(v => {
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
+                const esPendiente = v.estado_despacho === 'Pendiente';
+                const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
                 return `
                     <tr>
                         <td><strong>${numFact}</strong></td>
                         <td>${v.fecha}</td>
                         <td>${v.cliente}</td>
                         <td>${v.tipo_venta || 'Normal'}</td>
+                        <td>${badgeEstado}</td>
                         <td>$${(v.total_venta || 0).toLocaleString()}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // MÓDULO VENTAS PARCIALES (ADMIN)
+        async function cargarVentasParciales() {
+            const res = await fetch('/api/ventas');
+            const ventas = await res.json();
+            const parciales = ventas.filter(v => v.estado_despacho === 'Pendiente');
+
+            const tbody = document.querySelector('#tabla-parciales tbody');
+            if(parciales.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">No hay ventas pendientes de inventario.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = parciales.map(v => {
+                const numFact = v.consecutivo_str || v.id.substring(0,8);
+                let faltantesStr = Object.keys(v.faltantes || {}).map(k => `${k}: ${v.faltantes[k]}`).join(', ');
+                return `
+                    <tr>
+                        <td><strong>${numFact}</strong></td>
+                        <td>${v.fecha}</td>
+                        <td>${v.cliente}</td>
+                        <td>${v.vendedor || 'admin'}</td>
+                        <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
+                        <td>$${(v.total_venta || 0).toLocaleString()}</td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function completarDespacho(id) {
+            if(confirm('¿Deseas completar esta venta, descontar el stock faltante del inventario y pasarla a venta normal?')) {
+                const res = await fetch(`/api/ventas/${id}/completar-despacho`, { method: 'PUT' });
+                if(res.ok) {
+                    alert('¡Venta completada y stock descontado con éxito!');
+                    cargarVentasParciales();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al completar despacho. Asegúrate de tener suficiente inventario.');
+                }
+            }
         }
 
         async function cargarCotizacionesData() {
@@ -1323,7 +1389,12 @@
             });
 
             if (res.ok) {
-                alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
+                const data = await res.json();
+                if (data.estado_despacho === 'Pendiente') {
+                    alert('⚠️ Advertencia: No hay suficiente stock/empaques. La venta se registró con éxito como Venta Parcial (Pendiente).');
+                } else {
+                    alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
+                }
                 carrito = [];
                 renderCarrito('venta');
                 cargarVentasData();
@@ -1632,6 +1703,7 @@
                 totalGananciaCOP += gan;
 
                 const numFact = v.consecutivo_str || v.id.substring(0,8);
+                const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
 
                 return `
                     <tr>
@@ -1640,6 +1712,7 @@
                         <td>${v.cliente}</td>
                         <td>${v.vendedor || 'admin'}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
+                        <td>${estadoTxt}</td>
                         <td>$${tot.toLocaleString()}</td>
                         <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
@@ -1655,7 +1728,7 @@
             }
             tfootVentas.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                    <td colspan="5" style="text-align: right;">TOTALES:</td>
+                    <td colspan="6" style="text-align: right;">TOTALES:</td>
                     <td>$${totalVentasCOP.toLocaleString()}</td>
                     <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">$${totalGananciaCOP.toLocaleString()}</td>
                     <td colspan="2"></td>
