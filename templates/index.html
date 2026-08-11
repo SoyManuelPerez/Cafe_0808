@@ -19,7 +19,7 @@
 
         body {
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -184,34 +184,42 @@
             margin: 5px 0;
             width: 100%;
             box-sizing: border-box;
+            -webkit-appearance: none;
         }
 
         button.btn-gold {
             background-color: var(--sidebar-bg);
-            color: var(--gold-primary);
+            color: var(--gold-bright) !important;
             border: 1px solid var(--gold-primary);
             font-weight: bold;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
-        button.btn-gold:hover {
+        button.btn-gold:hover, button.btn-gold:active {
             background-color: var(--gold-primary);
-            color: #000;
+            color: #000 !important;
         }
 
         button.btn-danger {
             background-color: #3a1414;
-            color: #ff6b6b;
+            color: #ff6b6b !important;
             border: 1px solid #ff6b6b;
-            padding: 5px 10px;
+            padding: 6px 12px;
             width: auto;
             cursor: pointer;
             border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        button.btn-danger:hover {
+        button.btn-danger:hover, button.btn-danger:active {
             background-color: #ff6b6b;
-            color: #000;
+            color: #000 !important;
         }
 
         .table-responsive {
@@ -330,32 +338,35 @@
             margin: 0;
         }
 
-        /* Botón con fondo oscuro y SÍMBOLO "+" DORADO explícito */
+        /* BOTÓN MÁS SELECCIONAR CLIENTE TOTALMENTE DESTACADO Y DORADO */
         .btn-add-inline {
             width: 44px !important;
             height: 44px !important;
             min-width: 44px !important;
             padding: 0 !important;
-            font-size: 24px !important;
-            font-weight: 900 !important;
-            font-family: Arial, sans-serif !important; /* Evita que el móvil lo convierta en un emoji morado */
+            margin: 0 !important;
             display: flex !important;
             justify-content: center;
             align-items: center;
             flex-shrink: 0;
-            margin: 0 !important;
-            background-color: var(--sidebar-bg) !important;
-            color: var(--gold-bright) !important; /* Símbolo + estrictamente dorado */
-            border: 1px solid var(--gold-primary) !important;
+            background-color: var(--gold-primary) !important; /* Fondo Dorado */
+            color: #000000 !important; /* Ícono Negro Alto Contraste */
+            border: 1px solid var(--gold-bright) !important;
             border-radius: 6px !important;
             cursor: pointer;
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
             transition: all 0.2s ease;
         }
 
         .btn-add-inline:hover, .btn-add-inline:active {
-            background-color: var(--gold-primary) !important;
-            color: #000 !important;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            background-color: var(--gold-bright) !important;
+            transform: scale(1.05);
+        }
+
+        .btn-add-inline svg {
+            width: 20px;
+            height: 20px;
+            fill: #000000;
         }
 
         @media (max-width: 768px) {
@@ -465,13 +476,19 @@
                     </div>
                 </div>
 
-                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('venta')">➕ Agregar al Carrito</button>
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('venta')">
+                    <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Agregar al Carrito
+                </button>
             </div>
 
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>🛒 Carrito de Compras</h3>
-                    <button class="btn-danger" onclick="vaciarCarrito('venta')">🗑️ Vaciar Carrito</button>
+                    <button class="btn-danger" onclick="vaciarCarrito('venta')">
+                        <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        Vaciar Carrito
+                    </button>
                 </div>
 
                 <div class="table-responsive">
@@ -491,7 +508,9 @@
                 <label>Seleccionar Cliente:</label>
                 <div class="select-with-btn">
                     <select id="select-cliente-venta"></select>
-                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('venta')" title="Crear Cliente Rápido">+</button>
+                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('venta')" title="Crear Cliente Rápido">
+                        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                 </div>
 
                 <label style="margin-top: 10px; display: block;">Tipo de Venta:</label>
@@ -508,7 +527,7 @@
                     </select>
                 </div>
 
-                <button class="btn-gold" onclick="procesarVenta()">🚀 Procesar Venta</button>
+                <button class="btn-gold" style="margin-top:15px;" onclick="procesarVenta()">🚀 Procesar Venta</button>
             </div>
 
             <!-- HISTÓRICO INTEGRADO PARA VENDEDORES -->
@@ -552,13 +571,19 @@
                     </div>
                 </div>
 
-                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('cotizacion')">➕ Agregar a Cotización</button>
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('cotizacion')">
+                    <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Agregar a Cotización
+                </button>
             </div>
 
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>📑 Carrito de Cotización</h3>
-                    <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">🗑️ Vaciar Carrito</button>
+                    <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">
+                        <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        Vaciar Carrito
+                    </button>
                 </div>
 
                 <div class="table-responsive">
@@ -578,7 +603,9 @@
                 <label>Seleccionar Cliente:</label>
                 <div class="select-with-btn">
                     <select id="select-cliente-cot"></select>
-                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('cotizacion')" title="Crear Cliente Rápido">+</button>
+                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('cotizacion')" title="Crear Cliente Rápido">
+                        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                 </div>
 
                 <label style="margin-top: 10px; display: block;">Forma de Pago Propuesta:</label>
@@ -588,7 +615,7 @@
                     <option value="Transferencia">Transferencia</option>
                 </select>
 
-                <button class="btn-gold" onclick="procesarCotizacion()">📄 Generar Cotización</button>
+                <button class="btn-gold" style="margin-top:15px;" onclick="procesarCotizacion()">📄 Generar Cotización</button>
             </div>
 
             <!-- HISTÓRICO INTEGRADO PARA COTIZACIONES -->
@@ -661,7 +688,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -884,7 +911,7 @@
         let urlPdfActual = '';
         let blobPdfActual = null;
         let nombrePdfDescarga = 'Documento.pdf';
-        let origenModalCliente = 'venta'; // 'venta' o 'cotizacion'
+        let origenModalCliente = 'venta';
 
         let usuarioActual = localStorage.getItem('user_0808') || '';
         let rolActual = localStorage.getItem('rol_0808') || 'ventas';
@@ -1361,7 +1388,7 @@
                         <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
                         <td>$${(v.total_venta || 0).toLocaleString()}</td>
                         <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
+                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
                             <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
                         </td>
                     </tr>
