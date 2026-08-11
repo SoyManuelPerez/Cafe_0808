@@ -840,7 +840,7 @@
                     <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
                     
                     <div style="margin: 10px 0; color: var(--gold-bright);">
-                        Costo por Libra calculated: <strong id="costo-libra-calculado">$0</strong>
+                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
                     </div>
 
                     <button type="submit" class="btn-gold">Guardar Compra de Café</button>
@@ -1421,40 +1421,50 @@
         async function cargarMisVentas() {
             try {
                 const res = await fetch('/api/ventas');
+                if (!res.ok) throw new Error(`HTTP Error status: ${res.status}`);
+
                 const ventas = await res.json();
-                
                 const list = Array.isArray(ventas) ? ventas : [];
-                const misVentas = (rolActual === 'admin') ? list : list.filter(v => v.vendedor === usuarioActual);
+                const misVentas = (rolActual === 'admin') ? list : list.filter(v => v && v.vendedor === usuarioActual);
 
                 renderTablaPaginada('tabla-mis-ventas', misVentas, v => {
-                    const idVal = v.id || v._id || '';
-                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
-                    const esPendiente = v.estado_despacho === 'Pendiente';
-                    const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
-                    
-                    const esCredito = v.tipo_pago === 'Crédito';
-                    const creditoPendiente = v.estado_credito === 'Pendiente';
+                    try {
+                        if (!v) return '';
+                        const idVal = v.id || v._id || '';
+                        const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                        const esPendiente = (v.estado_despacho || '') === 'Pendiente';
+                        const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
+                        
+                        const esCredito = (v.tipo_pago || '') === 'Crédito';
+                        const creditoPendiente = (v.estado_credito || '') === 'Pendiente';
+                        const totalVenta = Number(v.total_venta || 0);
 
-                    return `
-                        <tr>
-                            <td><strong>${numFact}</strong></td>
-                            <td>${v.fecha || ''}</td>
-                            <td>${v.cliente || ''}</td>
-                            <td>${v.tipo_venta || 'Normal'}</td>
-                            <td>${badgeEstado}</td>
-                            <td>
-                                ${fmtCOP(v.total_venta)} 
-                                ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito}</small>` : ''}
-                            </td>
-                            <td>
-                                <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                                ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
-                            </td>
-                        </tr>
-                    `;
+                        return `
+                            <tr>
+                                <td><strong>${numFact}</strong></td>
+                                <td>${v.fecha || 'N/A'}</td>
+                                <td>${v.cliente || 'Cliente General'}</td>
+                                <td>${v.tipo_venta || 'Normal'}</td>
+                                <td>${badgeEstado}</td>
+                                <td>
+                                    ${fmtCOP(totalVenta)} 
+                                    ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito || 'Pendiente'}</small>` : ''}
+                                </td>
+                                <td>
+                                    <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
+                                    ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    } catch (errRow) {
+                        console.error("Error renderizando fila de mi venta:", errRow, v);
+                        return '';
+                    }
                 });
             } catch (err) {
                 console.error("Error cargando histórico de ventas:", err);
+                const tbody = document.querySelector('#tabla-mis-ventas tbody');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ff6b6b;">Error al cargar ventas (${err.message})</td></tr>`;
             }
         }
 
@@ -1488,21 +1498,27 @@
                 const cotizaciones = await res.json();
                 
                 const list = Array.isArray(cotizaciones) ? cotizaciones : [];
-                const misCot = (rolActual === 'admin') ? list : list.filter(c => c.vendedor === usuarioActual);
+                const misCot = (rolActual === 'admin') ? list : list.filter(c => c && c.vendedor === usuarioActual);
 
                 renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
-                    const idVal = c.id || c._id || '';
-                    const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
-                    return `
-                        <tr>
-                            <td><strong>${numCot}</strong></td>
-                            <td>${c.fecha || ''}</td>
-                            <td>${c.cliente || ''}</td>
-                            <td>${c.tipo_pago || 'N/A'}</td>
-                            <td>${fmtCOP(c.total_venta)}</td>
-                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
-                        </tr>
-                    `;
+                    try {
+                        if (!c) return '';
+                        const idVal = c.id || c._id || '';
+                        const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                        return `
+                            <tr>
+                                <td><strong>${numCot}</strong></td>
+                                <td>${c.fecha || ''}</td>
+                                <td>${c.cliente || ''}</td>
+                                <td>${c.tipo_pago || 'N/A'}</td>
+                                <td>${fmtCOP(c.total_venta)}</td>
+                                <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                            </tr>
+                        `;
+                    } catch (errRow) {
+                        console.error("Error renderizando fila de cotización:", errRow, c);
+                        return '';
+                    }
                 });
             } catch (err) {
                 console.error("Error cargando histórico de cotizaciones:", err);
@@ -1626,15 +1642,15 @@
                 const envios = await resEnv.json();
 
                 renderTablaPaginada('tabla-historico-envios', envios, e => {
-                    const itemsSummary = (e.items || []).map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
-                    const numFacturas = (e.facturas_ids || []).length;
-                    const idVal = e.id || e._id || '';
+                    const itemsSummary = (e?.items || []).map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
+                    const numFacturas = (e?.facturas_ids || []).length;
+                    const idVal = e?.id || e?._id || '';
 
                     return `
                         <tr>
-                            <td>${e.fecha || ''}</td>
-                            <td><strong>${e.nota || ''}</strong></td>
-                            <td>${fmtCOP(e.valor_envio)}</td>
+                            <td>${e?.fecha || ''}</td>
+                            <td><strong>${e?.nota || ''}</strong></td>
+                            <td>${fmtCOP(e?.valor_envio)}</td>
                             <td style="font-size:13px; color:#aaa;">${itemsSummary}</td>
                             <td><strong style="color:var(--gold-bright);">${numFacturas} Factura(s)</strong></td>
                             <td>
@@ -1727,7 +1743,7 @@
                 const res = await fetch('/api/ventas');
                 const ventas = await res.json();
                 const list = Array.isArray(ventas) ? ventas : [];
-                const parciales = list.filter(v => v.estado_despacho === 'Pendiente');
+                const parciales = list.filter(v => v && v.estado_despacho === 'Pendiente');
 
                 renderTablaPaginada('tabla-parciales', parciales, v => {
                     const idVal = v.id || v._id || '';
@@ -2401,7 +2417,7 @@
                 const res = await fetch('/api/ventas');
                 const ventas = await res.json();
                 const list = Array.isArray(ventas) ? ventas : [];
-                const creditos = list.filter(v => v.tipo_pago === 'Crédito');
+                const creditos = list.filter(v => v && v.tipo_pago === 'Crédito');
 
                 renderTablaPaginada('tabla-creditos', creditos, c => {
                     const idVal = c.id || c._id || '';
@@ -2411,7 +2427,7 @@
                         <td>${c.fecha || ''}</td>
                         <td>${c.cliente || ''}</td>
                         <td>${fmtCOP(c.total_venta)}</td>
-                        <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito}</span></td>
+                        <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito || 'Pendiente'}</span></td>
                         <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button>` : '-'}</td>
                     </tr>`;
                 },
@@ -2536,39 +2552,48 @@
             // Reporte Historico de Ventas
             try {
                 const resVentas = await fetch('/api/ventas');
+                if (!resVentas.ok) throw new Error(`HTTP Error status: ${resVentas.status}`);
+
                 const ventas = await resVentas.json();
+                const listVentas = Array.isArray(ventas) ? ventas : [];
 
-                renderTablaPaginada('tabla-reportes', ventas, v => {
-                    const tot = v.total_venta || 0;
-                    const gan = v.ganancia || 0;
-                    const fleteApp = v.costo_envio_asociado || 0;
-                    const idVal = v.id || v._id || '';
-                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
-                    const estadoTxt = v.estado_despacho === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
+                renderTablaPaginada('tabla-reportes', listVentas, v => {
+                    try {
+                        if (!v) return '';
+                        const tot = Number(v.total_venta || 0);
+                        const gan = Number(v.ganancia || 0);
+                        const fleteApp = Number(v.costo_envio_asociado || 0);
+                        const idVal = v.id || v._id || '';
+                        const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                        const estadoTxt = (v.estado_despacho || '') === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
 
-                    return `
-                        <tr>
-                            <td><strong>${numFact}</strong></td>
-                            <td>${v.fecha || ''}</td>
-                            <td>${v.cliente || ''}</td>
-                            <td>${v.vendedor || 'admin'}</td>
-                            <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
-                            <td>${estadoTxt}</td>
-                            <td>${fmtCOP(tot)}</td>
-                            <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">
-                                ${fmtCOP(gan)}
-                                ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
-                            </td>
-                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
-                            <td><button class="btn-danger" onclick="eliminarVenta('${idVal}')">❌</button></td>
-                        </tr>
-                    `;
+                        return `
+                            <tr>
+                                <td><strong>${numFact}</strong></td>
+                                <td>${v.fecha || 'N/A'}</td>
+                                <td>${v.cliente || 'Cliente General'}</td>
+                                <td>${v.vendedor || 'admin'}</td>
+                                <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
+                                <td>${estadoTxt}</td>
+                                <td>${fmtCOP(tot)}</td>
+                                <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">
+                                    ${fmtCOP(gan)}
+                                    ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
+                                </td>
+                                <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
+                                <td><button class="btn-danger" onclick="eliminarVenta('${idVal}')">❌</button></td>
+                            </tr>
+                        `;
+                    } catch (errRow) {
+                        console.error("Error renderizando fila en reporte de ventas:", errRow, v);
+                        return '';
+                    }
                 }, {
                     enableExcel: true,
                     excelFileName: 'Historico_Ventas.xlsx',
                     onFilter: (filteredVentas) => {
-                        let totalVentas = filteredVentas.reduce((acc, v) => acc + (v.total_venta || 0), 0);
-                        let totalGanancia = filteredVentas.reduce((acc, v) => acc + (v.ganancia || 0), 0);
+                        let totalVentas = filteredVentas.reduce((acc, v) => acc + (v?.total_venta || 0), 0);
+                        let totalGanancia = filteredVentas.reduce((acc, v) => acc + (v?.ganancia || 0), 0);
 
                         let tfootVentas = document.querySelector('#tabla-reportes tfoot');
                         if (!tfootVentas) {
@@ -2587,6 +2612,8 @@
                 });
             } catch (err) {
                 console.error("Error reporte ventas:", err);
+                const tbody = document.querySelector('#tabla-reportes tbody');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#ff6b6b;">Error al cargar ventas (${err.message})</td></tr>`;
             }
 
             // Reporte Historico de Cotizaciones
