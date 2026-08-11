@@ -1007,6 +1007,13 @@
 
         const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 Horas
 
+        // FUNCION AUXILIAR PARA MONTO MONETARIO CON SEPARADOR DE MILES EN PUNTO (es-CO)
+        function fmtCOP(num) {
+            const val = Math.round(num || 0);
+            const formatted = Math.abs(val).toLocaleString('es-CO');
+            return val < 0 ? `$-${formatted}` : `$${formatted}`;
+        }
+
         // ENGINE REUTILIZABLE DE PAGINACIÓN, BÚSQUEDA Y EXPORTACIÓN A EXCEL
         const tableStates = {};
 
@@ -1464,7 +1471,7 @@
             const cant = parseInt(document.getElementById('emp-cantidad').value) || 0;
             const costo = parseFloat(document.getElementById('emp-costo').value) || 0;
             const u = cant > 0 ? (costo / cant) : 0;
-            document.getElementById('costo-empaque-unitario-txt').innerText = '$' + Math.round(u).toLocaleString();
+            document.getElementById('costo-empaque-unitario-txt').innerText = fmtCOP(u);
         }
 
         async function guardarCompraEmpaque(e) {
@@ -1506,8 +1513,8 @@
             renderTablaPaginada('tabla-resumen-empaques', list, item => `
                 <tr>
                     <td><strong>${nombresLegibles[item.key] || item.key}</strong></td>
-                    <td>${item.comprados.toLocaleString()} u.</td>
-                    <td>${item.usados.toLocaleString()} u.</td>
+                    <td>${item.comprados.toLocaleString('es-CO')} u.</td>
+                    <td>${item.usados.toLocaleString('es-CO')} u.</td>
                     <td>
                         <input type="number" id="edit-disp-${item.key}" value="${item.disponibles}" min="0" style="width: 100px;"> u.
                     </td>
@@ -1562,7 +1569,7 @@
             productosCache = await resProds.json();
             ordenarProductosArray(productosCache);
             
-            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - ${fmtCOP(p.precio_venta)}</option>`).join('');
             document.getElementById('select-producto').innerHTML = optionsProds;
 
             await actualizarSelectsClientes();
@@ -1591,7 +1598,7 @@
                         <td>${v.tipo_venta || 'Normal'}</td>
                         <td>${badgeEstado}</td>
                         <td>
-                            $${(v.total_venta || 0).toLocaleString()} 
+                            ${fmtCOP(v.total_venta)} 
                             ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito}</small>` : ''}
                         </td>
                         <td>
@@ -1626,7 +1633,7 @@
                         <td>${v.cliente}</td>
                         <td>${v.vendedor || 'admin'}</td>
                         <td style="color:#ff6b6b; font-size:13px;">${faltantesStr}</td>
-                        <td>$${(v.total_venta || 0).toLocaleString()}</td>
+                        <td>${fmtCOP(v.total_venta)}</td>
                         <td>
                             <button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="completarDespacho('${v.id}')">✅ Despachar / Completar</button>
                             <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️</button>
@@ -1656,7 +1663,7 @@
                 ordenarProductosArray(productosCache);
             }
 
-            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
+            const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - ${fmtCOP(p.precio_venta)}</option>`).join('');
             document.getElementById('select-producto-cot').innerHTML = optionsProds;
 
             await actualizarSelectsClientes();
@@ -1677,7 +1684,7 @@
                         <td>${c.fecha}</td>
                         <td>${c.cliente}</td>
                         <td>${c.tipo_pago || 'N/A'}</td>
-                        <td>$${(c.total_venta || 0).toLocaleString()}</td>
+                        <td>${fmtCOP(c.total_venta)}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
                     </tr>
                 `;
@@ -1765,17 +1772,17 @@
                         <td>${i.nombre}</td>
                         <td><strong>${i.presentacion}</strong></td>
                         <td>${i.gramaje}g</td>
-                        <td>$${esObsequio ? 0 : i.precio_unitario.toLocaleString()}</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
                         <td>${i.cantidad}</td>
-                        <td>$${esObsequio ? 0 : (i.descuento || 0).toLocaleString()}</td>
-                        <td>$${sub.toLocaleString()}</td>
+                        <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
+                        <td>${fmtCOP(sub)}</td>
                         <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
                     </tr>
                 `;
             }).join('');
 
             const txtTotal = document.getElementById(esCot ? 'total-carrito-txt-cot' : 'total-carrito-txt');
-            txtTotal.innerText = '$' + total.toLocaleString();
+            txtTotal.innerText = fmtCOP(total);
         }
 
         async function procesarVenta() {
@@ -1859,7 +1866,7 @@
             const costo = parseFloat(document.getElementById('compra-costo').value) || 0;
             const costoPorLibra = libras > 0 ? (costo / libras) : 0;
             
-            document.getElementById('costo-libra-calculado').innerText = '$' + Math.round(costoPorLibra).toLocaleString();
+            document.getElementById('costo-libra-calculado').innerText = fmtCOP(costoPorLibra);
         }
 
         async function guardarCompra(e) {
@@ -1998,7 +2005,7 @@
             const creditos = ventas.filter(v => v.tipo_pago === 'Crédito');
 
             renderTablaPaginada('tabla-creditos', creditos, c => 
-                `<tr><td>${c.consecutivo_str || c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>$${c.total_venta.toLocaleString()}</td><td>${c.estado_credito}</td>
+                `<tr><td>${c.consecutivo_str || c.id.substring(0,8)}</td><td>${c.fecha}</td><td>${c.cliente}</td><td>${fmtCOP(c.total_venta)}</td><td>${c.estado_credito}</td>
                 <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${c.id}')">✅ Marcar Pagado</button>` : '-'}</td></tr>`
             );
         }
@@ -2024,9 +2031,9 @@
                 <tr>
                     <td>${c.fecha}</td>
                     <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
-                    <td>${(c.libras || 0).toLocaleString()} Lbs</td>
-                    <td>$${(c.costo_total || 0).toLocaleString()}</td>
-                    <td>$${Math.round(c.costo_por_libra || 0).toLocaleString()}</td>
+                    <td>${(c.libras || 0).toLocaleString('es-CO')} Lbs</td>
+                    <td>${fmtCOP(c.costo_total)}</td>
+                    <td>${fmtCOP(c.costo_por_libra)}</td>
                 </tr>
             `, { enableExcel: true, excelFileName: 'Reporte_Compras_Cafe.xlsx' });
 
@@ -2039,7 +2046,7 @@
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
                     <td colspan="2" style="text-align: right;">TOTALES:</td>
                     <td>${totalLibrasCompradas.toFixed(1)} Lbs</td>
-                    <td>$${totalInversionCompras.toLocaleString()}</td>
+                    <td>${fmtCOP(totalInversionCompras)}</td>
                     <td>-</td>
                 </tr>
             `;
@@ -2066,9 +2073,9 @@
                 <tr>
                     <td>${e.fecha}</td>
                     <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
-                    <td>${(e.cantidad || 0).toLocaleString()} u.</td>
-                    <td>$${(e.costo_total || 0).toLocaleString()}</td>
-                    <td>$${Math.round(e.costo_unitario || 0).toLocaleString()}</td>
+                    <td>${(e.cantidad || 0).toLocaleString('es-CO')} u.</td>
+                    <td>${fmtCOP(e.costo_total)}</td>
+                    <td>${fmtCOP(e.costo_unitario)}</td>
                 </tr>
             `, { enableExcel: true, excelFileName: 'Reporte_Compras_Empaques.xlsx' });
 
@@ -2080,8 +2087,8 @@
             tfootEmp.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
                     <td colspan="2" style="text-align: right;">TOTALES:</td>
-                    <td>${totalCantEmpaques.toLocaleString()} u.</td>
-                    <td>$${totalInversionEmpaques.toLocaleString()}</td>
+                    <td>${totalCantEmpaques.toLocaleString('es-CO')} u.</td>
+                    <td>${fmtCOP(totalInversionEmpaques)}</td>
                     <td>-</td>
                 </tr>
             `;
@@ -2111,8 +2118,8 @@
                         <td>${v.vendedor || 'admin'}</td>
                         <td><strong>${v.tipo_venta || 'Normal'}</strong></td>
                         <td>${estadoTxt}</td>
-                        <td>$${tot.toLocaleString()}</td>
-                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">$${gan.toLocaleString()}</td>
+                        <td>${fmtCOP(tot)}</td>
+                        <td style="color: ${gan < 0 ? '#ff6b6b' : 'inherit'};">${fmtCOP(gan)}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${v.id}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
                         <td><button class="btn-danger" onclick="eliminarVenta('${v.id}')">❌</button></td>
                     </tr>
@@ -2127,8 +2134,8 @@
             tfootVentas.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
                     <td colspan="6" style="text-align: right;">TOTALES:</td>
-                    <td>$${totalVentasCOP.toLocaleString()}</td>
-                    <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">$${totalGananciaCOP.toLocaleString()}</td>
+                    <td>${fmtCOP(totalVentasCOP)}</td>
+                    <td style="color: ${totalGananciaCOP < 0 ? '#ff6b6b' : 'var(--gold-bright)'};">${fmtCOP(totalGananciaCOP)}</td>
                     <td colspan="2"></td>
                 </tr>
             `;
@@ -2153,7 +2160,7 @@
                         <td>${c.cliente}</td>
                         <td>${c.vendedor || 'admin'}</td>
                         <td>${c.tipo_pago || 'N/A'}</td>
-                        <td>$${tot.toLocaleString()}</td>
+                        <td>${fmtCOP(tot)}</td>
                         <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${c.id}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
                         <td><button class="btn-danger" onclick="eliminarCotizacion('${c.id}')">❌</button></td>
                     </tr>
@@ -2168,7 +2175,7 @@
             tfootCot.innerHTML = `
                 <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
                     <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
-                    <td>$${totalCotizacionesCOP.toLocaleString()}</td>
+                    <td>${fmtCOP(totalCotizacionesCOP)}</td>
                     <td colspan="2"></td>
                 </tr>
             `;
