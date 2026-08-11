@@ -281,6 +281,11 @@
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
         }
 
+        .modal-small {
+            max-width: 420px;
+            height: auto;
+        }
+
         .modal-header {
             padding: 12px 20px;
             background-color: #141414;
@@ -292,10 +297,12 @@
 
         .modal-body {
             flex: 1;
-            background-color: #333;
+            background-color: #1A1A1A;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
 
         .modal-body object {
@@ -310,6 +317,29 @@
             display: flex;
             justify-content: flex-end;
             gap: 10px;
+        }
+
+        .select-with-btn {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .select-with-btn select {
+            flex: 1;
+        }
+
+        .btn-add-inline {
+            width: 42px !important;
+            height: 42px;
+            padding: 0;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            margin: 0;
         }
 
         @media (max-width: 768px) {
@@ -443,9 +473,12 @@
 
                 <br>
                 <label>Seleccionar Cliente:</label>
-                <select id="select-cliente-venta"></select>
+                <div class="select-with-btn">
+                    <select id="select-cliente-venta"></select>
+                    <button type="button" class="btn-gold btn-add-inline" onclick="abrirModalNuevoCliente('venta')" title="Crear Cliente Rápido">➕</button>
+                </div>
 
-                <label>Tipo de Venta:</label>
+                <label style="margin-top: 10px; display: block;">Tipo de Venta:</label>
                 <select id="tipo-venta" onchange="toggleTipoVenta()">
                     <option value="Normal">Normal</option>
                     <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
@@ -527,9 +560,12 @@
 
                 <br>
                 <label>Seleccionar Cliente:</label>
-                <select id="select-cliente-cot"></select>
+                <div class="select-with-btn">
+                    <select id="select-cliente-cot"></select>
+                    <button type="button" class="btn-gold btn-add-inline" onclick="abrirModalNuevoCliente('cotizacion')" title="Crear Cliente Rápido">➕</button>
+                </div>
 
-                <label>Forma de Pago Propuesta:</label>
+                <label style="margin-top: 10px; display: block;">Forma de Pago Propuesta:</label>
                 <select id="pago-cot">
                     <option value="Efectivo">Efectivo</option>
                     <option value="Crédito">Crédito</option>
@@ -787,6 +823,27 @@
 
     </div>
 
+    <!-- MODAL CREAR CLIENTE RÁPIDO -->
+    <div id="modal-nuevo-cliente" class="modal-overlay">
+        <div class="modal-container modal-small">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold-bright);">👤 Registrar Nuevo Cliente</h3>
+                <button onclick="cerrarModalNuevoCliente()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-modal-cliente" onsubmit="guardarClienteModal(event)" style="width:100%;">
+                    <label style="color:var(--gold-primary); display:block; margin-bottom:5px;">Nombre del Cliente:</label>
+                    <input type="text" id="modal-cli-nombre" placeholder="Nombre completo" required>
+                    
+                    <label style="color:var(--gold-primary); display:block; margin-top:10px; margin-bottom:5px;">Celular / Contacto:</label>
+                    <input type="text" id="modal-cli-celular" placeholder="Número de Celular">
+
+                    <button type="submit" class="btn-gold" style="margin-top:20px;">💾 Guardar Cliente</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL PREVISUALIZACIÓN PDF -->
     <div id="modal-factura" class="modal-overlay">
         <div class="modal-container">
@@ -811,6 +868,7 @@
         let urlPdfActual = '';
         let blobPdfActual = null;
         let nombrePdfDescarga = 'Documento.pdf';
+        let origenModalCliente = 'venta'; // 'venta' o 'cotizacion'
 
         let usuarioActual = localStorage.getItem('user_0808') || '';
         let rolActual = localStorage.getItem('rol_0808') || 'ventas';
@@ -993,22 +1051,77 @@
             }
         }
 
-        // CLIENTES
+        // CLIENTES & MODAL RÁPIDO
         async function cargarClientes() {
             const res = await fetch('/api/clientes');
             clientesCache = await res.json();
 
             const tbody = document.querySelector('#tabla-clientes tbody');
-            tbody.innerHTML = clientesCache.map(c => `
-                <tr>
-                    <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
-                    <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
-                    <td>
-                        <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
-                        <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
-                    </td>
-                </tr>
-            `).join('');
+            if (tbody) {
+                tbody.innerHTML = clientesCache.map(c => `
+                    <tr>
+                        <td><input type="text" id="cli-nom-${c.id}" value="${c.nombre}" style="width: 180px;"></td>
+                        <td><input type="text" id="cli-cel-${c.id}" value="${c.celular || ''}" style="width: 140px;"></td>
+                        <td>
+                            <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="guardarEdicionCliente('${c.id}')">✏️ Guardar</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="eliminarCliente('${c.id}')">❌ Eliminar</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function actualizarSelectsClientes(clienteSeleccionar = null) {
+            const res = await fetch('/api/clientes');
+            clientesCache = await res.json();
+
+            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
+                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
+
+            const selectVenta = document.getElementById('select-cliente-venta');
+            const selectCot = document.getElementById('select-cliente-cot');
+
+            if (selectVenta) selectVenta.innerHTML = optionsCli;
+            if (selectCot) selectCot.innerHTML = optionsCli;
+
+            if (clienteSeleccionar) {
+                if (origenModalCliente === 'venta' && selectVenta) {
+                    selectVenta.value = clienteSeleccionar;
+                } else if (origenModalCliente === 'cotizacion' && selectCot) {
+                    selectCot.value = clienteSeleccionar;
+                }
+            }
+        }
+
+        function abrirModalNuevoCliente(origen) {
+            origenModalCliente = origen;
+            document.getElementById('form-modal-cliente').reset();
+            document.getElementById('modal-nuevo-cliente').style.display = 'flex';
+            document.getElementById('modal-cli-nombre').focus();
+        }
+
+        function cerrarModalNuevoCliente() {
+            document.getElementById('modal-nuevo-cliente').style.display = 'none';
+        }
+
+        async function guardarClienteModal(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('modal-cli-nombre').value;
+            const celular = document.getElementById('modal-cli-celular').value;
+
+            const res = await fetch('/api/clientes', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre, celular })
+            });
+
+            if (res.ok) {
+                cerrarModalNuevoCliente();
+                await actualizarSelectsClientes(nombre);
+                alert(`Cliente "${nombre}" registrado y seleccionado con éxito.`);
+            } else {
+                alert('Error al registrar el cliente');
+            }
         }
 
         async function guardarCliente(e) {
@@ -1162,13 +1275,7 @@
             const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
             document.getElementById('select-producto').innerHTML = optionsProds;
 
-            const resCli = await fetch('/api/clientes');
-            clientesCache = await resCli.json();
-            
-            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
-                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
-            document.getElementById('select-cliente-venta').innerHTML = optionsCli;
-
+            await actualizarSelectsClientes();
             cargarMisVentas();
         }
 
@@ -1248,18 +1355,11 @@
                 productosCache = await resProds.json();
                 ordenarProductosArray(productosCache);
             }
-            if(clientesCache.length === 0) {
-                const resCli = await fetch('/api/clientes');
-                clientesCache = await resCli.json();
-            }
 
             const optionsProds = productosCache.map(p => `<option value="${p.id}">${p.nombre} (${p.gramaje}g) - $${p.precio_venta.toLocaleString()}</option>`).join('');
             document.getElementById('select-producto-cot').innerHTML = optionsProds;
 
-            const optionsCli = '<option value="Cliente General">Cliente General</option>' +
-                clientesCache.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
-            document.getElementById('select-cliente-cot').innerHTML = optionsCli;
-
+            await actualizarSelectsClientes();
             cargarMisCotizaciones();
         }
 
