@@ -115,6 +115,7 @@
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.3s ease;
+            box-sizing: border-box;
         }
 
         .nav-button:hover, .nav-button.active {
@@ -802,10 +803,12 @@
             }
 
             if (rolActual === 'admin') {
+                // Mostrar todos los botones y secciones asignadas a admin respetando su propiedad de despliegue original
                 document.querySelectorAll('.admin-only').forEach(el => {
-                    el.style.display = 'block';
+                    el.style.display = '';
                 });
             } else {
+                // Ocultar componentes administrativos si es usuario de ventas
                 document.querySelectorAll('.admin-only').forEach(el => {
                     el.style.display = 'none';
                 });
@@ -857,8 +860,16 @@
         function showSection(id, evt) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if (evt && evt.target) evt.target.classList.add('active');
+            
+            const targetSec = document.getElementById(id);
+            if(targetSec) targetSec.classList.add('active');
+
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            } else {
+                const btnNav = document.querySelector(`.nav-button[onclick*="${id}"]`);
+                if(btnNav) btnNav.classList.add('active');
+            }
 
             if (window.innerWidth <= 768) {
                 document.getElementById('main-sidebar').classList.remove('mobile-open');
