@@ -246,7 +246,6 @@ def resumen_empaques():
         total_costo = compra_info["total_costo"]
         cant_usada = usados.get(t, 0)
         
-        # Verificar si hay ajustes manuales
         ajuste = db.ajustes_empaques.find_one({"tipo_empaque": t})
         if ajuste:
             disponibles = ajuste.get("disponibles", 0)
@@ -489,7 +488,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
     total_venta = 0.0 if es_obsequio else sum(i.subtotal for i in venta.items)
     total_gramos = sum(i.gramos_totales for i in venta.items)
     
-    # Comprobar si hay stock suficiente para despacho inmediato
     stock_insuficiente = False
     motivo_faltante = {}
 
@@ -517,7 +515,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
 
     costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
     
-    # Calcular costo empaques
     costo_empaques_total = 0.0
     for item in venta.items:
         cant = item.cantidad
@@ -530,16 +527,21 @@ def registrar_venta(venta: VentaCreate, request: Request):
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo("factura_num")
 
+    # Mapeo de Efectivo -> Contado
+    tipo_pago_final = "N/A" if es_obsequio else (venta.tipo_pago if venta.tipo_pago else "Contado")
+    if tipo_pago_final == "Efectivo":
+        tipo_pago_final = "Contado"
+
     doc = {
         "consecutivo_str": consecutivo,
         "fecha": venta.fecha,
         "cliente": venta.cliente,
         "vendedor": vendedor,
-        "tipo_pago": "N/A" if es_obsequio else venta.tipo_pago,
+        "tipo_pago": tipo_pago_final,
         "tipo_venta": venta.tipo_venta,
         "estado_despacho": estado_despacho,
         "faltantes": motivo_faltante if stock_insuficiente else {},
-        "estado_credito": "Pendiente" if (venta.tipo_pago == "Crédito" and not es_obsequio) else "N/A",
+        "estado_credito": "Pendiente" if (tipo_pago_final == "Crédito" and not es_obsequio) else "N/A",
         "total_venta": total_venta,
         "costo_estimado": costo_est,
         "ganancia": total_venta - costo_est,
@@ -554,7 +556,6 @@ def listar_ventas():
     ventas = list(db.ventas.find().sort("fecha", -1))
     envios = list(db.envios.find())
 
-    # Calcular fletes por factura de forma segura
     fletes_por_factura = {}
     for env in envios:
         facturas = env.get("facturas_ids", [])
@@ -569,6 +570,10 @@ def listar_ventas():
         v_clean = fix_id(v)
         v_id = str(v_clean.get("id", ""))
         
+        # Transformar registros antiguos que tenian 'Efectivo'
+        if v_clean.get("tipo_pago") == "Efectivo":
+            v_clean["tipo_pago"] = "Contado"
+
         flete_aplicado = fletes_por_factura.get(v_id, 0.0)
         v_clean["costo_envio_asociado"] = flete_aplicado
         
@@ -588,7 +593,6 @@ def completar_despacho_venta(venta_id: str):
     if venta.get("estado_despacho") == "Completo":
         return {"mensaje": "La venta ya está completada"}
 
-    # Validar stock actual antes de completar
     resumen_cafe = resumen_inventario()
     resumen_emp = resumen_empaques()
 
@@ -612,7 +616,6 @@ def completar_despacho_venta(venta_id: str):
             nombre_legible = k.replace('_', ' ').title()
             raise HTTPException(status_code=400, detail=f"Stock insuficiente de {nombre_legible} para completar.")
 
-    # Marcar como Completo y limpiar faltantes
     db.ventas.update_one(
         {"_id": ObjectId(venta_id)},
         {"$set": {"estado_despacho": "Completo", "faltantes": {}}}
@@ -659,12 +662,16 @@ def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
     total_cotizacion = sum(i.subtotal for i in cotizacion.items)
     consecutivo = obtener_siguiente_consecutivo("cotizacion_num")
 
+    tipo_pago_cot = cotizacion.tipo_pago if cotizacion.tipo_pago else "Contado"
+    if tipo_pago_cot == "Efectivo":
+        tipo_pago_cot = "Contado"
+
     doc = {
         "consecutivo_str": consecutivo,
         "fecha": cotizacion.fecha,
         "cliente": cotizacion.cliente,
         "vendedor": vendedor,
-        "tipo_pago": cotizacion.tipo_pago,
+        "tipo_pago": tipo_pago_cot,
         "total_venta": total_cotizacion,
         "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
         "creado_en": datetime.utcnow()
@@ -675,7 +682,13 @@ def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
 @app.get("/api/cotizaciones")
 def listar_cotizaciones():
     cotizaciones = list(db.cotizaciones.find().sort("fecha", -1))
-    return [fix_id(c) for c in cotizaciones]
+    cotizaciones_clean = []
+    for c in cotizaciones:
+        c_item = fix_id(c)
+        if c_item.get("tipo_pago") == "Efectivo":
+            c_item["tipo_pago"] = "Contado"
+        cotizaciones_clean.append(c_item)
+    return cotizaciones_clean
 
 @app.get("/api/cotizaciones/{cotizacion_id}/pdf")
 def descargar_cotizacion_pdf(cotizacion_id: str):
