@@ -527,7 +527,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo("factura_num")
 
-    # Mapeo de Efectivo -> Contado
     tipo_pago_final = "N/A" if es_obsequio else (venta.tipo_pago if venta.tipo_pago else "Contado")
     if tipo_pago_final == "Efectivo":
         tipo_pago_final = "Contado"
@@ -570,7 +569,6 @@ def listar_ventas():
         v_clean = fix_id(v)
         v_id = str(v_clean.get("id", ""))
         
-        # Transformar registros antiguos que tenian 'Efectivo'
         if v_clean.get("tipo_pago") == "Efectivo":
             v_clean["tipo_pago"] = "Contado"
 
