@@ -561,10 +561,6 @@
                         <input type="number" id="cant-producto" value="1" min="1">
                     </div>
                     <div style="flex: 1; min-width: 140px;">
-                        <label>Valor Añadido / Unit (COP):</label>
-                        <input type="number" id="add-producto" value="0" min="0" placeholder="Valor extra">
-                    </div>
-                    <div style="flex: 1; min-width: 140px;">
                         <label>Descuento / Unit (COP):</label>
                         <input type="number" id="desc-producto" value="0" min="0" placeholder="Descuento">
                     </div>
@@ -588,7 +584,7 @@
                 <div class="table-responsive">
                     <table id="tabla-carrito">
                         <thead>
-                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. Final</th><th>Cant.</th><th>Añadido/U.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Base Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -660,10 +656,6 @@
                         <input type="number" id="cant-producto-cot" value="1" min="1">
                     </div>
                     <div style="flex: 1; min-width: 140px;">
-                        <label>Valor Añadido / Unit (COP):</label>
-                        <input type="number" id="add-producto-cot" value="0" min="0" placeholder="Valor extra">
-                    </div>
-                    <div style="flex: 1; min-width: 140px;">
                         <label>Descuento / Unit (COP):</label>
                         <input type="number" id="desc-producto-cot" value="0" min="0" placeholder="Descuento">
                     </div>
@@ -687,7 +679,7 @@
                 <div class="table-responsive">
                     <table id="tabla-carrito-cot">
                         <thead>
-                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. Final</th><th>Cant.</th><th>Añadido/U.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Base Unit.</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -1794,7 +1786,6 @@
 
             const pId = document.getElementById('select-producto' + suffix).value;
             const cant = parseInt(document.getElementById('cant-producto' + suffix).value) || 1;
-            const valorAdd = parseFloat(document.getElementById('add-producto' + suffix).value) || 0;
             const descuento = parseFloat(document.getElementById('desc-producto' + suffix).value) || 0;
             const pres = document.getElementById('pres-producto' + suffix).value || 'Grano';
             const prod = productosCache.find(p => String(p.id || p._id) === String(pId));
@@ -1803,32 +1794,31 @@
 
             const prodIdFinal = prod.id || prod._id;
             const precioBase = prod.precio_venta || 0;
-            const precioFinalUnitario = Math.max(0, precioBase - descuento + valorAdd);
+            const subtotalCalculado = Math.max(0, (precioBase * cant) - (descuento * cant));
             const targetCarrito = esCot ? carritoCotizacion : carrito;
 
-            const indexExistente = targetCarrito.findIndex(item => String(item.producto_id) === String(prodIdFinal) && item.descuento === descuento && item.valor_add === valorAdd && item.presentacion === pres);
+            const indexExistente = targetCarrito.findIndex(item => String(item.producto_id) === String(prodIdFinal) && item.descuento === descuento && item.presentacion === pres);
             
             if (indexExistente !== -1) {
                 targetCarrito[indexExistente].cantidad += cant;
                 targetCarrito[indexExistente].gramos_totales = targetCarrito[indexExistente].gramaje * targetCarrito[indexExistente].cantidad;
-                targetCarrito[indexExistente].subtotal = precioFinalUnitario * targetCarrito[indexExistente].cantidad;
+                targetCarrito[indexExistente].subtotal = Math.max(0, (precioBase * targetCarrito[indexExistente].cantidad) - (descuento * targetCarrito[indexExistente].cantidad));
             } else {
                 targetCarrito.push({
                     producto_id: prodIdFinal,
                     nombre: prod.nombre,
                     gramaje: prod.gramaje || 0,
                     cantidad: cant,
-                    valor_add: valorAdd,
+                    valor_add: 0,
                     descuento: descuento,
                     presentacion: pres,
                     gramos_totales: (prod.gramaje || 0) * cant,
-                    precio_unitario: precioFinalUnitario,
-                    subtotal: precioFinalUnitario * cant
+                    precio_unitario: precioBase,
+                    subtotal: subtotalCalculado
                 });
             }
 
             document.getElementById('cant-producto' + suffix).value = 1;
-            document.getElementById('add-producto' + suffix).value = 0;
             document.getElementById('desc-producto' + suffix).value = 0;
 
             renderCarrito(modo);
@@ -1871,7 +1861,6 @@
                             <td>${i.gramaje}g</td>
                             <td>${esObsequio ? '$0' : fmtCOP(i.precio_unitario)}</td>
                             <td>${i.cantidad}</td>
-                            <td>${esObsequio ? '$0' : fmtCOP(i.valor_add || 0)}</td>
                             <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
                             <td>${fmtCOP(sub)}</td>
                             <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
