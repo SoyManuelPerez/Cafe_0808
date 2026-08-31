@@ -5,6 +5,9 @@ pydantic
 reportlab
 jinja2
 gunicorn
-bcrypt==4.0.1
+bcrypt
 python-multipart
 pytz
+pyjwt
+google-api-python-client
+google-auth
