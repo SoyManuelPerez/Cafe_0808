@@ -1,9 +1,9 @@
-# main.py - Código Backend Completo
+# app/main.py - Código Backend Completo
 import os
 import json
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Optional
-import pytz
 
 from fastapi import FastAPI, HTTPException, Depends, Security, Header
 from fastapi.responses import HTMLResponse, FileResponse
@@ -15,6 +15,18 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 import jwt
+
+# ---------------------------------------------------------
+# RESOLUCIÓN DE RUTAS DEL PROYECTO
+# ---------------------------------------------------------
+# Ruta hacia el directorio app/
+BASE_DIR = Path(__file__).resolve().parent
+
+# Ruta raíz del proyecto (un nivel arriba de app/)
+PROJECT_ROOT = BASE_DIR.parent
+
+TEMPLATES_DIR = PROJECT_ROOT / "templates"
+STATIC_DIR = PROJECT_ROOT / "static"
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN Y CONSTANTES
@@ -63,9 +75,6 @@ def verificar_token(credentials: HTTPAuthorizationCredentials = Security(securit
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-def obtener_zona_horaria():
-    return pytz.timezone('America/Bogota')
-
 # ---------------------------------------------------------
 # MODELOS DE DATOS (PYDANTIC)
 # ---------------------------------------------------------
@@ -90,6 +99,19 @@ class EditarDetallesVentaModel(BaseModel):
 
 class PagarCreditoModel(BaseModel):
     venta_id: str
+
+# ---------------------------------------------------------
+# RUTAS DE ARCHIVOS ESTÁTICOS Y TEMPLATES
+# ---------------------------------------------------------
+@app.get("/")
+def read_root():
+    index_path = TEMPLATES_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail=f"No se encontró index.html en: {index_path}")
+    return FileResponse(index_path)
+
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # ---------------------------------------------------------
 # ENDPOINTS DE AUTENTICACIÓN
@@ -132,7 +154,7 @@ def obtener_clientes(usuario: dict = Depends(verificar_token)):
     return clientes
 
 # ---------------------------------------------------------
-# ENDPOINT DE EDICIÓN DE VENTA (NUEVO / CORREGIDO)
+# ENDPOINT DE EDICIÓN DE VENTA
 # ---------------------------------------------------------
 @app.put("/api/ventas/{venta_id}/editar-detalles")
 def editar_detalles_venta(venta_id: str, datos: EditarDetallesVentaModel, usuario: dict = Depends(verificar_token)):
@@ -158,7 +180,7 @@ def editar_detalles_venta(venta_id: str, datos: EditarDetallesVentaModel, usuari
         raise HTTPException(status_code=403, detail="No tienes permisos para modificar esta venta.")
 
     nuevo_cliente = datos.cliente.strip()
-    nuevo_tipo_pago = datos.tipo_pago.strip() # "Contado" o "Crédito"
+    nuevo_tipo_pago = datos.tipo_pago.strip()  # "Contado" o "Crédito"
 
     # 2. Actualizar en hoja Ventas (Columnas E y F: Cliente y Tipo de Pago)
     sheets.values().update(
@@ -202,7 +224,7 @@ def editar_detalles_venta(venta_id: str, datos: EditarDetallesVentaModel, usuari
             body={"values": [[nuevo_cliente]]}
         ).execute()
 
-    # Caso C: Cambió a Contado pero existía un registro en Créditos -> Marcar o eliminar registro
+    # Caso C: Cambió a Contado pero existía un registro en Créditos -> Marcar como Pagado
     elif nuevo_tipo_pago == "Contado" and fila_credito_idx != -1:
         sheets.values().update(
             spreadsheetId=SPREADSHEET_ID,
@@ -214,7 +236,7 @@ def editar_detalles_venta(venta_id: str, datos: EditarDetallesVentaModel, usuari
     return {"status": "ok", "mensaje": "Detalles de venta actualizados correctamente."}
 
 # ---------------------------------------------------------
-# OTROS ENDPOINTS (VENTAS, REPORTES, CRÉDITOS)
+# OTROS ENDPOINTS (VENTAS)
 # ---------------------------------------------------------
 @app.get("/api/ventas/mis-ventas")
 def mis_ventas(usuario: dict = Depends(verificar_token)):
@@ -235,9 +257,3 @@ def mis_ventas(usuario: dict = Depends(verificar_token)):
                 "detalles": json.loads(f[COL_VENTAS["DETALLES"]]) if len(f) > COL_VENTAS["DETALLES"] else []
             })
     return ventas
-
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
