@@ -710,3 +710,44 @@ def eliminar_cotizacion(cotizacion_id: str):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Cotización no encontrada")
     return {"mensaje": "Cotización eliminada correctamente"}
+
+# ==========================================
+# ENDPOINT PARA EDITAR VENTA (CLIENTE Y PAGO)
+# ==========================================
+
+@app.put("/api/ventas/{venta_id}/editar-detalles")
+def editar_detalles_venta(venta_id: str, data: dict):
+    nuevo_cliente = data.get("cliente")
+    nuevo_tipo_pago = data.get("tipo_pago")
+
+    if not nuevo_cliente or not nuevo_tipo_pago:
+        raise HTTPException(status_code=400, detail="El cliente y el tipo de pago son obligatorios.")
+
+    venta = db.ventas.find_one({"_id": ObjectId(venta_id)})
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+
+    es_obsequio = (venta.get("tipo_venta") == "Obsequio")
+    
+    # Ajustar estado del crédito según el nuevo tipo de pago
+    if es_obsequio:
+        tipo_pago_final = "N/A"
+        estado_credito_final = "N/A"
+    else:
+        tipo_pago_final = nuevo_tipo_pago
+        if tipo_pago_final == "Crédito":
+            # Si cambia a crédito y no tenía estado asignado, pasa a Pendiente
+            estado_credito_final = venta.get("estado_credito") if venta.get("estado_credito") in ["Pendiente", "Pagado"] else "Pendiente"
+        else:
+            estado_credito_final = "N/A"
+
+    db.ventas.update_one(
+        {"_id": ObjectId(venta_id)},
+        {"$set": {
+            "cliente": nuevo_cliente,
+            "tipo_pago": tipo_pago_final,
+            "estado_credito": estado_credito_final
+        }}
+    )
+
+    return {"mensaje": "Venta actualizada correctamente"}
