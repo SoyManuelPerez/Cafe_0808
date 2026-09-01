@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión de Ventas</title>
+    <title>0808 Café de Especialidad - Sistema de Gestión</title>
     <style>
         :root {
             --gold-bright: #ffd700;
@@ -90,6 +90,24 @@
             border: none;
         }
 
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .grid-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-box {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid var(--gold-primary);
+        }
+
         /* MODAL STYLES */
         .modal-overlay {
             display: none;
@@ -134,32 +152,50 @@
 <body>
 
     <div class="container">
-        <!-- SECCIÓN DE VENTAS VENDEDOR -->
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>☕ 0808 Café de Especialidad</h1>
+            <div>
+                <span id="user-display" style="margin-right: 15px; color: var(--gold-primary);"></span>
+                <button class="btn-danger" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <!-- TARJETAS DE RESUMEN DE INVENTARIO -->
         <div class="card">
-            <h2>🛒 Mi Histórico de Ventas</h2>
-            <div id="contenedor-mis-ventas">
-                <table id="tabla-mis-ventas">
-                    <thead>
-                        <tr>
-                            <th>N° Factura</th>
-                            <th>Fecha</th>
-                            <th>Cliente</th>
-                            <th>Tipo Pago</th>
-                            <th>Total</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-mis-ventas">
-                        <!-- Carga dinámica -->
-                    </tbody>
-                </table>
+            <h2>📊 Resumen de Inventario General</h2>
+            <div class="grid-summary">
+                <div class="summary-box">
+                    <span style="color:var(--text-dim); font-size:12px;">Café Disponible Total</span>
+                    <h3 id="inv-disponible-g" style="margin:5px 0;">0 g / 0 lbs</h3>
+                </div>
+                <div class="summary-box">
+                    <span style="color:var(--text-dim); font-size:12px;">Costo Promedio / Gramo</span>
+                    <h3 id="inv-costo-g" style="margin:5px 0;">$0.00</h3>
+                </div>
+            </div>
+            <h3>Disponibilidad por Referencia</h3>
+            <div id="grid-productos-stock" class="grid-summary">
+                <!-- Carga dinámica -->
             </div>
         </div>
 
-        <!-- SECCIÓN DE REPORTES (ADMIN) -->
-        <div class="card" id="seccion-reportes">
-            <h2>📊 Reporte General de Ventas</h2>
-            <table id="tabla-reportes">
+        <!-- MÓDULO DE DESCUENTO MANUAL DE INVENTARIO -->
+        <div class="card">
+            <h2>📉 Descuento Manual de Inventario (Café)</h2>
+            <p style="color: var(--text-dim); font-size: 14px;">Utilice esta sección para ajustar pérdidas, errores de registro o consumo interno.</p>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <select id="descuento-producto" style="flex: 2; min-width: 200px;">
+                    <option value="">Seleccione el café a descontar...</option>
+                </select>
+                <input type="number" id="descuento-libras" placeholder="Libras a descontar" step="0.1" min="0.1" style="flex: 1; min-width: 150px;">
+                <button class="btn-danger" style="padding: 10px 15px;" onclick="ejecutarDescuentoManual()">🔥 Descontar Stock</button>
+            </div>
+        </div>
+
+        <!-- HISTORIAL Y GESTIÓN DE VENTAS -->
+        <div class="card">
+            <h2>🛒 Histórico de Ventas</h2>
+            <table id="tabla-ventas">
                 <thead>
                     <tr>
                         <th>N° Factura</th>
@@ -167,12 +203,13 @@
                         <th>Vendedor</th>
                         <th>Cliente</th>
                         <th>Tipo Pago</th>
+                        <th>Estado Crédito</th>
+                        <th>Estado Despacho</th>
                         <th>Total</th>
                         <th>Acciones</th>
-                        <th>Eliminar</th>
                     </tr>
                 </thead>
-                <tbody id="tbody-reportes">
+                <tbody id="tbody-ventas">
                     <!-- Carga dinámica -->
                 </tbody>
             </table>
@@ -183,107 +220,124 @@
     <div id="modal-editar-venta" class="modal-overlay">
         <div class="modal-container modal-small">
             <div class="modal-header">
-                <h3 style="margin:0; color:var(--gold-bright);">✏️ Editar Venta</h3>
-                <button onclick="cerrarModalEditarVenta()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+                <h3>✏️ Editar Detalles de Venta</h3>
+                <button onclick="cerrarModalEditarVenta()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✖</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="edit-venta-id">
                 
-                <label style="color:var(--gold-primary); display:block; margin-bottom:5px;">Cliente:</label>
-                <select id="edit-venta-cliente" style="width:100%; margin-bottom:15px;"></select>
+                <label style="color:var(--gold-primary); margin-top:10px;">Cliente:</label>
+                <input type="text" id="edit-venta-cliente" style="width:100%; margin-bottom:15px;" placeholder="Nombre del cliente">
 
-                <label style="color:var(--gold-primary); display:block; margin-bottom:5px;">Método de Pago:</label>
+                <label style="color:var(--gold-primary);">Forma de Pago:</label>
                 <select id="edit-venta-pago" style="width:100%; margin-bottom:15px;">
                     <option value="Contado">Contado</option>
                     <option value="Crédito">Crédito</option>
                 </select>
 
-                <button class="btn-gold" style="margin-top:10px; width:100%;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
+                <button class="btn-gold" style="width:100%; margin-top:10px;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ESTADO GLOBAL
-        let tokenActual = localStorage.getItem('token') || '';
-        let rolActual = localStorage.getItem('rol') || 'vendedor';
-        let clientesCache = [];
-
-        // AL CARGAR LA PÁGINA
+        // INICIALIZACIÓN
         document.addEventListener('DOMContentLoaded', () => {
-            cargarClientes();
-            cargarMisVentas();
-            if (rolActual === 'admin') {
-                cargarReportes();
-            }
+            cargarResumenInventario();
+            cargarOpcionesDescuento();
+            cargarVentas();
         });
 
-        // OBTENER CLIENTES PARA EL SELECT
-        async function cargarClientes() {
+        // 1. CARGAR RESUMEN DE INVENTARIO DESDE MONGO DB
+        async function cargarResumenInventario() {
             try {
-                const res = await fetch('/api/clientes', {
-                    headers: { 'Authorization': `Bearer ${tokenActual}` }
+                const res = await fetch('/api/inventario/resumen');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const dispG = data.inventario_disponible_g || 0;
+                document.getElementById('inv-disponible-g').innerText = `${dispG.toLocaleString()} g / ${(dispG / 500).toFixed(1)} lbs`;
+                document.getElementById('inv-costo-g').innerText = `$${(data.costo_promedio_gramo || 0).toFixed(2)}`;
+
+                const grid = document.getElementById('grid-productos-stock');
+                grid.innerHTML = '';
+                (data.productos_stock || []).forEach(p => {
+                    grid.innerHTML += `
+                        <div class="summary-box">
+                            <span style="color:var(--text-dim); font-size:12px;">${p.nombre}</span>
+                            <h4 style="margin:5px 0; color:var(--gold-bright);">${p.libras_disponibles} lbs</h4>
+                        </div>
+                    `;
                 });
+            } catch (err) {
+                console.error("Error al cargar inventario:", err);
+            }
+        }
+
+        // 2. OPCIONES PARA SELECTOR DE DESCUENTO
+        async function cargarOpcionesDescuento() {
+            try {
+                const res = await fetch('/api/productos/unicos');
+                if (!res.ok) return;
+                const productos = await res.json();
+                
+                const select = document.getElementById('descuento-producto');
+                select.innerHTML = '<option value="">Seleccione el café a descontar...</option>';
+                productos.forEach(p => {
+                    select.innerHTML += `<option value="${p.nombre}">${p.nombre}</option>`;
+                });
+            } catch (err) {
+                console.error("Error al cargar productos para descuento:", err);
+            }
+        }
+
+        // 3. EJECUTAR DESCUENTO MANUAL DE CAFE
+        async function ejecutarDescuentoManual() {
+            const nombre = document.getElementById('descuento-producto').value;
+            const libras = parseFloat(document.getElementById('descuento-libras').value);
+
+            if (!nombre || isNaN(libras) || libras <= 0) {
+                alert("Por favor seleccione un café e ingrese una cantidad de libras válida.");
+                return;
+            }
+
+            if (!confirm(`¿Confirma el descuento manual de ${libras} lbs de "${nombre}"?`)) return;
+
+            try {
+                const res = await fetch('/api/inventario/descontar-manual', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre: nombre, libras: libras })
+                });
+
+                const data = await res.json();
                 if (res.ok) {
-                    clientesCache = await res.json();
+                    alert(data.mensaje);
+                    document.getElementById('descuento-libras').value = '';
+                    cargarResumenInventario();
+                } else {
+                    alert(data.detail || "Error al aplicar el descuento.");
                 }
             } catch (err) {
-                console.error("Error al obtener clientes:", err);
+                console.error("Error al descontar stock:", err);
+                alert("Ocurrió un error al intentar actualizar el inventario.");
             }
         }
 
-        // MI HISTÓRICO DE VENTAS
-        async function cargarMisVentas() {
+        // 4. CARGAR VENTAS
+        async function cargarVentas() {
             try {
-                const res = await fetch('/api/ventas/mis-ventas', {
-                    headers: { 'Authorization': `Bearer ${tokenActual}` }
-                });
+                const res = await fetch('/api/ventas');
                 if (!res.ok) return;
-
                 const ventas = await res.json();
-                const tbody = document.getElementById('tbody-mis-ventas');
+
+                const tbody = document.getElementById('tbody-ventas');
                 tbody.innerHTML = '';
 
                 ventas.forEach(v => {
                     const idVal = v.id;
-                    const numFact = v.factura || 'N/A';
-                    const esCredito = v.tipo_pago === 'Crédito';
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${numFact}</td>
-                        <td>${v.fecha || ''}</td>
-                        <td>${v.cliente || 'Cliente General'}</td>
-                        <td>${v.tipo_pago || 'Contado'}</td>
-                        <td>$${(v.total || 0).toLocaleString()}</td>
-                        <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; display:inline-flex;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente}', '${v.tipo_pago}')">✏️ Editar</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (err) {
-                console.error("Error al cargar ventas del vendedor:", err);
-            }
-        }
-
-        // CARGAR REPORTES (VISTA ADMIN)
-        async function cargarReportes() {
-            try {
-                const res = await fetch('/api/ventas/reporte-general', {
-                    headers: { 'Authorization': `Bearer ${tokenActual}` }
-                });
-                if (!res.ok) return;
-
-                const ventas = await res.json();
-                const tbody = document.getElementById('tbody-reportes');
-                tbody.innerHTML = '';
-
-                ventas.forEach(v => {
-                    const idVal = v.id;
-                    const numFact = v.factura || 'N/A';
-
+                    const numFact = v.consecutivo_str || 'N/A';
+                    
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${numFact}</td>
@@ -291,35 +345,28 @@
                         <td>${v.vendedor || ''}</td>
                         <td>${v.cliente || 'Cliente General'}</td>
                         <td>${v.tipo_pago || 'Contado'}</td>
-                        <td>$${(v.total || 0).toLocaleString()}</td>
+                        <td><span style="color:${v.estado_credito === 'Pagado' ? 'var(--success)' : (v.estado_credito === 'Pendiente' ? 'var(--danger)' : '#fff')}">${v.estado_credito || 'N/A'}</span></td>
+                        <td>${v.estado_despacho || 'Completo'}</td>
+                        <td>$${(v.total_venta || 0).toLocaleString()}</td>
                         <td>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                            <button class="btn-gold" style="padding: 4px 10px; width:auto; margin-left:5px; display:inline-flex;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente}', '${v.tipo_pago}')">✏️ Editar</button>
+                            <button class="btn-gold" style="padding: 4px 8px;" onclick="window.open('/api/ventas/${idVal}/pdf', '_blank')">👁️ PDF</button>
+                            <button class="btn-gold" style="padding: 4px 8px; margin-left:4px;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente}', '${v.tipo_pago}')">✏️ Editar</button>
+                            ${v.estado_credito === 'Pendiente' ? `<button class="btn-gold" style="padding: 4px 8px; margin-left:4px; background-color: #1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCredito('${idVal}')">✅ Pagado</button>` : ''}
+                            <button class="btn-danger" style="padding: 4px 8px; margin-left:4px;" onclick="eliminarVenta('${idVal}')">❌</button>
                         </td>
-                        <td><button class="btn-danger" onclick="eliminarVenta('${idVal}')">❌</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (err) {
-                console.error("Error al cargar reporte general:", err);
+                console.error("Error al cargar ventas:", err);
             }
         }
 
-        // MODAL DE EDICIÓN
-        function abrirModalEditarVenta(id, clienteActual, tipoPagoActual) {
-            document.getElementById('edit-venta-id').value = id;
-
-            // Llenar select de clientes
-            const selectCli = document.getElementById('edit-venta-cliente');
-            const list = Array.isArray(clientesCache) ? clientesCache : [];
+        // 5. MODAL DE EDICIÓN DE VENTA
+        function abrirModalEditarVenta(ventaId, clienteActual, tipoPagoActual) {
+            document.getElementById('edit-venta-id').value = ventaId;
+            document.getElementById('edit-venta-cliente').value = clienteActual || '';
             
-            let options = '<option value="Cliente General">Cliente General</option>' +
-                list.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
-            
-            selectCli.innerHTML = options;
-            selectCli.value = clienteActual || "Cliente General";
-
-            // Llenar select de tipo de pago
             const selectPago = document.getElementById('edit-venta-pago');
             selectPago.value = (tipoPagoActual === 'Efectivo') ? 'Contado' : (tipoPagoActual || 'Contado');
 
@@ -331,60 +378,67 @@
             document.getElementById('edit-venta-id').value = '';
         }
 
-        // GUARDAR CAMBIOS (PUT AL BACKEND)
         async function guardarCambiosVenta() {
             const ventaId = document.getElementById('edit-venta-id').value;
-            const nuevoCliente = document.getElementById('edit-venta-cliente').value;
+            const nuevoCliente = document.getElementById('edit-venta-cliente').value.trim();
             const nuevoTipoPago = document.getElementById('edit-venta-pago').value;
 
-            if (!ventaId) return;
+            if (!nuevoCliente) {
+                alert("El nombre del cliente no puede estar vacío.");
+                return;
+            }
 
             try {
                 const res = await fetch(`/api/ventas/${ventaId}/editar-detalles`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${tokenActual}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         cliente: nuevoCliente,
                         tipo_pago: nuevoTipoPago
                     })
                 });
 
+                const data = await res.json();
                 if (res.ok) {
-                    alert('Venta actualizada exitosamente.');
+                    alert(data.mensaje);
                     cerrarModalEditarVenta();
-                    cargarMisVentas();
-                    if (rolActual === 'admin') cargarReportes();
+                    cargarVentas();
                 } else {
-                    const err = await res.json();
-                    alert(err.detail || 'Error al actualizar la venta.');
+                    alert(data.detail || "Error al actualizar la venta.");
                 }
             } catch (err) {
                 console.error("Error al editar venta:", err);
-                alert('Ocurrió un error de conexión al actualizar.');
+                alert("Ocurrió un error de conexión.");
             }
         }
 
-        function abrirModalPdf(url, titulo, nombreArchivo) {
-            window.open(url, '_blank');
+        // 6. ACCIONES DE CRÉDITO Y ELIMINACIÓN
+        async function pagarCredito(ventaId) {
+            if (!confirm('¿Marcar este crédito como PAGADO?')) return;
+            try {
+                const res = await fetch(`/api/ventas/${ventaId}/pagar-credito`, { method: 'PUT' });
+                if (res.ok) cargarVentas();
+            } catch (err) {
+                console.error("Error al pagar crédito:", err);
+            }
         }
 
-        async function eliminarVenta(id) {
+        async function eliminarVenta(ventaId) {
             if (!confirm('¿Estás seguro de eliminar esta venta?')) return;
             try {
-                const res = await fetch(`/api/ventas/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${tokenActual}` }
-                });
+                const res = await fetch(`/api/ventas/${ventaId}`, { method: 'DELETE' });
                 if (res.ok) {
-                    cargarMisVentas();
-                    if (rolActual === 'admin') cargarReportes();
+                    cargarVentas();
+                    cargarResumenInventario();
                 }
             } catch (err) {
                 console.error("Error al eliminar venta:", err);
             }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.reload();
         }
     </script>
 </body>
