@@ -1026,29 +1026,30 @@
 
     </div>
 
-    <!-- MODAL EDITAR DETALLES DE VENTA (INTEGRADO) -->
-    <div id="modal-editar-venta" class="modal-overlay">
-        <div class="modal-container modal-small" style="padding:20px; height:auto;">
-            <div class="modal-header" style="padding:0 0 10px 0;">
-                <h3 style="margin:0; color:var(--gold-bright);">✏️ Editar Detalles de Venta</h3>
-                <button onclick="cerrarModalEditarVenta()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer; width:auto; padding:0;">✖</button>
-            </div>
-            <div class="modal-body" style="align-items:stretch; padding:15px 0 0 0;">
-                <input type="hidden" id="edit-venta-id">
-                
-                <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Cliente:</label>
-                <input type="text" id="edit-venta-cliente" placeholder="Nombre del cliente" required style="margin-bottom:15px;">
+<!-- MODAL EDITAR DETALLES DE VENTA (INTEGRADO) -->
+<div id="modal-editar-venta" class="modal-overlay">
+    <div class="modal-container modal-small" style="padding:20px; height:auto;">
+        <div class="modal-header" style="padding:0 0 10px 0;">
+            <h3 style="margin:0; color:var(--gold-bright);">✏️ Editar Detalles de Venta</h3>
+            <button onclick="cerrarModalEditarVenta()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer; width:auto; padding:0;">✖</button>
+        </div>
+        <div class="modal-body" style="align-items:stretch; padding:15px 0 0 0;">
+            <input type="hidden" id="edit-venta-id">
+            
+            <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Cliente:</label>
+            <!-- SE REEMPLAZA EL INPUT POR UN SELECT -->
+            <select id="edit-venta-cliente" style="margin-bottom:15px;"></select>
 
-                <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Forma de Pago:</label>
-                <select id="edit-venta-pago" style="margin-bottom:15px;">
-                    <option value="Contado">Contado</option>
-                    <option value="Crédito">Crédito</option>
-                </select>
+            <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Forma de Pago:</label>
+            <select id="edit-venta-pago" style="margin-bottom:15px;">
+                <option value="Contado">Contado</option>
+                <option value="Crédito">Crédito</option>
+            </select>
 
-                <button class="btn-gold" style="padding:10px; margin-top:10px;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
-            </div>
+            <button class="btn-gold" style="padding:10px; margin-top:10px;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
         </div>
     </div>
+</div>
 
     <!-- MODAL VINCULAR FACTURAS A ENVÍO -->
     <div id="modal-vincular-facturas" class="modal-overlay">
