@@ -932,7 +932,7 @@
             <h1>💳 Cuentas por Cobrar</h1>
             <div class="card">
                 <div style="margin-bottom: 15px; font-size: 18px; color: var(--gold-bright); background: #141414; padding: 12px 18px; border-radius: 6px; border: 1px solid var(--gold-primary); display: flex; justify-content: space-between; align-items: center;">
-                    <span>💳 Total Vendido a Crédito:</span>
+                    <span>💳 Total Pendiente por Cobrar:</span>
                     <strong id="total-creditos-txt" style="font-size: 22px;">$0</strong>
                 </div>
                 <div class="table-responsive">
@@ -2562,12 +2562,15 @@
             cargarOpcionesDescuento();
         }
 
+        // --- MÓDULO DE CRÉDITO MODIFICADO ---
         async function cargarCreditos() {
             try {
                 const res = await fetch('/api/ventas');
                 const ventas = await res.json();
                 const list = Array.isArray(ventas) ? ventas : [];
-                const creditos = list.filter(v => v && v.tipo_pago === 'Crédito');
+                
+                // Filtro: Únicamente ventas con tipo de pago 'Crédito' Y estado_credito 'Pendiente'
+                const creditos = list.filter(v => v && v.tipo_pago === 'Crédito' && v.estado_credito === 'Pendiente');
 
                 renderTablaPaginada('tabla-creditos', creditos, c => {
                     const idVal = c.id || c._id || '';
@@ -2577,8 +2580,8 @@
                         <td>${c.fecha || ''}</td>
                         <td>${c.cliente || ''}</td>
                         <td>${fmtCOP(c.total_venta)}</td>
-                        <td><span style="color: ${c.estado_credito === 'Pendiente' ? '#ff6b6b' : '#2ecc71'}; font-weight: bold;">${c.estado_credito || 'Pendiente'}</span></td>
-                        <td>${c.estado_credito === 'Pendiente' ? `<button class="btn-gold" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button>` : '-'}</td>
+                        <td><span style="color: #ff6b6b; font-weight: bold;">${c.estado_credito || 'Pendiente'}</span></td>
+                        <td><button class="btn-gold" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button></td>
                     </tr>`;
                 },
                 {
@@ -2593,7 +2596,7 @@
                         }
                         tfootCreditos.innerHTML = `
                             <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                                <td colspan="3" style="text-align: right;">TOTAL VENDIDO A CRÉDITO:</td>
+                                <td colspan="3" style="text-align: right;">TOTAL PENDIENTE POR COBRAR:</td>
                                 <td>${fmtCOP(sum)}</td>
                                 <td colspan="2"></td>
                             </tr>
@@ -2606,8 +2609,23 @@
         }
 
         async function pagarCredito(id) {
-            await fetch(`/api/ventas/${id}/pagar-credito`, { method: 'PUT' });
-            cargarCreditos();
+            if (!confirm("¿Deseas marcar este crédito como PAGADO?")) return;
+            try {
+                const res = await fetch(`/api/ventas/${id}/pagar-credito`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                    alert("Crédito pagado con éxito.");
+                    cargarCreditos(); // Recarga la tabla eliminando la venta pagada de la lista pendiente
+                } else {
+                    const err = await res.json();
+                    alert("Error al actualizar: " + (err.error || err.detail || "Ocurrió un problema"));
+                }
+            } catch (err) {
+                console.error("Error pagando crédito:", err);
+                alert("Error de conexión al procesar el pago.");
+            }
         }
 
         // -------------------------------------------------------------------
