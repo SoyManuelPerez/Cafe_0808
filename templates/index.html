@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>0808 Café de Especialidad</title>
     <link rel="icon" type="image/png" href="/static/logo.png">
-
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#007bff">
     <!-- Librería para Exportar a Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -2887,6 +2888,13 @@
         }
 
         verificarSesionActiva();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('Service Worker registrado correctamente:', reg.scope))
+          .catch((err) => console.error('Error al registrar Service Worker:', err));
+      });
+    }
     </script>
 </body>
 </html>
