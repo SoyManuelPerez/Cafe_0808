@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+# ==========================================
+# MODELOS DE USUARIOS Y AUTENTICACIÓN
+# ==========================================
+
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -15,9 +19,19 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     rol: Optional[str] = None
 
+
+# ==========================================
+# MODELO DE CLIENTES
+# ==========================================
+
 class ClienteCreate(BaseModel):
     nombre: str
     celular: Optional[str] = None
+
+
+# ==========================================
+# MODELOS DE COMPRAS (INSUMOS Y MATERIA PRIMA)
+# ==========================================
 
 class CompraEmpaqueCreate(BaseModel):
     fecha: str
@@ -31,6 +45,11 @@ class CompraCreate(BaseModel):
     costo_total: float
     producto_id: Optional[str] = None
 
+
+# ==========================================
+# MODELOS DE PRODUCTOS E INVENTARIO
+# ==========================================
+
 class ProductoCreate(BaseModel):
     nombre: str
     gramaje: float
@@ -40,6 +59,11 @@ class ProductoCreate(BaseModel):
 class ProductoUpdate(BaseModel):
     nombre: str
     precio_venta: float
+
+
+# ==========================================
+# MODELOS DE VENTAS Y PEDIDOS
+# ==========================================
 
 class ItemVenta(BaseModel):
     producto_id: str
