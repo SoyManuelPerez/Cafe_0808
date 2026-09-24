@@ -2,7 +2,6 @@ import os
 import sys
 from bson import ObjectId
 
-# Ajustar rutas para importar la base de datos de la app
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
@@ -12,9 +11,9 @@ from app.database import get_db
 db = get_db()
 
 def recalcular_todas_las_ventas():
-    print("🚀 Iniciando recálculo masivo de ventas con búsqueda avanzada de costos...")
+    print("🚀 Iniciando recálculo masivo con regla de ÚLTIMA COMPRA y bolsas de 2.5kg...")
     
-    # 1. Obtener costos unitarios de empaques
+    # 1. Obtener costo unitario de la ÚLTIMA COMPRA para cada tipo de empaque
     tipos_emp = ["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
     costos_empaques = {}
     
@@ -23,18 +22,20 @@ def recalcular_todas_las_ventas():
         if ajuste and "costo_unitario" in ajuste:
             costos_empaques[t] = float(ajuste["costo_unitario"])
         else:
-            compras = list(db.compras_empaques.find({"tipo_empaque": t}))
-            cant_total = sum(c.get("cantidad", 0) for c in compras)
-            costo_total = sum(c.get("costo_total", 0.0) for c in compras)
-            costos_empaques[t] = (costo_total / cant_total) if cant_total > 0 else 0.0
+            # Buscar el registro más reciente por fecha y ID
+            ultima_compra = db.compras_empaques.find_one(
+                {"tipo_empaque": t},
+                sort=[("fecha", -1), ("_id", -1)]
+            )
+            costos_empaques[t] = float(ultima_compra.get("costo_unitario", 0.0)) if ultima_compra else 0.0
 
-    # 2. Respaldo de costo promedio global
+    # 2. Respaldo de costo promedio global de café
     compras_cafe = list(db.compras.find())
     total_g_global = sum(c.get("gramos", 0) for c in compras_cafe)
     total_costo_global = sum(c.get("costo_total", 0.0) for c in compras_cafe)
     costo_promedio_gramo_global = (total_costo_global / total_g_global) if total_g_global > 0 else 0.0
 
-    # 3. Mapear el mayor costo_por_libra existente para cada nombre de producto
+    # 3. Mapeo de mayor costo por libra por nombre de producto
     productos_db = list(db.productos.find())
     costo_libra_por_nombre = {}
     for p in productos_db:
@@ -57,7 +58,7 @@ def recalcular_todas_las_ventas():
         
         total_venta = 0.0 if es_obsequio else sum(item.get("subtotal", 0.0) for item in items)
 
-        # Recalcular Costo de Café buscando primero por ID y luego por el mapa de nombres
+        # Recalcular Costo de Café
         costo_cafe = 0.0
         for item in items:
             prod = None
@@ -88,6 +89,9 @@ def recalcular_todas_las_ventas():
                 costo_empaques_total += cant * (costos_empaques.get("bolsa_250g", 0) + costos_empaques.get("etiqueta_250g", 0))
             elif g == 500:
                 costo_empaques_total += cant * (costos_empaques.get("bolsa_500g", 0) + costos_empaques.get("etiqueta_500g", 0))
+            elif g == 2500:
+                # 2.5kg: CERO costo de bolsa + etiqueta de 500g
+                costo_empaques_total += cant * costos_empaques.get("etiqueta_500g", 0)
 
         costo_est = round(costo_cafe + costo_empaques_total)
         ganancia = total_venta - costo_est
