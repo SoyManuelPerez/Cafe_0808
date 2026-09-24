@@ -3,7 +3,7 @@ import sys
 from bson import ObjectId
 
 # Ajustar rutas para importar la base de datos de la app
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
@@ -12,10 +12,9 @@ from app.database import get_db
 db = get_db()
 
 def recalcular_todas_las_ventas():
-    print("🚀 Iniciando recalculo masivo de ventas...")
+    print("🚀 Iniciando recálculo masivo de ventas con búsqueda avanzada de costos...")
     
-    # 1. Obtener el resumen actualizado de empaques para sus costos unitarios
-    # Si no hay ventas previas en la función de resumen, asignamos valores por defecto o leemos ajustes
+    # 1. Obtener costos unitarios de empaques
     tipos_emp = ["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
     costos_empaques = {}
     
@@ -24,19 +23,27 @@ def recalcular_todas_las_ventas():
         if ajuste and "costo_unitario" in ajuste:
             costos_empaques[t] = float(ajuste["costo_unitario"])
         else:
-            # Si no hay ajuste manual, calcular promedio desde compras
             compras = list(db.compras_empaques.find({"tipo_empaque": t}))
             cant_total = sum(c.get("cantidad", 0) for c in compras)
             costo_total = sum(c.get("costo_total", 0.0) for c in compras)
             costos_empaques[t] = (costo_total / cant_total) if cant_total > 0 else 0.0
 
-    # 2. Obtener costo promedio por gramo global de respaldo (por si algún producto viejo no tiene costo por libra)
+    # 2. Respaldo de costo promedio global
     compras_cafe = list(db.compras.find())
     total_g_global = sum(c.get("gramos", 0) for c in compras_cafe)
     total_costo_global = sum(c.get("costo_total", 0.0) for c in compras_cafe)
     costo_promedio_gramo_global = (total_costo_global / total_g_global) if total_g_global > 0 else 0.0
 
-    # 3. Obtener todas las ventas registradas
+    # 3. Mapear el mayor costo_por_libra existente para cada nombre de producto
+    productos_db = list(db.productos.find())
+    costo_libra_por_nombre = {}
+    for p in productos_db:
+        nom = p.get("nombre")
+        costo_lib = float(p.get("costo_por_libra", 0.0) or 0.0)
+        if nom:
+            if nom not in costo_libra_por_nombre or costo_lib > costo_libra_por_nombre[nom]:
+                costo_libra_por_nombre[nom] = costo_lib
+
     ventas = list(db.ventas.find())
     print(f"📦 Se encontraron {len(ventas)} ventas para procesar.")
 
@@ -48,10 +55,9 @@ def recalcular_todas_las_ventas():
         tipo_venta = venta.get("tipo_venta", "Normal")
         es_obsequio = (tipo_venta == "Obsequio")
         
-        # Recalcular Total Venta
         total_venta = 0.0 if es_obsequio else sum(item.get("subtotal", 0.0) for item in items)
 
-        # Recalcular Costo de Café específico por producto
+        # Recalcular Costo de Café buscando primero por ID y luego por el mapa de nombres
         costo_cafe = 0.0
         for item in items:
             prod = None
@@ -64,12 +70,12 @@ def recalcular_todas_las_ventas():
                 except Exception:
                     pass
 
-            if not prod and prod_nombre:
-                prod = db.productos.find_one({"nombre": prod_nombre})
+            costo_libra = 0.0
+            if prod and float(prod.get("costo_por_libra", 0.0) or 0.0) > 0:
+                costo_libra = float(prod.get("costo_por_libra"))
+            elif prod_nombre in costo_libra_por_nombre:
+                costo_libra = costo_libra_por_nombre[prod_nombre]
 
-            costo_libra = float(prod.get("costo_por_libra", 0.0)) if (prod and "costo_por_libra" in prod) else 0.0
-            
-            # Si tiene costo por libra asignado usa ese, de lo contrario respalda con el promedio
             costo_gramo_item = (costo_libra / 500.0) if costo_libra > 0 else costo_promedio_gramo_global
             costo_cafe += item.get("gramos_totales", 0) * costo_gramo_item
 
@@ -83,11 +89,9 @@ def recalcular_todas_las_ventas():
             elif g == 500:
                 costo_empaques_total += cant * (costos_empaques.get("bolsa_500g", 0) + costos_empaques.get("etiqueta_500g", 0))
 
-        # Costo Estimado Final y Ganancia
         costo_est = round(costo_cafe + costo_empaques_total)
         ganancia = total_venta - costo_est
 
-        # Actualizar documento en MongoDB
         db.ventas.update_one(
             {"_id": venta_id},
             {"$set": {
