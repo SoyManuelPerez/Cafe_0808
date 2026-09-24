@@ -540,7 +540,22 @@ def registrar_venta(venta: VentaCreate, request: Request):
 
     estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
 
-    costo_cafe = total_gramos * resumen_cafe["costo_promedio_gramo"]
+    # --- CÁLCULO DE COSTO DE CAFÉ CORREGIDO POR PRODUCTO ---
+    costo_cafe = 0.0
+    for item in venta.items:
+        prod = None
+        if item.producto_id:
+            try:
+                prod = db.productos.find_one({"_id": ObjectId(item.producto_id)})
+            except Exception:
+                pass
+        
+        if not prod and item.nombre:
+            prod = db.productos.find_one({"nombre": item.nombre})
+            
+        costo_libra = prod.get("costo_por_libra", 0.0) if prod else 0.0
+        costo_gramo_item = (costo_libra / 500.0) if costo_libra > 0 else resumen_cafe["costo_promedio_gramo"]
+        costo_cafe += item.gramos_totales * costo_gramo_item
     
     costo_empaques_total = 0.0
     for item in venta.items:
