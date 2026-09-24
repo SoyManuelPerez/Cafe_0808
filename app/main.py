@@ -166,10 +166,25 @@ def eliminar_usuario(user_id: str):
 
 @app.post("/api/clientes", status_code=201)
 def crear_cliente(cli: ClienteCreate):
+    celular_clean = cli.celular.strip() if cli.celular else ""
+    
+    # Validar si el número de celular ya está registrado (solo si no está vacío)
+    if celular_clean:
+        cliente_existente = db.clientes.find_one({"celular": celular_clean})
+        if cliente_existente:
+            nombre_existente = cliente_existente.get("nombre", "Desconocido")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"⚠️ El número de teléfono {celular_clean} ya pertenece al cliente: '{nombre_existente}'."
+            )
+
     doc = cli.model_dump() if hasattr(cli, "model_dump") else cli.dict()
+    doc["nombre"] = cli.nombre.strip()
+    doc["celular"] = celular_clean
     doc["creado_en"] = datetime.utcnow()
+    
     res = db.clientes.insert_one(doc)
-    return {"id": str(res.inserted_id)}
+    return {"id": str(res.inserted_id), "nombre": doc["nombre"]}
 
 @app.get("/api/clientes")
 def listar_clientes():
