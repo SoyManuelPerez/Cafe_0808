@@ -424,7 +424,7 @@
             align-items: center;
         }
 
-        .select-with-btn select {
+        .select-with-btn input {
             flex: 1;
             margin: 0;
         }
@@ -495,6 +495,9 @@
 </head>
 <body>
 
+    <!-- DATALIST GLOBAL PARA AUTOCOMPLETAR CLIENTES EN TIEMPO REAL -->
+    <datalist id="lista-clientes-autocompletar"></datalist>
+
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
@@ -520,7 +523,7 @@
         <!-- Elementos Exclusivos para Administrador -->
         <button class="nav-button admin-only" id="btn-nav-parciales" onclick="showSection('parciales-sec', event)">⏳ Ventas Parciales</button>
         <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
-        <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques y etiquetas</button>
+        <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
         <button class="nav-button admin-only" id="btn-nav-inventario" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
         <button class="nav-button admin-only" id="btn-nav-creditos" onclick="showSection('creditos', event)">💳 Créditos</button>
         <button class="nav-button admin-only" id="btn-nav-reportes" onclick="showSection('reportes', event)">📈 Reportes</button>
@@ -595,9 +598,9 @@
                 </div>
 
                 <br>
-                <label>Seleccionar Cliente:</label>
+                <label>Seleccionar o Digitar Cliente:</label>
                 <div class="select-with-btn">
-                    <select id="select-cliente-venta"></select>
+                    <input type="text" id="select-cliente-venta" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." autocomplete="off">
                     <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('venta')" title="Crear Cliente Rápido">
                         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
@@ -634,7 +637,7 @@
             </div>
         </div>
 
-        <!-- MÓDULO PEDIDOS (ANTES COTIZACIONES) -->
+        <!-- MÓDULO PEDIDOS -->
         <div id="pedidos-sec" class="section">
             <h1>📦 Módulo de Pedidos</h1>
 
@@ -690,9 +693,9 @@
                 </div>
 
                 <br>
-                <label>Seleccionar Cliente:</label>
+                <label>Seleccionar o Digitar Cliente:</label>
                 <div class="select-with-btn">
-                    <select id="select-cliente-cot"></select>
+                    <input type="text" id="select-cliente-cot" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." autocomplete="off">
                     <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('cotizacion')" title="Crear Cliente Rápido">
                         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
@@ -840,7 +843,7 @@
         <div id="inventario" class="section admin-only">
             <h1>📊 Productos e Inventario</h1>
 
-            <!-- MÓDULO DE DESCUENTO MANUAL DE INVENTARIO (INTEGRADO) -->
+            <!-- MÓDULO DE DESCUENTO MANUAL DE INVENTARIO -->
             <div class="card">
                 <h3>📉 Descuento Manual de Inventario (Café)</h3>
                 <p style="color: #aaa; font-size: 14px; margin-top:0;">Utilice esta opción para descontar stock por mermas, consumo interno o corrección de datos.</p>
@@ -894,7 +897,6 @@
         <div id="reportes" class="section admin-only">
             <h1>📈 Reportes e Históricos Generales</h1>
             
-            <!-- PRIMERA TABLA: VENTAS -->
             <div class="card">
                 <h3>🛒 Histórico de Ventas</h3>
                 <div class="table-responsive">
@@ -973,7 +975,7 @@
 
     </div>
 
-    <!-- MODAL EDITAR DETALLES DE VENTA (INTEGRADO) -->
+    <!-- MODAL EDITAR DETALLES DE VENTA -->
     <div id="modal-editar-venta" class="modal-overlay">
         <div class="modal-container modal-small" style="padding:20px; height:auto;">
             <div class="modal-header" style="padding:0 0 10px 0;">
@@ -984,7 +986,7 @@
                 <input type="hidden" id="edit-venta-id">
                 
                 <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Cliente:</label>
-                <select id="edit-venta-cliente" style="margin-bottom:15px;"></select>
+                <input type="text" id="edit-venta-cliente" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." style="margin-bottom:15px;" autocomplete="off">
 
                 <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Forma de Pago:</label>
                 <select id="edit-venta-pago" style="margin-bottom:15px;">
@@ -1038,7 +1040,6 @@
         let carritoCotizacion = [];
         let productosCache = [];
         let clientesCache = [];
-        let ventasCache = [];
 
         let urlPdfActual = '';
         let blobPdfActual = null;
@@ -1369,7 +1370,7 @@
                     }).join('');
                 }
 
-                await actualizarSelectsClientes();
+                await actualizarAutocompletarClientes();
                 cargarMisVentas();
             } catch (err) {
                 console.error("Error al cargar ventas:", err);
@@ -1428,7 +1429,7 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO PEDIDOS (NUEVA LÓGICA DE DESPACHO Y CONVERSIÓN A VENTA)
+        // MÓDULO PEDIDOS
         // -------------------------------------------------------------------
         async function cargarCotizacionesData() {
             try {
@@ -1444,7 +1445,7 @@
                     }).join('');
                 }
 
-                await actualizarSelectsClientes();
+                await actualizarAutocompletarClientes();
                 cargarMisCotizaciones();
             } catch (err) {
                 console.error("Error al cargar pedidos:", err);
@@ -1575,11 +1576,11 @@
 
         async function abrirModalEditarVenta(ventaId, clienteActual, tipoPagoActual) {
             document.getElementById('edit-venta-id').value = ventaId;
-            await actualizarSelectsClientes();
+            await actualizarAutocompletarClientes();
             
-            const selectCliente = document.getElementById('edit-venta-cliente');
-            if (selectCliente) {
-                selectCliente.value = clienteActual || 'Cliente General';
+            const inputCliente = document.getElementById('edit-venta-cliente');
+            if (inputCliente) {
+                inputCliente.value = clienteActual || 'Cliente General';
             }
             
             const selectPago = document.getElementById('edit-venta-pago');
@@ -1601,7 +1602,7 @@
             const nuevoTipoPago = document.getElementById('edit-venta-pago').value;
 
             if (!nuevoCliente) {
-                alert("El cliente seleccionado no es válido.");
+                alert("Debe ingresar o seleccionar un cliente válido.");
                 return;
             }
 
@@ -1788,10 +1789,13 @@
         async function procesarVenta() {
             if (carrito.length === 0) return alert('El carrito está vacío');
 
+            const clienteInput = document.getElementById('select-cliente-venta').value.trim();
+            const clienteFinal = clienteInput || 'Cliente General';
+
             const tipoVenta = document.getElementById('tipo-venta').value;
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
-                cliente: document.getElementById('select-cliente-venta').value,
+                cliente: clienteFinal,
                 vendedor: usuarioActual,
                 tipo_pago: tipoVenta === 'Obsequio' ? 'N/A' : document.getElementById('pago-venta').value,
                 tipo_venta: tipoVenta,
@@ -1823,9 +1827,12 @@
         async function procesarCotizacion() {
             if (carritoCotizacion.length === 0) return alert('El carrito de pedidos está vacío');
 
+            const clienteInput = document.getElementById('select-cliente-cot').value.trim();
+            const clienteFinal = clienteInput || 'Cliente General';
+
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
-                cliente: document.getElementById('select-cliente-cot').value,
+                cliente: clienteFinal,
                 vendedor: usuarioActual,
                 tipo_pago: document.getElementById('pago-cot').value,
                 items: carritoCotizacion
@@ -1957,32 +1964,34 @@
             }
         }
 
-        async function actualizarSelectsClientes(clienteSeleccionar = null) {
+        // POBLA EL DATALIST PARA BÚSQUEDA Y AUTOCOMPLETADO EN TIEMPO REAL
+        async function actualizarAutocompletarClientes(clienteSeleccionar = null) {
             try {
                 const res = await fetch('/api/clientes');
                 clientesCache = await res.json();
 
                 const list = Array.isArray(clientesCache) ? clientesCache : [];
-                const optionsCli = '<option value="Cliente General">Cliente General</option>' +
-                    list.map(c => `<option value="${c.nombre}">${c.nombre} (${c.celular || 'Sin Celular'})</option>`).join('');
-
-                const selectVenta = document.getElementById('select-cliente-venta');
-                const selectCot = document.getElementById('select-cliente-cot');
-                const selectEdit = document.getElementById('edit-venta-cliente');
-
-                if (selectVenta) selectVenta.innerHTML = optionsCli;
-                if (selectCot) selectCot.innerHTML = optionsCli;
-                if (selectEdit) selectEdit.innerHTML = optionsCli;
+                const datalist = document.getElementById('lista-clientes-autocompletar');
+                
+                if (datalist) {
+                    datalist.innerHTML = '<option value="Cliente General">Cliente General</option>' +
+                        list.map(c => {
+                            const celTxt = c.celular ? ` - 📱 ${c.celular}` : '';
+                            return `<option value="${c.nombre}">${c.nombre}${celTxt}</option>`;
+                        }).join('');
+                }
 
                 if (clienteSeleccionar) {
-                    if (origenModalCliente === 'venta' && selectVenta) {
-                        selectVenta.value = clienteSeleccionar;
-                    } else if (origenModalCliente === 'cotizacion' && selectCot) {
-                        selectCot.value = clienteSeleccionar;
+                    if (origenModalCliente === 'venta') {
+                        const inputVenta = document.getElementById('select-cliente-venta');
+                        if (inputVenta) inputVenta.value = clienteSeleccionar;
+                    } else if (origenModalCliente === 'cotizacion') {
+                        const inputCot = document.getElementById('select-cliente-cot');
+                        if (inputCot) inputCot.value = clienteSeleccionar;
                     }
                 }
             } catch (err) {
-                console.error("Error actualizando selects de clientes:", err);
+                console.error("Error actualizando autocompletado de clientes:", err);
             }
         }
 
@@ -2002,18 +2011,24 @@
             const nombre = document.getElementById('modal-cli-nombre').value;
             const celular = document.getElementById('modal-cli-celular').value;
 
-            const res = await fetch('/api/clientes', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ nombre, celular })
-            });
+            try {
+                const res = await fetch('/api/clientes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nombre, celular })
+                });
 
-            if (res.ok) {
-                cerrarModalNuevoCliente();
-                await actualizarSelectsClientes(nombre);
-                alert(`Cliente "${nombre}" registrado y seleccionado con éxito.`);
-            } else {
-                alert('Error al registrar el cliente');
+                if (res.ok) {
+                    cerrarModalNuevoCliente();
+                    await actualizarAutocompletarClientes(nombre);
+                    alert(`✅ Cliente "${nombre}" registrado y seleccionado con éxito.`);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al registrar el cliente');
+                }
+            } catch (err) {
+                console.error("Error guardando cliente modal:", err);
+                alert("Error de conexión al guardar cliente.");
             }
         }
 
@@ -2022,16 +2037,25 @@
             const nombre = document.getElementById('cli-nombre').value;
             const celular = document.getElementById('cli-celular').value;
 
-            const res = await fetch('/api/clientes', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ nombre, celular })
-            });
+            try {
+                const res = await fetch('/api/clientes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nombre, celular })
+                });
 
-            if (res.ok) {
-                alert('Cliente guardado con éxito');
-                document.getElementById('form-cliente').reset();
-                cargarClientes();
+                if (res.ok) {
+                    alert('✅ Cliente guardado con éxito');
+                    document.getElementById('form-cliente').reset();
+                    cargarClientes();
+                    actualizarAutocompletarClientes();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al guardar cliente');
+                }
+            } catch (err) {
+                console.error("Error guardando cliente:", err);
+                alert("Error de conexión al guardar cliente.");
             }
         }
 
@@ -2050,6 +2074,7 @@
             if (res.ok) {
                 alert('Cliente actualizado con éxito');
                 cargarClientes();
+                actualizarAutocompletarClientes();
             }
         }
 
@@ -2059,6 +2084,7 @@
                 if (res.ok) {
                     alert('Cliente eliminado');
                     cargarClientes();
+                    actualizarAutocompletarClientes();
                 }
             }
         }
@@ -2317,7 +2343,6 @@
             cargarOpcionesDescuento();
         }
 
-        // --- MÓDULO DE CRÉDITO MODIFICADO ---
         async function cargarCreditos() {
             try {
                 const res = await fetch('/api/ventas');
@@ -2386,7 +2411,6 @@
         // MÓDULO REPORTES GENERALES
         // -------------------------------------------------------------------
         async function cargarReportes() {
-            // 1. Reporte Historico de Ventas (PRIMERA TABLA)
             try {
                 const resVentas = await fetch('/api/ventas');
                 if (!resVentas.ok) throw new Error(`HTTP Error status: ${resVentas.status}`);
@@ -2453,7 +2477,6 @@
                 if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#ff6b6b;">Error al cargar ventas (${err.message})</td></tr>`;
             }
 
-            // 2. Reporte Compras Café
             try {
                 const resCompras = await fetch('/api/compras');
                 const compras = await resCompras.json();
@@ -2492,7 +2515,6 @@
                 console.error("Error reporte compras:", err);
             }
 
-            // 3. Reporte Empaques
             try {
                 const resEmpaques = await fetch('/api/compras-empaques');
                 const empaquesList = await resEmpaques.json();
@@ -2538,7 +2560,6 @@
                 console.error("Error reporte empaques:", err);
             }
 
-            // 4. Reporte Historico de Pedidos
             try {
                 const resCot = await fetch('/api/cotizaciones');
                 const cotizaciones = await resCot.json();
