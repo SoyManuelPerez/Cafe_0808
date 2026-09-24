@@ -239,12 +239,13 @@ def resumen_empaques():
             elif gramaje == 500:
                 usados["bolsa_500g"] += cant
                 usados["etiqueta_500g"] += cant
+            elif gramaje == 2500:
+                usados["etiqueta_500g"] += cant  # Presentación 2.5kg usa etiqueta de 500g
 
     resumen = {}
     for t in tipos:
         compra_info = dict_compras.get(t, {"total_cant": 0, "total_costo": 0.0})
         total_cant = compra_info["total_cant"]
-        total_costo = compra_info["total_costo"]
         cant_usada = usados.get(t, 0)
         
         ajuste = db.ajustes_empaques.find_one({"tipo_empaque": t})
@@ -253,7 +254,12 @@ def resumen_empaques():
             costo_unitario = ajuste.get("costo_unitario", 0.0)
         else:
             disponibles = max(0, total_cant - cant_usada)
-            costo_unitario = (total_costo / total_cant) if total_cant > 0 else 0.0
+            # TOMA EL COSTO UNITARIO DE LA ÚLTIMA COMPRA REALIZADA
+            ultima_compra = db.compras_empaques.find_one(
+                {"tipo_empaque": t},
+                sort=[("fecha", -1), ("_id", -1)]
+            )
+            costo_unitario = float(ultima_compra.get("costo_unitario", 0.0)) if ultima_compra else 0.0
 
         resumen[t] = {
             "comprados": total_cant,
@@ -532,6 +538,8 @@ def registrar_venta(venta: VentaCreate, request: Request):
         elif g == 500:
             req_empaques["bolsa_500g"] += cant
             req_empaques["etiqueta_500g"] += cant
+        elif g == 2500:
+            req_empaques["etiqueta_500g"] += cant  # Presentación 2.5kg usa etiqueta de 500g
 
     for k, v_req in req_empaques.items():
         if v_req > resumen_emp[k]["disponibles"]:
@@ -540,7 +548,7 @@ def registrar_venta(venta: VentaCreate, request: Request):
 
     estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
 
-    # --- CÁLCULO DE COSTO DE CAFÉ CORREGIDO POR PRODUCTO ---
+    # --- CÁLCULO DE COSTO DE CAFÉ ---
     costo_cafe = 0.0
     for item in venta.items:
         prod = None
@@ -557,6 +565,7 @@ def registrar_venta(venta: VentaCreate, request: Request):
         costo_gramo_item = (costo_libra / 500.0) if costo_libra > 0 else resumen_cafe["costo_promedio_gramo"]
         costo_cafe += item.gramos_totales * costo_gramo_item
     
+    # --- CÁLCULO DE COSTO DE EMPAQUES AJUSTADO ---
     costo_empaques_total = 0.0
     for item in venta.items:
         cant = item.cantidad
@@ -565,6 +574,9 @@ def registrar_venta(venta: VentaCreate, request: Request):
             costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
         elif g == 500:
             costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
+        elif g == 2500:
+            # Presentación de 2500g: CERO bolsa, solo etiqueta de 500g
+            costo_empaques_total += cant * resumen_emp["etiqueta_500g"]["costo_unitario"]
 
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo = obtener_siguiente_consecutivo("factura_num")
@@ -649,6 +661,8 @@ def completar_despacho_venta(venta_id: str):
             req_empaques["etiqueta_250g"] += cant
         elif g == 500:
             req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+        elif g == 2500:
             req_empaques["etiqueta_500g"] += cant
 
     for k, v_req in req_empaques.items():
