@@ -6,17 +6,7 @@ from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
@@ -30,6 +20,14 @@ from app.models import (
 from app.pdf_generator import generar_factura_pdf
 
 app = FastAPI(title="0808 Café de Especialidad")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -250,7 +248,7 @@ def resumen_empaques():
                 usados["bolsa_500g"] += cant
                 usados["etiqueta_500g"] += cant
             elif gramaje == 2500:
-                usados["etiqueta_500g"] += cant  # Presentación 2.5kg usa etiqueta de 500g
+                usados["etiqueta_500g"] += cant
 
     resumen = {}
     for t in tipos:
@@ -264,7 +262,6 @@ def resumen_empaques():
             costo_unitario = ajuste.get("costo_unitario", 0.0)
         else:
             disponibles = max(0, total_cant - cant_usada)
-            # TOMA EL COSTO UNITARIO DE LA ÚLTIMA COMPRA REALIZADA
             ultima_compra = db.compras_empaques.find_one(
                 {"tipo_empaque": t},
                 sort=[("fecha", -1), ("_id", -1)]
@@ -478,46 +475,6 @@ def descontar_stock_manual(data: dict):
     return {"mensaje": f"Se descontaron {libras_a_descontar} lbs de {nombre_producto} del inventario."}
 
 # ==========================================
-# ENDPOINTS ENVÍOS CONSOLIDADOS
-# ==========================================
-
-@app.get("/api/envios")
-def listar_envios():
-    envios = list(db.envios.find().sort("fecha", -1))
-    return [fix_id(e) for e in envios]
-
-@app.post("/api/envios", status_code=201)
-def crear_envio(data: dict):
-    doc = {
-        "fecha": data.get("fecha"),
-        "nota": data.get("nota"),
-        "valor_envio": float(data.get("valor_envio", 0.0)),
-        "items": data.get("items", []),
-        "facturas_ids": [],
-        "creado_en": datetime.utcnow()
-    }
-    res = db.envios.insert_one(doc)
-    return {"id": str(res.inserted_id), "mensaje": "Envío registrado"}
-
-@app.put("/api/envios/{envio_id}/asociar-facturas")
-def asociar_facturas_envio(envio_id: str, data: dict):
-    facturas_ids = data.get("facturas_ids", [])
-    res = db.envios.update_one(
-        {"_id": ObjectId(envio_id)},
-        {"$set": {"facturas_ids": facturas_ids}}
-    )
-    if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Envío no encontrado")
-    return {"mensaje": "Facturas asociadas correctamente"}
-
-@app.delete("/api/envios/{envio_id}")
-def eliminar_envio(envio_id: str):
-    res = db.envios.delete_one({"_id": ObjectId(envio_id)})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Envío no encontrado")
-    return {"mensaje": "Envío eliminado"}
-
-# ==========================================
 # ENDPOINTS VENTAS Y VENTAS PARCIALES
 # ==========================================
 
@@ -549,7 +506,7 @@ def registrar_venta(venta: VentaCreate, request: Request):
             req_empaques["bolsa_500g"] += cant
             req_empaques["etiqueta_500g"] += cant
         elif g == 2500:
-            req_empaques["etiqueta_500g"] += cant  # Presentación 2.5kg usa etiqueta de 500g
+            req_empaques["etiqueta_500g"] += cant
 
     for k, v_req in req_empaques.items():
         if v_req > resumen_emp[k]["disponibles"]:
@@ -585,7 +542,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
         elif g == 500:
             costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
         elif g == 2500:
-            # Presentación de 2500g: CERO bolsa, solo etiqueta de 500g
             costo_empaques_total += cant * resumen_emp["etiqueta_500g"]["costo_unitario"]
 
     costo_est = round(costo_cafe + costo_empaques_total)
@@ -617,30 +573,16 @@ def registrar_venta(venta: VentaCreate, request: Request):
 @app.get("/api/ventas")
 def listar_ventas():
     ventas = list(db.ventas.find().sort("fecha", -1))
-    envios = list(db.envios.find())
-
-    fletes_por_factura = {}
-    for env in envios:
-        facturas = env.get("facturas_ids", [])
-        num_facturas = len(facturas)
-        if num_facturas > 0:
-            flete_unitario = env.get("valor_envio", 0.0) / num_facturas
-            for f_id in facturas:
-                fletes_por_factura[str(f_id)] = fletes_por_factura.get(str(f_id), 0.0) + flete_unitario
-
     ventas_formateadas = []
+    
     for v in ventas:
         v_clean = fix_id(v)
-        v_id = str(v_clean.get("id", ""))
         
         if v_clean.get("tipo_pago") == "Efectivo":
             v_clean["tipo_pago"] = "Contado"
 
-        flete_aplicado = fletes_por_factura.get(v_id, 0.0)
-        v_clean["costo_envio_asociado"] = flete_aplicado
-        
-        ganancia_base = float(v_clean.get("ganancia", 0.0))
-        v_clean["ganancia"] = ganancia_base - flete_aplicado
+        v_clean["costo_envio_asociado"] = 0.0
+        v_clean["ganancia"] = float(v_clean.get("ganancia", 0.0))
         
         ventas_formateadas.append(v_clean)
 
@@ -752,7 +694,7 @@ def editar_detalles_venta(venta_id: str, data: dict):
     return {"mensaje": "Venta actualizada correctamente"}
 
 # ==========================================
-# ENDPOINTS COTIZACIONES
+# ENDPOINTS PEDIDOS (ANTES COTIZACIONES)
 # ==========================================
 
 @app.post("/api/cotizaciones", status_code=201)
@@ -789,11 +731,113 @@ def listar_cotizaciones():
         cotizaciones_clean.append(c_item)
     return cotizaciones_clean
 
+@app.post("/api/cotizaciones/{cotizacion_id}/despachar")
+def despachar_pedido(cotizacion_id: str, request: Request):
+    pedido = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    resumen_cafe = resumen_inventario()
+    resumen_emp = resumen_empaques()
+
+    items = pedido.get("items", [])
+    total_gramos = sum(i.get("gramos_totales", 0) for i in items)
+    
+    stock_insuficiente = False
+    motivo_faltante = {}
+
+    if total_gramos > resumen_cafe["inventario_disponible_g"]:
+        stock_insuficiente = True
+        motivo_faltante["cafe_g"] = total_gramos - resumen_cafe["inventario_disponible_g"]
+
+    req_empaques = {"bolsa_250g": 0, "bolsa_500g": 0, "etiqueta_250g": 0, "etiqueta_500g": 0}
+    for item in items:
+        cant = item.get("cantidad", 0)
+        g = item.get("gramaje", 0)
+        if g == 250:
+            req_empaques["bolsa_250g"] += cant
+            req_empaques["etiqueta_250g"] += cant
+        elif g == 500:
+            req_empaques["bolsa_500g"] += cant
+            req_empaques["etiqueta_500g"] += cant
+        elif g == 2500:
+            req_empaques["etiqueta_500g"] += cant
+
+    for k, v_req in req_empaques.items():
+        if v_req > resumen_emp[k]["disponibles"]:
+            stock_insuficiente = True
+            motivo_faltante[k] = v_req - resumen_emp[k]["disponibles"]
+
+    estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
+
+    costo_cafe = 0.0
+    for item in items:
+        prod = None
+        p_id = item.get("producto_id")
+        if p_id:
+            try:
+                prod = db.productos.find_one({"_id": ObjectId(p_id)})
+            except Exception:
+                pass
+        if not prod and item.get("nombre"):
+            prod = db.productos.find_one({"nombre": item.get("nombre")})
+            
+        costo_libra = prod.get("costo_por_libra", 0.0) if prod else 0.0
+        costo_gramo_item = (costo_libra / 500.0) if costo_libra > 0 else resumen_cafe["costo_promedio_gramo"]
+        costo_cafe += item.get("gramos_totales", 0) * costo_gramo_item
+
+    costo_empaques_total = 0.0
+    for item in items:
+        cant = item.get("cantidad", 0)
+        g = item.get("gramaje", 0)
+        if g == 250:
+            costo_empaques_total += cant * (resumen_emp["bolsa_250g"]["costo_unitario"] + resumen_emp["etiqueta_250g"]["costo_unitario"])
+        elif g == 500:
+            costo_empaques_total += cant * (resumen_emp["bolsa_500g"]["costo_unitario"] + resumen_emp["etiqueta_500g"]["costo_unitario"])
+        elif g == 2500:
+            costo_empaques_total += cant * resumen_emp["etiqueta_500g"]["costo_unitario"]
+
+    costo_est = round(costo_cafe + costo_empaques_total)
+    consecutivo_venta = obtener_siguiente_consecutivo("factura_num")
+
+    tipo_pago = pedido.get("tipo_pago", "Contado")
+    if tipo_pago == "Efectivo":
+        tipo_pago = "Contado"
+
+    total_venta = float(pedido.get("total_venta", 0.0))
+
+    doc_venta = {
+        "consecutivo_str": consecutivo_venta,
+        "fecha": datetime.utcnow().strftime("%Y-%m-%d"),
+        "cliente": pedido.get("cliente", "Cliente General"),
+        "vendedor": pedido.get("vendedor", "admin"),
+        "tipo_pago": tipo_pago,
+        "tipo_venta": "Normal",
+        "estado_despacho": estado_despacho,
+        "faltantes": motivo_faltante if stock_insuficiente else {},
+        "estado_credito": "Pendiente" if tipo_pago == "Crédito" else "N/A",
+        "total_venta": total_venta,
+        "costo_estimado": costo_est,
+        "ganancia": total_venta - costo_est,
+        "items": items,
+        "creado_en": datetime.utcnow()
+    }
+
+    res_venta = db.ventas.insert_one(doc_venta)
+    db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
+
+    return {
+        "id_venta": str(res_venta.inserted_id),
+        "consecutivo": consecutivo_venta,
+        "estado_despacho": estado_despacho,
+        "mensaje": "Pedido despachado y convertido a venta exitosamente"
+    }
+
 @app.get("/api/cotizaciones/{cotizacion_id}/pdf")
 def descargar_cotizacion_pdf(cotizacion_id: str):
     cotizacion = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
     if not cotizacion:
-        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
     pdf_bytes = generar_factura_pdf(cotizacion, cotizacion["items"], es_cotizacion=True)
     num_cot = cotizacion.get("consecutivo_str", str(cotizacion_id)[:8])
@@ -801,7 +845,7 @@ def descargar_cotizacion_pdf(cotizacion_id: str):
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"inline; filename=Cotizacion_{num_cot}.pdf"
+            "Content-Disposition": f"inline; filename=Pedido_{num_cot}.pdf"
         }
     )
 
@@ -809,5 +853,5 @@ def descargar_cotizacion_pdf(cotizacion_id: str):
 def eliminar_cotizacion(cotizacion_id: str):
     res = db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
     if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Cotización no encontrada")
-    return {"mensaje": "Cotización eliminada correctamente"}
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    return {"mensaje": "Pedido eliminado correctamente"}
