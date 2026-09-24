@@ -514,11 +514,10 @@
         <div class="user-badge" id="lbl-user-info">👤 Carga...</div>
 
         <button class="nav-button active" id="btn-nav-ventas" onclick="showSection('ventas', event)">🛒 Ventas</button>
-        <button class="nav-button" id="btn-nav-cotizaciones" onclick="showSection('cotizaciones', event)">📑 Cotizaciones</button>
+        <button class="nav-button" id="btn-nav-pedidos" onclick="showSection('pedidos-sec', event)">📦 Pedidos</button>
         <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
         
         <!-- Elementos Exclusivos para Administrador -->
-        <button class="nav-button admin-only" id="btn-nav-envios" onclick="showSection('envios-sec', event)">🚛 Envíos Consolidados</button>
         <button class="nav-button admin-only" id="btn-nav-parciales" onclick="showSection('parciales-sec', event)">⏳ Ventas Parciales</button>
         <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
         <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques</button>
@@ -635,12 +634,12 @@
             </div>
         </div>
 
-        <!-- MÓDULO COTIZACIONES -->
-        <div id="cotizaciones" class="section">
-            <h1>📑 Módulo de Cotizaciones</h1>
+        <!-- MÓDULO PEDIDOS (ANTES COTIZACIONES) -->
+        <div id="pedidos-sec" class="section">
+            <h1>📦 Módulo de Pedidos</h1>
 
             <div class="card">
-                <h3>Agregar Producto a la Cotización</h3>
+                <h3>Agregar Producto al Pedido</h3>
                 <label>Producto:</label>
                 <select id="select-producto-cot"></select>
                 
@@ -664,13 +663,13 @@
 
                 <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('cotizacion')">
                     <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    Agregar a Cotización
+                    Agregar al Pedido
                 </button>
             </div>
 
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>📑 Carrito de Cotización</h3>
+                    <h3>📦 Carrito de Pedido</h3>
                     <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">
                         <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         Vaciar Carrito
@@ -687,7 +686,7 @@
                 </div>
 
                 <div style="margin-top: 15px; text-align: right; font-size: 20px; color: var(--gold-bright);">
-                    Total Cotización: <strong id="total-carrito-txt-cot">$0</strong>
+                    Total Pedido: <strong id="total-carrito-txt-cot">$0</strong>
                 </div>
 
                 <br>
@@ -706,16 +705,16 @@
                     <option value="Transferencia">Transferencia</option>
                 </select>
 
-                <button class="btn-gold" style="margin-top:15px;" onclick="procesarCotizacion()">📄 Generar Cotización</button>
+                <button class="btn-gold" style="margin-top:15px;" onclick="procesarCotizacion()">📦 Registrar Pedido</button>
             </div>
 
-            <!-- HISTÓRICO INTEGRADO PARA COTIZACIONES -->
+            <!-- TABLA PRINCIPAL DE PEDIDOS -->
             <div class="card" id="card-mis-cotizaciones">
-                <h3>📋 Mi Histórico de Cotizaciones</h3>
+                <h3>📋 Lista de Pedidos Registrados</h3>
                 <div class="table-responsive">
                     <table id="tabla-mis-cotizaciones">
                         <thead>
-                            <tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Acción</th></tr>
+                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Pedido</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -741,60 +740,6 @@
                     <table id="tabla-clientes">
                         <thead>
                             <tr><th>Nombre</th><th>Celular</th><th>Acciones</th></tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- MÓDULO ENVÍOS CONSOLIDADOS (EXCLUSIVO ADMIN) -->
-        <div id="envios-sec" class="section admin-only">
-            <h1>🚛 Envíos Consolidados a Vendedores</h1>
-
-            <div class="card">
-                <h3>Registrar Nuevo Envío de Mercancía</h3>
-                <form id="form-envio" onsubmit="guardarEnvioConsolidado(event)">
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <div style="flex: 1; min-width: 150px;">
-                            <label>Fecha de Envío:</label>
-                            <input type="date" id="envio-fecha" required>
-                        </div>
-                        <div style="flex: 1; min-width: 200px;">
-                            <label>Valor del Envío / Flete (COP):</label>
-                            <input type="number" id="envio-costo" placeholder="Costo del transporte" required min="0">
-                        </div>
-                    </div>
-
-                    <label style="margin-top: 10px; display: block;">Nota / Vendedor Destino:</label>
-                    <input type="text" id="envio-nota" placeholder="Ej. Despacho lote 15 a Vendedor Bogotá" required>
-
-                    <h4 style="color: var(--gold-primary); margin-top: 15px;">Agregar Productos al Envío:</h4>
-                    <div style="display: flex; gap: 10px;">
-                        <select id="select-prod-envio" style="flex: 2;"></select>
-                        <input type="number" id="cant-prod-envio" value="1" min="1" style="flex: 1;" placeholder="Cantidad">
-                        <button type="button" class="btn-gold" style="width: auto; padding: 0 15px;" onclick="agregarProductoAEnvio()">➕ Añadir</button>
-                    </div>
-
-                    <div class="table-responsive" style="margin-top: 10px;">
-                        <table id="tabla-items-envio">
-                            <thead>
-                                <tr><th>Producto</th><th>Gramaje</th><th>Cantidad</th><th>Acción</th></tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-
-                    <button type="submit" class="btn-gold" style="margin-top:15px;">💾 Registrar Envío Consolidado</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h3>📋 Histórico de Envíos y Facturas Asociadas</h3>
-                <div class="table-responsive">
-                    <table id="tabla-historico-envios">
-                        <thead>
-                            <tr><th>Fecha</th><th>Nota / Destino</th><th>Costo Flete</th><th>Items Enviados</th><th>Facturas Vinculadas</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -949,6 +894,17 @@
         <div id="reportes" class="section admin-only">
             <h1>📈 Reportes e Históricos Generales</h1>
             
+            <!-- PRIMERA TABLA: VENTAS -->
+            <div class="card">
+                <h3>🛒 Histórico de Ventas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reportes">
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia Neta</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>📦 Histórico de Compras de Materia Prima (Café)</h3>
                 <div class="table-responsive">
@@ -974,20 +930,10 @@
             </div>
 
             <div class="card">
-                <h3>🛒 Histórico de Ventas</h3>
-                <div class="table-responsive">
-                    <table id="tabla-reportes">
-                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia Neta</th><th>Vista Previa</th><th>Acción</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>📑 Histórico de Cotizaciones</h3>
+                <h3>📦 Histórico de Pedidos</h3>
                 <div class="table-responsive">
                     <table id="tabla-reporte-cotizaciones">
-                        <thead><tr><th>Cotización N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago Propuesto</th><th>Total Cotizado</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago Propuesto</th><th>Total Pedido</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -1005,7 +951,7 @@
                     <input type="password" id="usr-password" placeholder="Contraseña" required>
                     <label style="margin-top:5px; display:block;">Rol de Acceso:</label>
                     <select id="usr-rol" required>
-                        <option value="ventas">Ventas (Solo ventas/cotizaciones/clientes)</option>
+                        <option value="ventas">Ventas (Solo ventas/pedidos/clientes)</option>
                         <option value="admin">Administrador (Acceso Total)</option>
                     </select>
                     <button type="submit" class="btn-gold" style="margin-top:10px;">💾 Crear Usuario</button>
@@ -1038,7 +984,6 @@
                 <input type="hidden" id="edit-venta-id">
                 
                 <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Cliente:</label>
-                <!-- SELECT DESPLEGABLE DINÁMICO INTEGRADO -->
                 <select id="edit-venta-cliente" style="margin-bottom:15px;"></select>
 
                 <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Forma de Pago:</label>
@@ -1048,21 +993,6 @@
                 </select>
 
                 <button class="btn-gold" style="padding:10px; margin-top:10px;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL VINCULAR FACTURAS A ENVÍO -->
-    <div id="modal-vincular-facturas" class="modal-overlay">
-        <div class="modal-container modal-small">
-            <div class="modal-header">
-                <h3 style="margin:0; color:var(--gold-bright);">🔗 Vincular Facturas al Envío</h3>
-                <button onclick="cerrarModalVincularFacturas()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
-            </div>
-            <div class="modal-body" style="align-items: flex-start;">
-                <p style="color:#aaa; font-size:13px; margin-top:0;">Selecciona las ventas pertenecientes a este envío. El costo del flete se dividirá en partes iguales entre ellas.</p>
-                <div id="lista-facturas-vincular" style="width:100%; max-height:300px; overflow-y:auto; border:1px solid var(--border-color); padding:10px; border-radius:6px; box-sizing:border-box;"></div>
-                <button class="btn-gold" style="margin-top:20px; width:100%;" onclick="guardarVinculacionFacturas()">💾 Guardar Vinculación</button>
             </div>
         </div>
     </div>
@@ -1106,13 +1036,9 @@
     <script>
         let carrito = [];
         let carritoCotizacion = [];
-        let itemsEnvioConsolidado = [];
         let productosCache = [];
-        let productosEnvioCache = [];
-        let productosUnicos = [];
         let clientesCache = [];
         let ventasCache = [];
-        let envioSeleccionadoId = null;
 
         let urlPdfActual = '';
         let blobPdfActual = null;
@@ -1385,9 +1311,8 @@
             }
 
             if(id === 'ventas') cargarVentasData();
-            if(id === 'cotizaciones') cargarCotizacionesData();
+            if(id === 'pedidos-sec') cargarCotizacionesData();
             if(id === 'clientes') cargarClientes();
-            if(id === 'envios-sec') cargarModuloEnvios();
             if(id === 'parciales-sec') cargarVentasParciales();
             if(id === 'compras') cargarModuloCompras();
             if(id === 'empaques') cargarModuloEmpaques();
@@ -1503,7 +1428,7 @@
         }
 
         // -------------------------------------------------------------------
-        // MÓDULO COTIZACIONES & HISTÓRICO DE COTIZACIONES
+        // MÓDULO PEDIDOS (NUEVA LÓGICA DE DESPACHO Y CONVERSIÓN A VENTA)
         // -------------------------------------------------------------------
         async function cargarCotizacionesData() {
             try {
@@ -1522,7 +1447,7 @@
                 await actualizarSelectsClientes();
                 cargarMisCotizaciones();
             } catch (err) {
-                console.error("Error al cargar cotizaciones:", err);
+                console.error("Error al cargar pedidos:", err);
             }
         }
 
@@ -1546,219 +1471,53 @@
                                 <td>${c.cliente || ''}</td>
                                 <td>${c.tipo_pago || 'N/A'}</td>
                                 <td>${fmtCOP(c.total_venta)}</td>
-                                <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                                <td>
+                                    <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="despacharPedido('${idVal}')">🚀 Despachar Pedido</button>
+                                    <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Pedido N° ${numCot}', 'Pedido_${numCot}.pdf')">👁️ Ver</button>
+                                    <button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="eliminarPedidoSinAfectarVentas('${idVal}')">❌ Eliminar</button>
+                                </td>
                             </tr>
                         `;
                     } catch (errRow) {
-                        console.error("Error renderizando fila de cotización:", errRow, c);
+                        console.error("Error renderizando fila de pedido:", errRow, c);
                         return '';
                     }
                 });
             } catch (err) {
-                console.error("Error cargando histórico de cotizaciones:", err);
+                console.error("Error cargando lista de pedidos:", err);
             }
         }
 
-        // -------------------------------------------------------------------
-        // MÓDULO DE ENVÍOS CONSOLIDADOS
-        // -------------------------------------------------------------------
-        async function cargarModuloEnvios() {
+        async function despacharPedido(pedidoId) {
+            if (!confirm('¿Deseas despachar este pedido? Al hacerlo pasará al módulo de ventas.')) return;
             try {
-                const resProds = await fetch('/api/productos');
-                productosEnvioCache = await resProds.json();
-                ordenarProductosArray(productosEnvioCache);
-
-                const selectEnvio = document.getElementById('select-prod-envio');
-                if (selectEnvio) {
-                    selectEnvio.innerHTML = productosEnvioCache.map((p, idx) => {
-                        return `<option value="${idx}">${p.nombre} (${p.gramaje || 0}g) - ${fmtCOP(p.precio_venta)}</option>`;
-                    }).join('');
+                const res = await fetch(`/api/cotizaciones/${pedidoId}/despachar`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.estado_despacho === 'Pendiente') {
+                        alert('⚠️ Advertencia: No hay suficiente stock/materia prima. El pedido se despachó y pasó a Venta Parcial (Pendiente).');
+                    } else {
+                        alert('🚀 ¡Pedido despachado con éxito y registrado como Venta!');
+                    }
+                    cargarMisCotizaciones();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Error al despachar el pedido.');
                 }
-
-                document.getElementById('envio-fecha').value = new Date().toISOString().split('T')[0];
-                renderItemsEnvio();
-                cargarHistoricoEnvios();
-            } catch (err) {
-                console.error("Error cargando productos en envíos:", err);
+            } catch (e) {
+                console.error("Error al despachar pedido:", e);
+                alert("Error de conexión al procesar el despacho.");
             }
         }
 
-        async function agregarProductoAEnvio() {
-            const selectEnvio = document.getElementById('select-prod-envio');
-            const idxSeleccionado = parseInt(selectEnvio.value);
-
-            if (isNaN(idxSeleccionado) || !productosEnvioCache || !productosEnvioCache[idxSeleccionado]) {
-                const resProds = await fetch('/api/productos');
-                productosEnvioCache = await resProds.json();
-                ordenarProductosArray(productosEnvioCache);
-            }
-
-            const prod = productosEnvioCache[idxSeleccionado];
-
-            if (!prod) {
-                alert("Por favor selecciona un producto válido.");
-                return;
-            }
-
-            const cant = parseInt(document.getElementById('cant-prod-envio').value) || 1;
-            const prodIdFinal = prod.id || prod._id || prod.nombre;
-            const gramajeFinal = prod.gramaje || 0;
-
-            const idxExistente = itemsEnvioConsolidado.findIndex(i => 
-                i.nombre === prod.nombre && Number(i.gramaje) === Number(gramajeFinal)
-            );
-
-            if (idxExistente !== -1) {
-                itemsEnvioConsolidado[idxExistente].cantidad += cant;
-            } else {
-                itemsEnvioConsolidado.push({
-                    producto_id: prodIdFinal,
-                    nombre: prod.nombre,
-                    gramaje: gramajeFinal,
-                    cantidad: cant
-                });
-            }
-
-            document.getElementById('cant-prod-envio').value = 1;
-            renderItemsEnvio();
-        }
-
-        function quitarProductoEnvio(idx) {
-            itemsEnvioConsolidado.splice(idx, 1);
-            renderItemsEnvio();
-        }
-
-        function renderItemsEnvio() {
-            const tbody = document.querySelector('#tabla-items-envio tbody');
-            if (tbody) {
-                tbody.innerHTML = itemsEnvioConsolidado.map((i, idx) => `
-                    <tr>
-                        <td>${i.nombre}</td>
-                        <td>${i.gramaje}g</td>
-                        <td>${i.cantidad}</td>
-                        <td><button type="button" class="btn-danger" style="padding:2px 8px;" onclick="quitarProductoEnvio(${idx})">❌</button></td>
-                    </tr>
-                `).join('');
-            }
-        }
-
-        async function guardarEnvioConsolidado(e) {
-            e.preventDefault();
-            if (itemsEnvioConsolidado.length === 0) return alert('Debes agregar al menos un producto al envío');
-
-            const payload = {
-                fecha: document.getElementById('envio-fecha').value,
-                valor_envio: parseFloat(document.getElementById('envio-costo').value) || 0,
-                nota: document.getElementById('envio-nota').value,
-                items: itemsEnvioConsolidado
-            };
-
-            const res = await fetch('/api/envios', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert('Envío consolidado registrado con éxito');
-                document.getElementById('form-envio').reset();
-                itemsEnvioConsolidado = [];
-                renderItemsEnvio();
-                cargarHistoricoEnvios();
-            } else {
-                alert('Error al registrar el envío');
-            }
-        }
-
-        async function cargarHistoricoEnvios() {
-            try {
-                const resEnv = await fetch('/api/envios');
-                const envios = await resEnv.json();
-
-                renderTablaPaginada('tabla-historico-envios', envios, e => {
-                    const itemsSummary = (e?.items || []).map(i => `${i.nombre} (${i.gramaje}g) x${i.cantidad}`).join(', ');
-                    const numFacturas = (e?.facturas_ids || []).length;
-                    const idVal = e?.id || e?._id || '';
-
-                    return `
-                        <tr>
-                            <td>${e?.fecha || ''}</td>
-                            <td><strong>${e?.nota || ''}</strong></td>
-                            <td>${fmtCOP(e?.valor_envio)}</td>
-                            <td style="font-size:13px; color:#aaa;">${itemsSummary}</td>
-                            <td><strong style="color:var(--gold-bright);">${numFacturas} Factura(s)</strong></td>
-                            <td>
-                                <button class="btn-gold" style="padding: 4px 8px; width:auto;" onclick="abrirModalVincularFacturas('${idVal}')">🔗 Vincular Facturas</button>
-                                <button class="btn-danger" style="padding: 4px 8px; width:auto; margin-left:5px;" onclick="eliminarEnvio('${idVal}')">❌</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch (err) {
-                console.error("Error cargando histórico de envíos:", err);
-            }
-        }
-
-        async function abrirModalVincularFacturas(envioId) {
-            envioSeleccionadoId = envioId;
-            const resVentas = await fetch('/api/ventas');
-            ventasCache = await resVentas.json();
-
-            const resEnvios = await fetch('/api/envios');
-            const envios = await resEnvios.json();
-            const envioActual = Array.isArray(envios) ? envios.find(e => (e.id || e._id) === envioId) : null;
-            const vinculadasActuales = envioActual ? (envioActual.facturas_ids || []) : [];
-
-            const container = document.getElementById('lista-facturas-vincular');
-            if (!ventasCache || ventasCache.length === 0) {
-                container.innerHTML = '<div style="color:#aaa;">No hay ventas registradas</div>';
-            } else {
-                container.innerHTML = ventasCache.map(v => {
-                    const idVal = v.id || v._id || '';
-                    const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
-                    const isChecked = vinculadasActuales.includes(idVal) ? 'checked' : '';
-                    return `
-                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer;">
-                            <input type="checkbox" class="chk-factura" value="${idVal}" ${isChecked} style="width:auto; margin:0;">
-                            <span><strong>${numFact}</strong> - ${v.fecha} - ${v.cliente} (${fmtCOP(v.total_venta)})</span>
-                        </label>
-                    `;
-                }).join('');
-            }
-
-            document.getElementById('modal-vincular-facturas').style.display = 'flex';
-        }
-
-        function cerrarModalVincularFacturas() {
-            document.getElementById('modal-vincular-facturas').style.display = 'none';
-            envioSeleccionadoId = null;
-        }
-
-        async function guardarVinculacionFacturas() {
-            if (!envioSeleccionadoId) return;
-
-            const selectedCheckboxes = document.querySelectorAll('.chk-factura:checked');
-            const facturasIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-
-            const res = await fetch(`/api/envios/${envioSeleccionadoId}/asociar-facturas`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ facturas_ids: facturasIds })
-            });
-
-            if (res.ok) {
-                alert('Facturas vinculadas correctamente');
-                cerrarModalVincularFacturas();
-                cargarHistoricoEnvios();
-            } else {
-                alert('Error al vincular facturas');
-            }
-        }
-
-        async function eliminarEnvio(id) {
-            if (confirm('¿Eliminar este envío consolidado?')) {
-                await fetch('/api/envios/' + id, { method: 'DELETE' });
-                cargarHistoricoEnvios();
+        async function eliminarPedidoSinAfectarVentas(pedidoId) {
+            if (confirm('¿Eliminar este pedido? Esta acción no afectará el módulo de ventas ni el inventario.')) {
+                await fetch('/api/cotizaciones/' + pedidoId, { method: 'DELETE' });
+                cargarMisCotizaciones();
             }
         }
 
@@ -1816,17 +1575,13 @@
 
         async function abrirModalEditarVenta(ventaId, clienteActual, tipoPagoActual) {
             document.getElementById('edit-venta-id').value = ventaId;
-            
-            // Re-poblar dinámicamente el combo de clientes
             await actualizarSelectsClientes();
             
-            // Asignar el cliente actual
             const selectCliente = document.getElementById('edit-venta-cliente');
             if (selectCliente) {
                 selectCliente.value = clienteActual || 'Cliente General';
             }
             
-            // Asignar la forma de pago actual
             const selectPago = document.getElementById('edit-venta-pago');
             if (selectPago) {
                 selectPago.value = (tipoPagoActual === 'Efectivo') ? 'Contado' : (tipoPagoActual || 'Contado');
@@ -2066,7 +1821,7 @@
         }
 
         async function procesarCotizacion() {
-            if (carritoCotizacion.length === 0) return alert('El carrito de cotización está vacío');
+            if (carritoCotizacion.length === 0) return alert('El carrito de pedidos está vacío');
 
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
@@ -2084,13 +1839,12 @@
 
             if (res.ok) {
                 const data = await res.json();
-                alert(`Cotización N° ${data.consecutivo} registrada con éxito`);
+                alert(`Pedido N° ${data.consecutivo} registrado con éxito`);
                 carritoCotizacion = [];
                 renderCarrito('cotizacion');
                 cargarCotizacionesData();
-                abrirModalPdf(`/api/cotizaciones/${data.id}/pdf`, `Cotización N° ${data.consecutivo}`, `Cotizacion_${data.consecutivo}.pdf`);
             } else {
-                alert('Error al generar cotización');
+                alert('Error al registrar el pedido');
             }
         }
 
@@ -2570,7 +2324,6 @@
                 const ventas = await res.json();
                 const list = Array.isArray(ventas) ? ventas : [];
                 
-                // Filtro: Únicamente ventas con tipo de pago 'Crédito' Y estado_credito 'Pendiente'
                 const creditos = list.filter(v => v && v.tipo_pago === 'Crédito' && v.estado_credito === 'Pendiente');
 
                 renderTablaPaginada('tabla-creditos', creditos, c => {
@@ -2618,7 +2371,7 @@
                 });
                 if (res.ok) {
                     alert("Crédito pagado con éxito.");
-                    cargarCreditos(); // Recarga la tabla eliminando la venta pagada de la lista pendiente
+                    cargarCreditos();
                 } else {
                     const err = await res.json();
                     alert("Error al actualizar: " + (err.error || err.detail || "Ocurrió un problema"));
@@ -2633,92 +2386,7 @@
         // MÓDULO REPORTES GENERALES
         // -------------------------------------------------------------------
         async function cargarReportes() {
-            // Reporte Compras Café
-            try {
-                const resCompras = await fetch('/api/compras');
-                const compras = await resCompras.json();
-
-                renderTablaPaginada('tabla-reporte-compras', compras, c => `
-                    <tr>
-                        <td>${c.fecha || ''}</td>
-                        <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
-                        <td>${(c.libras || 0).toLocaleString('es-CO')} Lbs</td>
-                        <td>${fmtCOP(c.costo_total)}</td>
-                        <td>${fmtCOP(c.costo_por_libra)}</td>
-                    </tr>
-                `, {
-                    enableExcel: true,
-                    excelFileName: 'Reporte_Compras_Cafe.xlsx',
-                    onFilter: (filtered) => {
-                        let totalLbs = filtered.reduce((acc, c) => acc + (c.libras || 0), 0);
-                        let totalInv = filtered.reduce((acc, c) => acc + (c.costo_total || 0), 0);
-                        
-                        let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
-                        if (!tfootCompras) {
-                            tfootCompras = document.createElement('tfoot');
-                            document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
-                        }
-                        tfootCompras.innerHTML = `
-                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                                <td colspan="2" style="text-align: right;">TOTALES:</td>
-                                <td>${totalLbs.toFixed(1)} Lbs</td>
-                                <td>${fmtCOP(totalInv)}</td>
-                                <td>-</td>
-                            </tr>
-                        `;
-                    }
-                });
-            } catch (err) {
-                console.error("Error reporte compras:", err);
-            }
-
-            // Reporte Empaques
-            try {
-                const resEmpaques = await fetch('/api/compras-empaques');
-                const empaquesList = await resEmpaques.json();
-
-                const nombresLegibles = {
-                    "bolsa_250g": "Bolsa 250g",
-                    "bolsa_500g": "Bolsa 500g",
-                    "etiqueta_250g": "Etiqueta 250g",
-                    "etiqueta_500g": "Etiqueta 500g"
-                };
-
-                renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
-                    <tr>
-                        <td>${e.fecha || ''}</td>
-                        <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
-                        <td>${(e.cantidad || 0).toLocaleString('es-CO')} u.</td>
-                        <td>${fmtCOP(e.costo_total)}</td>
-                        <td>${fmtCOP(e.costo_unitario)}</td>
-                    </tr>
-                `, {
-                    enableExcel: true,
-                    excelFileName: 'Reporte_Compras_Empaques.xlsx',
-                    onFilter: (filtered) => {
-                        let totalCant = filtered.reduce((acc, e) => acc + (e.cantidad || 0), 0);
-                        let totalInv = filtered.reduce((acc, e) => acc + (e.costo_total || 0), 0);
-
-                        let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
-                        if (!tfootEmp) {
-                            tfootEmp = document.createElement('tfoot');
-                            document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
-                        }
-                        tfootEmp.innerHTML = `
-                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                                <td colspan="2" style="text-align: right;">TOTALES:</td>
-                                <td>${totalCant.toLocaleString('es-CO')} u.</td>
-                                <td>${fmtCOP(totalInv)}</td>
-                                <td>-</td>
-                            </tr>
-                        `;
-                    }
-                });
-            } catch (err) {
-                console.error("Error reporte empaques:", err);
-            }
-
-            // Reporte Historico de Ventas
+            // 1. Reporte Historico de Ventas (PRIMERA TABLA)
             try {
                 const resVentas = await fetch('/api/ventas');
                 if (!resVentas.ok) throw new Error(`HTTP Error status: ${resVentas.status}`);
@@ -2785,7 +2453,92 @@
                 if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#ff6b6b;">Error al cargar ventas (${err.message})</td></tr>`;
             }
 
-            // Reporte Historico de Cotizaciones
+            // 2. Reporte Compras Café
+            try {
+                const resCompras = await fetch('/api/compras');
+                const compras = await resCompras.json();
+
+                renderTablaPaginada('tabla-reporte-compras', compras, c => `
+                    <tr>
+                        <td>${c.fecha || ''}</td>
+                        <td><strong>${c.producto_nombre || 'Materia Prima General'}</strong></td>
+                        <td>${(c.libras || 0).toLocaleString('es-CO')} Lbs</td>
+                        <td>${fmtCOP(c.costo_total)}</td>
+                        <td>${fmtCOP(c.costo_por_libra)}</td>
+                    </tr>
+                `, {
+                    enableExcel: true,
+                    excelFileName: 'Reporte_Compras_Cafe.xlsx',
+                    onFilter: (filtered) => {
+                        let totalLbs = filtered.reduce((acc, c) => acc + (c.libras || 0), 0);
+                        let totalInv = filtered.reduce((acc, c) => acc + (c.costo_total || 0), 0);
+                        
+                        let tfootCompras = document.querySelector('#tabla-reporte-compras tfoot');
+                        if (!tfootCompras) {
+                            tfootCompras = document.createElement('tfoot');
+                            document.querySelector('#tabla-reporte-compras').appendChild(tfootCompras);
+                        }
+                        tfootCompras.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="2" style="text-align: right;">TOTALES:</td>
+                                <td>${totalLbs.toFixed(1)} Lbs</td>
+                                <td>${fmtCOP(totalInv)}</td>
+                                <td>-</td>
+                            </tr>
+                        `;
+                    }
+                });
+            } catch (err) {
+                console.error("Error reporte compras:", err);
+            }
+
+            // 3. Reporte Empaques
+            try {
+                const resEmpaques = await fetch('/api/compras-empaques');
+                const empaquesList = await resEmpaques.json();
+
+                const nombresLegibles = {
+                    "bolsa_250g": "Bolsa 250g",
+                    "bolsa_500g": "Bolsa 500g",
+                    "etiqueta_250g": "Etiqueta 250g",
+                    "etiqueta_500g": "Etiqueta 500g"
+                };
+
+                renderTablaPaginada('tabla-reporte-empaques', empaquesList, e => `
+                    <tr>
+                        <td>${e.fecha || ''}</td>
+                        <td><strong>${nombresLegibles[e.tipo_empaque] || e.tipo_empaque}</strong></td>
+                        <td>${(e.cantidad || 0).toLocaleString('es-CO')} u.</td>
+                        <td>${fmtCOP(e.costo_total)}</td>
+                        <td>${fmtCOP(e.costo_unitario)}</td>
+                    </tr>
+                `, {
+                    enableExcel: true,
+                    excelFileName: 'Reporte_Compras_Empaques.xlsx',
+                    onFilter: (filtered) => {
+                        let totalCant = filtered.reduce((acc, e) => acc + (e.cantidad || 0), 0);
+                        let totalInv = filtered.reduce((acc, e) => acc + (e.costo_total || 0), 0);
+
+                        let tfootEmp = document.querySelector('#tabla-reporte-empaques tfoot');
+                        if (!tfootEmp) {
+                            tfootEmp = document.createElement('tfoot');
+                            document.querySelector('#tabla-reporte-empaques').appendChild(tfootEmp);
+                        }
+                        tfootEmp.innerHTML = `
+                            <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
+                                <td colspan="2" style="text-align: right;">TOTALES:</td>
+                                <td>${totalCant.toLocaleString('es-CO')} u.</td>
+                                <td>${fmtCOP(totalInv)}</td>
+                                <td>-</td>
+                            </tr>
+                        `;
+                    }
+                });
+            } catch (err) {
+                console.error("Error reporte empaques:", err);
+            }
+
+            // 4. Reporte Historico de Pedidos
             try {
                 const resCot = await fetch('/api/cotizaciones');
                 const cotizaciones = await resCot.json();
@@ -2803,13 +2556,13 @@
                             <td>${c.vendedor || 'admin'}</td>
                             <td>${c.tipo_pago || 'N/A'}</td>
                             <td>${fmtCOP(tot)}</td>
-                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Cotización N° ${numCot}', 'Cotizacion_${numCot}.pdf')">👁️ Ver Cotización</button></td>
+                            <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Pedido N° ${numCot}', 'Pedido_${numCot}.pdf')">👁️ Ver Pedido</button></td>
                             <td><button class="btn-danger" onclick="eliminarCotizacion('${idVal}')">❌</button></td>
                         </tr>
                     `;
                 }, {
                     enableExcel: true,
-                    excelFileName: 'Historico_Cotizaciones.xlsx',
+                    excelFileName: 'Historico_Pedidos.xlsx',
                     onFilter: (filteredCot) => {
                         let totalCot = filteredCot.reduce((acc, c) => acc + (c.total_venta || 0), 0);
 
@@ -2820,7 +2573,7 @@
                         }
                         tfootCot.innerHTML = `
                             <tr style="background-color: #1A1813; font-weight: bold; color: var(--gold-bright); border-top: 2px solid var(--gold-primary);">
-                                <td colspan="5" style="text-align: right;">TOTAL COTIZADO:</td>
+                                <td colspan="5" style="text-align: right;">TOTAL PEDIDOS:</td>
                                 <td>${fmtCOP(totalCot)}</td>
                                 <td colspan="2"></td>
                             </tr>
@@ -2828,7 +2581,7 @@
                     }
                 });
             } catch (err) {
-                console.error("Error reporte cotizaciones:", err);
+                console.error("Error reporte pedidos:", err);
             }
         }
 
@@ -2840,7 +2593,7 @@
         }
 
         async function eliminarCotizacion(id) {
-            if(confirm('¿Eliminar esta cotización?')) {
+            if(confirm('¿Eliminar este pedido?')) {
                 await fetch('/api/cotizaciones/' + id, { method: 'DELETE' });
                 cargarReportes();
             }
@@ -2888,13 +2641,13 @@
         }
 
         verificarSesionActiva();
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((reg) => console.log('Service Worker registrado correctamente:', reg.scope))
-          .catch((err) => console.error('Error al registrar Service Worker:', err));
-      });
-    }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                  .then((reg) => console.log('Service Worker registrado correctamente:', reg.scope))
+                  .catch((err) => console.error('Error al registrar Service Worker:', err));
+            });
+        }
     </script>
 </body>
 </html>
