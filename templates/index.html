@@ -1040,6 +1040,7 @@
         let carritoCotizacion = [];
         let productosCache = [];
         let clientesCache = [];
+        let productosUnicos = [];
 
         let urlPdfActual = '';
         let blobPdfActual = null;
@@ -1964,7 +1965,6 @@
             }
         }
 
-        // POBLA EL DATALIST PARA BÚSQUEDA Y AUTOCOMPLETADO EN TIEMPO REAL
         async function actualizarAutocompletarClientes(clienteSeleccionar = null) {
             try {
                 const res = await fetch('/api/clientes');
