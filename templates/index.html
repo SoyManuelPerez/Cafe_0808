@@ -47,12 +47,18 @@
         .login-card {
             background-color: var(--card-bg);
             border: 1px solid var(--gold-primary);
-            padding: 30px;
+            padding: 25px 20px;
             border-radius: 8px;
-            width: 90%;
-            max-width: 380px;
+            width: 85%;
+            max-width: 340px;
             text-align: center;
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .login-card .logo {
+            width: 90px;
+            height: 90px;
+            margin-bottom: 5px;
         }
 
         .hamburger-btn {
@@ -84,8 +90,8 @@
         }
 
         .logo {
-            width: 120px;
-            height: 120px;
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
             border: 2px solid var(--gold-primary);
             object-fit: cover;
@@ -96,15 +102,23 @@
             color: var(--gold-bright);
             font-size: 18px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
             text-align: center;
         }
 
         .user-badge {
             color: #aaa;
             font-size: 13px;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
             text-align: center;
+        }
+
+        .version-tag {
+            color: var(--gold-primary);
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
         }
 
         .nav-button {
@@ -205,6 +219,23 @@
 
         button.btn-gold:hover, button.btn-gold:active {
             background-color: var(--gold-primary);
+            color: #000 !important;
+        }
+
+        button.btn-approve {
+            background-color: #1a331e !important;
+            color: #2ecc71 !important;
+            border: 1px solid #2ecc71 !important;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        button.btn-approve:hover, button.btn-approve:active {
+            background-color: #2ecc71 !important;
             color: #000 !important;
         }
 
@@ -465,6 +496,16 @@
                 overflow-y: auto;
             }
 
+            .login-card {
+                padding: 20px 15px;
+                max-width: 300px;
+            }
+
+            .login-card input {
+                padding: 8px;
+                font-size: 14px;
+            }
+
             .hamburger-btn {
                 display: flex;
             }
@@ -500,21 +541,25 @@
 
     <div id="login-screen" class="login-screen">
         <div class="login-card">
-            <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
-            <h2 style="color:var(--gold-bright);">0808 CAFÉ</h2>
-            <p style="color:#aaa; font-size:14px;">Inicia sesión para acceder</p>
+            <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/90/0D0D0D/D4AF37?text=0808+Cafe'">
+            <h3 style="color:var(--gold-bright); margin: 5px 0;">0808 CAFÉ</h3>
+            <p style="color:#aaa; font-size:13px; margin-bottom: 12px;">Inicia sesión para acceder</p>
             <form onsubmit="ejecutarLogin(event)">
                 <input type="text" id="login-user" placeholder="Usuario" required>
                 <input type="password" id="login-pass" placeholder="Contraseña" required>
-                <button type="submit" class="btn-gold" style="margin-top:15px;">🔑 Ingresar</button>
+                <button type="submit" class="btn-gold" style="margin-top:12px; padding: 8px;">🔑 Ingresar</button>
             </form>
+            <div style="margin-top: 15px; color: var(--gold-primary); font-size: 11px; font-weight: bold; letter-spacing: 1px;">
+                Versión 2.0
+            </div>
         </div>
     </div>
 
     <div class="sidebar" id="main-sidebar">
-        <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/120/0D0D0D/D4AF37?text=0808+Cafe'">
+        <img src="/static/logo.png" alt="0808 Logo" class="logo" onerror="this.src='https://via.placeholder.com/110/0D0D0D/D4AF37?text=0808+Cafe'">
         <div class="brand-title">0808 CAFÉ</div>
         <div class="user-badge" id="lbl-user-info">👤 Carga...</div>
+        <div class="version-tag">Versión 2.0</div>
 
         <button class="nav-button active" id="btn-nav-ventas" onclick="showSection('ventas', event)">🛒 Ventas</button>
         <button class="nav-button" id="btn-nav-pedidos" onclick="showSection('pedidos-sec', event)">📦 Pedidos</button>
@@ -717,7 +762,7 @@
                 <div class="table-responsive">
                     <table id="tabla-mis-cotizaciones">
                         <thead>
-                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Pago Propuesto</th><th>Total Pedido</th><th>Acción</th></tr>
+                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th>Total Pedido</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -935,7 +980,7 @@
                 <h3>📦 Histórico de Pedidos</h3>
                 <div class="table-responsive">
                     <table id="tabla-reporte-cotizaciones">
-                        <thead><tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago Propuesto</th><th>Total Pedido</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <thead><tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Estado</th><th>Total Pedido</th><th>Vista Previa</th><th>Acción</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -1392,15 +1437,25 @@
                         if (!v) return '';
                         const idVal = v.id || v._id || '';
                         const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                        
+                        const esAnulado = v.tipo_venta === 'Anulado' || v.estado_despacho === 'Anulado';
                         const esPendiente = (v.estado_despacho || '') === 'Pendiente';
-                        const badgeEstado = esPendiente ? '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>' : '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
+
+                        let badgeEstado = '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
+                        if (esAnulado) {
+                            badgeEstado = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulada</span>';
+                        } else if (esPendiente) {
+                            badgeEstado = '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>';
+                        }
+
+                        const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';
                         
                         const esCredito = (v.tipo_pago || '') === 'Crédito';
                         const creditoPendiente = (v.estado_credito || '') === 'Pendiente';
                         const totalVenta = Number(v.total_venta || 0);
 
                         return `
-                            <tr>
+                            <tr ${estiloFila}>
                                 <td><strong>${numFact}</strong></td>
                                 <td>${v.fecha || 'N/A'}</td>
                                 <td>${v.cliente || 'Cliente General'}</td>
@@ -1408,12 +1463,15 @@
                                 <td>${badgeEstado}</td>
                                 <td>
                                     ${fmtCOP(totalVenta)} 
-                                    ${esCredito ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito || 'Pendiente'}</small>` : ''}
+                                    ${(esCredito && !esAnulado) ? `<br/><small style="color:${creditoPendiente ? '#ff6b6b' : '#2ecc71'};">💳 Crédito: ${v.estado_credito || 'Pendiente'}</small>` : ''}
                                 </td>
                                 <td>
                                     <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
-                                    <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente || ''}', '${v.tipo_pago || ''}')">✏️ Editar</button>
-                                    ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
+                                    ${!esAnulado ? `
+                                        <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente || ''}', '${v.tipo_pago || ''}')">✏️ Editar</button>
+                                        ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
+                                        <button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="anularVenta('${idVal}')">🚫 Anular</button>
+                                    ` : '<span>-</span>'}
                                 </td>
                             </tr>
                         `;
@@ -1426,6 +1484,16 @@
                 console.error("Error cargando histórico de ventas:", err);
                 const tbody = document.querySelector('#tabla-mis-ventas tbody');
                 if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ff6b6b;">Error al cargar ventas (${err.message})</td></tr>`;
+            }
+        }
+
+        async function anularVenta(id) {
+            if(confirm('¿Confirma que desea ANULAR esta venta? Quedará registrada como Anulada sin borrar datos.')) {
+                await fetch(`/api/ventas/${id}/anular`, { method: 'PUT' });
+                cargarMisVentas();
+                if (document.getElementById('reportes').classList.contains('active')) {
+                    cargarReportes();
+                }
             }
         }
 
@@ -1466,17 +1534,30 @@
                         if (!c) return '';
                         const idVal = c.id || c._id || '';
                         const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                        const estado = c.estado || 'Pendiente';
+                        const esAnulado = estado === 'Anulado';
+                        const esDespachado = estado === 'Despachado';
+
+                        let badgeEstado = '<span style="color:#2ecc71; font-weight:bold;">📦 Pendiente</span>';
+                        if (esAnulado) {
+                            badgeEstado = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulado</span>';
+                        } else if (esDespachado) {
+                            badgeEstado = '<span style="color:#D4AF37; font-weight:bold;">✅ Despachado</span>';
+                        }
+
+                        const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';
+
                         return `
-                            <tr>
+                            <tr ${estiloFila}>
                                 <td><strong>${numCot}</strong></td>
                                 <td>${c.fecha || ''}</td>
                                 <td>${c.cliente || ''}</td>
-                                <td>${c.tipo_pago || 'N/A'}</td>
+                                <td>${badgeEstado}</td>
                                 <td>${fmtCOP(c.total_venta)}</td>
                                 <td>
-                                    <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="despacharPedido('${idVal}')">🚀 Despachar Pedido</button>
+                                    ${(!esAnulado && !esDespachado) ? `<button class="btn-approve" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="despacharPedido('${idVal}')">✅ Aprobar Pedido</button>` : ''}
                                     <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Pedido N° ${numCot}', 'Pedido_${numCot}.pdf')">👁️ Ver</button>
-                                    <button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="eliminarPedidoSinAfectarVentas('${idVal}')">❌ Eliminar</button>
+                                    ${!esAnulado ? `<button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="anularPedido('${idVal}')">🚫 Anular</button>` : '<span>-</span>'}
                                 </td>
                             </tr>
                         `;
@@ -1491,7 +1572,7 @@
         }
 
         async function despacharPedido(pedidoId) {
-            if (!confirm('¿Deseas despachar este pedido? Al hacerlo pasará al módulo de ventas.')) return;
+            if (!confirm('¿Deseas aprobar y despachar este pedido? Al hacerlo pasará al módulo de ventas.')) return;
             try {
                 const res = await fetch(`/api/cotizaciones/${pedidoId}/despachar`, {
                     method: 'POST',
@@ -1503,7 +1584,7 @@
                     if (data.estado_despacho === 'Pendiente') {
                         alert('⚠️ Advertencia: No hay suficiente stock/materia prima. El pedido se despachó y pasó a Venta Parcial (Pendiente).');
                     } else {
-                        alert('🚀 ¡Pedido despachado con éxito y registrado como Venta!');
+                        alert('🚀 ¡Pedido aprobado con éxito y registrado como Venta!');
                     }
                     cargarMisCotizaciones();
                 } else {
@@ -1516,9 +1597,9 @@
             }
         }
 
-        async function eliminarPedidoSinAfectarVentas(pedidoId) {
-            if (confirm('¿Eliminar este pedido? Esta acción no afectará el módulo de ventas ni el inventario.')) {
-                await fetch('/api/cotizaciones/' + pedidoId, { method: 'DELETE' });
+        async function anularPedido(pedidoId) {
+            if (confirm('¿Deseas anular este pedido? Quedará registrado en el sistema como Anulado.')) {
+                await fetch(`/api/cotizaciones/${pedidoId}/anular`, { method: 'PUT' });
                 cargarMisCotizaciones();
             }
         }
@@ -2349,7 +2430,7 @@
                 const ventas = await res.json();
                 const list = Array.isArray(ventas) ? ventas : [];
                 
-                const creditos = list.filter(v => v && v.tipo_pago === 'Crédito' && v.estado_credito === 'Pendiente');
+                const creditos = list.filter(v => v && v.tipo_pago === 'Crédito' && v.estado_credito === 'Pendiente' && v.tipo_venta !== 'Anulado');
 
                 renderTablaPaginada('tabla-creditos', creditos, c => {
                     const idVal = c.id || c._id || '';
@@ -2426,10 +2507,19 @@
                         const fleteApp = Number(v.costo_envio_asociado || 0);
                         const idVal = v.id || v._id || '';
                         const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
-                        const estadoTxt = (v.estado_despacho || '') === 'Pendiente' ? '<span style="color:#ff6b6b;">⏳ Pendiente</span>' : '<span style="color:#2ecc71;">✅ Completa</span>';
+                        const esAnulado = v.tipo_venta === 'Anulado' || v.estado_despacho === 'Anulado';
+
+                        let estadoTxt = '<span style="color:#2ecc71;">✅ Completa</span>';
+                        if (esAnulado) {
+                            estadoTxt = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulada</span>';
+                        } else if ((v.estado_despacho || '') === 'Pendiente') {
+                            estadoTxt = '<span style="color:#ff6b6b;">⏳ Pendiente</span>';
+                        }
+
+                        const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';
 
                         return `
-                            <tr>
+                            <tr ${estiloFila}>
                                 <td><strong>${numFact}</strong></td>
                                 <td>${v.fecha || 'N/A'}</td>
                                 <td>${v.cliente || 'Cliente General'}</td>
@@ -2442,7 +2532,7 @@
                                     ${fleteApp > 0 ? `<br/><small style="color:#aaa;">(Flete deducido: ${fmtCOP(fleteApp)})</small>` : ''}
                                 </td>
                                 <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button></td>
-                                <td><button class="btn-danger" onclick="eliminarVenta('${idVal}')">❌</button></td>
+                                <td>${!esAnulado ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="anularVenta('${idVal}')">🚫 Anular</button>` : '<span>-</span>'}</td>
                             </tr>
                         `;
                     } catch (errRow) {
@@ -2568,17 +2658,29 @@
                     const tot = c.total_venta || 0;
                     const idVal = c.id || c._id || '';
                     const numCot = c.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
+                    const estado = c.estado || 'Pendiente';
+                    const esAnulado = estado === 'Anulado';
+                    const esDespachado = estado === 'Despachado';
+
+                    let badgeEstado = '<span style="color:#2ecc71; font-weight:bold;">📦 Pendiente</span>';
+                    if (esAnulado) {
+                        badgeEstado = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulado</span>';
+                    } else if (esDespachado) {
+                        badgeEstado = '<span style="color:#D4AF37; font-weight:bold;">✅ Despachado</span>';
+                    }
+
+                    const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';
 
                     return `
-                        <tr>
+                        <tr ${estiloFila}>
                             <td><strong>${numCot}</strong></td>
                             <td>${c.fecha || ''}</td>
                             <td>${c.cliente || ''}</td>
                             <td>${c.vendedor || 'admin'}</td>
-                            <td>${c.tipo_pago || 'N/A'}</td>
+                            <td>${badgeEstado}</td>
                             <td>${fmtCOP(tot)}</td>
                             <td><button class="btn-gold" style="padding: 4px 10px; width:auto;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Pedido N° ${numCot}', 'Pedido_${numCot}.pdf')">👁️ Ver Pedido</button></td>
-                            <td><button class="btn-danger" onclick="eliminarCotizacion('${idVal}')">❌</button></td>
+                            <td>${!esAnulado ? `<button class="btn-danger" style="padding: 4px 8px; width:auto;" onclick="anularPedido('${idVal}')">🚫 Anular</button>` : '<span>-</span>'}</td>
                         </tr>
                     `;
                 }, {
@@ -2603,20 +2705,6 @@
                 });
             } catch (err) {
                 console.error("Error reporte pedidos:", err);
-            }
-        }
-
-        async function eliminarVenta(id) {
-            if(confirm('¿Eliminar esta venta?')) {
-                await fetch('/api/ventas/' + id, { method: 'DELETE' });
-                cargarReportes();
-            }
-        }
-
-        async function eliminarCotizacion(id) {
-            if(confirm('¿Eliminar este pedido?')) {
-                await fetch('/api/cotizaciones/' + id, { method: 'DELETE' });
-                cargarReportes();
             }
         }
 
