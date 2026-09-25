@@ -168,7 +168,6 @@ def eliminar_usuario(user_id: str):
 def crear_cliente(cli: ClienteCreate):
     celular_clean = cli.celular.strip() if cli.celular else ""
     
-    # Validar si el número de celular ya está registrado (solo si no está vacío)
     if celular_clean:
         cliente_existente = db.clientes.find_one({"celular": celular_clean})
         if cliente_existente:
@@ -244,7 +243,7 @@ def resumen_empaques():
     ]))
     dict_compras = {c["_id"]: c for c in compras_agrupadas}
 
-    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}}))
+    ventas = list(db.ventas.find({"estado_despacho": {"$ne": "Pendiente"}, "tipo_venta": {"$ne": "Anulado"}}))
     usados = {
         "bolsa_250g": 0,
         "bolsa_500g": 0,
@@ -431,7 +430,7 @@ def resumen_inventario():
     dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
 
     ventas_agrupadas = list(db.ventas.aggregate([
-        {"$match": {"estado_despacho": {"$ne": "Pendiente"}}},
+        {"$match": {"estado_despacho": {"$ne": "Pendiente"}, "tipo_venta": {"$ne": "Anulado"}}},
         {"$unwind": "$items"},
         {"$group": {
             "_id": "$items.nombre",
@@ -530,7 +529,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
 
     estado_despacho = "Pendiente" if stock_insuficiente else "Completo"
 
-    # --- CÁLCULO DE COSTO DE CAFÉ ---
     costo_cafe = 0.0
     for item in venta.items:
         prod = None
@@ -547,7 +545,6 @@ def registrar_venta(venta: VentaCreate, request: Request):
         costo_gramo_item = (costo_libra / 500.0) if costo_libra > 0 else resumen_cafe["costo_promedio_gramo"]
         costo_cafe += item.gramos_totales * costo_gramo_item
     
-    # --- CÁLCULO DE COSTO DE EMPAQUES AJUSTADO ---
     costo_empaques_total = 0.0
     for item in venta.items:
         cant = item.cantidad
@@ -650,12 +647,26 @@ def pagar_credito(venta_id: str):
         raise HTTPException(status_code=404, detail="Venta no encontrada")
     return {"mensaje": "Crédito pagado"}
 
+@app.put("/api/ventas/{venta_id}/anular")
 @app.delete("/api/ventas/{venta_id}")
-def eliminar_venta(venta_id: str):
-    res = db.ventas.delete_one({"_id": ObjectId(venta_id)})
-    if res.deleted_count == 0:
+def anular_venta(venta_id: str):
+    venta = db.ventas.find_one({"_id": ObjectId(venta_id)})
+    if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
-    return {"mensaje": "Venta eliminada correctamente"}
+
+    db.ventas.update_one(
+        {"_id": ObjectId(venta_id)},
+        {"$set": {
+            "tipo_venta": "Anulado",
+            "estado_despacho": "Anulado",
+            "estado_credito": "Anulado",
+            "total_venta": 0.0,
+            "costo_estimado": 0.0,
+            "ganancia": 0.0,
+            "anulado_en": datetime.utcnow()
+        }}
+    )
+    return {"mensaje": "Venta anulada correctamente"}
 
 @app.get("/api/ventas/{venta_id}/pdf")
 def descargar_factura(venta_id: str):
@@ -728,6 +739,7 @@ def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
         "cliente": cotizacion.cliente,
         "vendedor": vendedor,
         "tipo_pago": tipo_pago_cot,
+        "estado": "Pendiente",
         "total_venta": total_cotizacion,
         "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
         "creado_en": datetime.utcnow()
@@ -743,6 +755,8 @@ def listar_cotizaciones():
         c_item = fix_id(c)
         if c_item.get("tipo_pago") == "Efectivo":
             c_item["tipo_pago"] = "Contado"
+        if "estado" not in c_item:
+            c_item["estado"] = "Pendiente"
         cotizaciones_clean.append(c_item)
     return cotizaciones_clean
 
@@ -823,11 +837,13 @@ def despachar_pedido(cotizacion_id: str, request: Request):
 
     doc_venta = {
         "consecutivo_str": consecutivo_venta,
+        "pedido_origen_id": str(pedido["_id"]),
+        "consecutivo_pedido": pedido.get("consecutivo_str", ""),
         "fecha": datetime.utcnow().strftime("%Y-%m-%d"),
         "cliente": pedido.get("cliente", "Cliente General"),
         "vendedor": pedido.get("vendedor", "admin"),
         "tipo_pago": tipo_pago,
-        "tipo_venta": "Normal",
+        "tipo_venta": "Pedido Despachado",
         "estado_despacho": estado_despacho,
         "faltantes": motivo_faltante if stock_insuficiente else {},
         "estado_credito": "Pendiente" if tipo_pago == "Crédito" else "N/A",
@@ -839,7 +855,11 @@ def despachar_pedido(cotizacion_id: str, request: Request):
     }
 
     res_venta = db.ventas.insert_one(doc_venta)
-    db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
+
+    db.cotizaciones.update_one(
+        {"_id": ObjectId(cotizacion_id)},
+        {"$set": {"estado": "Despachado", "venta_asociada_id": str(res_venta.inserted_id)}}
+    )
 
     return {
         "id_venta": str(res_venta.inserted_id),
@@ -864,9 +884,19 @@ def descargar_cotizacion_pdf(cotizacion_id: str):
         }
     )
 
+@app.put("/api/cotizaciones/{cotizacion_id}/anular")
 @app.delete("/api/cotizaciones/{cotizacion_id}")
-def eliminar_cotizacion(cotizacion_id: str):
-    res = db.cotizaciones.delete_one({"_id": ObjectId(cotizacion_id)})
-    if res.deleted_count == 0:
+def anular_cotizacion(cotizacion_id: str):
+    cotizacion = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
+    if not cotizacion:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    return {"mensaje": "Pedido eliminado correctamente"}
+
+    db.cotizaciones.update_one(
+        {"_id": ObjectId(cotizacion_id)},
+        {"$set": {
+            "estado": "Anulado",
+            "total_venta": 0.0,
+            "anulado_en": datetime.utcnow()
+        }}
+    )
+    return {"mensaje": "Pedido anulado correctamente"}
