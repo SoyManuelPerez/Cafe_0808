@@ -56,8 +56,8 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
     num_doc = documento.get("consecutivo_str", str(documento.get("_id", ""))[:8])
     
     if es_cotizacion:
-        tipo_doc_titulo = "COTIZACIÓN"
-        label_num = "Cotización N°:"
+        tipo_doc_titulo = "PEDIDOS"
+        label_num = "Pedido N°:"
     elif documento.get("estado_despacho") == "Pendiente":
         tipo_doc_titulo = "FACTURA DE VENTA - [PENDIENTE / PARCIAL]"
         label_num = "Factura N°:"
