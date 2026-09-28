@@ -65,22 +65,21 @@ class ProductoUpdate(BaseModel):
 # MODELOS DE VENTAS Y PEDIDOS
 # ==========================================
 
-class ItemVenta(BaseModel):
-    producto_id: str
+class VentaItem(BaseModel):
+    producto_id: Optional[str] = None
     nombre: str
-    gramaje: float
+    gramaje: int
     cantidad: int
-    descuento: Optional[float] = 0.0
-    presentacion: Optional[str] = "Grano"
-    gramos_totales: float
+    descuento: float = 0.0
+    presentacion: str
+    gramos_totales: int
     precio_unitario: float
     subtotal: float
 
 class VentaCreate(BaseModel):
     fecha: str
     cliente: str
-    tipo_pago: str
-    tipo_venta: Optional[str] = "Normal"
-    estado_despacho: Optional[str] = "Completo"  # "Completo" o "Pendiente"
     vendedor: Optional[str] = None
-    items: List[ItemVenta]
+    tipo_pago: str
+    tipo_venta: str  # Puede ser: "Normal", "Obsequio", "Venta al Costo"
+    items: List[VentaItem]
