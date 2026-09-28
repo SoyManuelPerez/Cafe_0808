@@ -113,6 +113,34 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
 # ==========================================
+# ENDPOINT DE REPORTE RESUMEN DE VENTAS (CORREGIDO)
+# ==========================================
+
+@app.get("/api/reportes/resumen-ventas")
+def obtener_resumen_ventas():
+    """
+    Genera un reporte consolidado global de ventas no anuladas.
+    """
+    pipeline_agregacion = [
+        {"$match": {"tipo_venta": {"$ne": "Anulado"}, "estado_despacho": {"$ne": "Anulado"}}},
+        {
+            "$group": {
+                "_id": None,
+                "total_ingresos": {"$sum": "$total_venta"},
+                "total_ganancias": {"$sum": "$ganancia"},
+                "cantidad_ventas": {"$sum": 1}
+            }
+        }
+    ]
+    resultado = list(db.ventas.aggregate(pipeline_agregacion))
+    if not resultado:
+        return {"total_ingresos": 0.0, "total_ganancias": 0.0, "cantidad_ventas": 0}
+    
+    res = resultado[0]
+    res.pop("_id", None)
+    return res
+
+# ==========================================
 # ENDPOINTS GESTIÓN DE USUARIOS
 # ==========================================
 
@@ -218,7 +246,7 @@ def eliminar_cliente(cliente_id: str):
     return {"mensaje": "Cliente eliminado"}
 
 # ==========================================
-# ENDPOINTS OTROS GASTOS (NUEVO MÓDULO)
+# ENDPOINTS OTROS GASTOS
 # ==========================================
 
 @app.post("/api/gastos", status_code=201)
@@ -760,7 +788,7 @@ def editar_detalles_venta(venta_id: str, data: dict):
     return {"mensaje": "Venta actualizada correctamente"}
 
 # ==========================================
-# ENDPOINTS PEDIDOS (ANTES COTIZACIONES)
+# ENDPOINTS PEDIDOS (COTIZACIONES)
 # ==========================================
 
 @app.post("/api/cotizaciones", status_code=201)
