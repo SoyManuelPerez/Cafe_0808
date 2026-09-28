@@ -3,6 +3,8 @@ import sys
 import bcrypt
 from datetime import datetime
 from bson import ObjectId
+from pydantic import BaseModel
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +20,14 @@ from app.models import (
     ClienteCreate, VentaCreate, UserLogin, UserCreate, UserUpdate
 )
 from app.pdf_generator import generar_factura_pdf
+
+# ==========================================
+# MODELO PYDANTIC PARA OTROS GASTOS
+# ==========================================
+class GastoCreate(BaseModel):
+    monto: float
+    fecha: str
+    observacion: str
 
 app = FastAPI(title="0808 Café de Especialidad")
 
@@ -206,6 +216,36 @@ def eliminar_cliente(cliente_id: str):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return {"mensaje": "Cliente eliminado"}
+
+# ==========================================
+# ENDPOINTS OTROS GASTOS (NUEVO MÓDULO)
+# ==========================================
+
+@app.post("/api/gastos", status_code=201)
+def crear_gasto(gasto: GastoCreate):
+    if gasto.monto <= 0:
+        raise HTTPException(status_code=400, detail="El monto del gasto debe ser mayor a 0.")
+
+    doc = {
+        "monto": gasto.monto,
+        "fecha": gasto.fecha,
+        "observacion": gasto.observacion.strip(),
+        "creado_en": datetime.utcnow()
+    }
+    res = db.gastos.insert_one(doc)
+    return {"id": str(res.inserted_id), "mensaje": "Gasto registrado exitosamente"}
+
+@app.get("/api/gastos")
+def listar_gastos():
+    gastos = list(db.gastos.find().sort("fecha", -1))
+    return [fix_id(g) for g in gastos]
+
+@app.delete("/api/gastos/{gasto_id}")
+def eliminar_gasto(gasto_id: str):
+    res = db.gastos.delete_one({"_id": ObjectId(gasto_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+    return {"mensaje": "Gasto eliminado correctamente"}
 
 # ==========================================
 # ENDPOINTS COMPRAS DE EMPAQUES
