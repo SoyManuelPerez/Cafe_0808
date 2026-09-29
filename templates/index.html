@@ -702,6 +702,7 @@
                 <select id="tipo-venta" onchange="toggleTipoVenta()">
                     <option value="Normal">Normal</option>
                     <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
+                    <option value="Venta al Costo">Venta al Costo (Sin ganancia)</option>
                 </select>
 
                 <div id="div-metodo-pago">
@@ -1808,7 +1809,7 @@
         }
 
         async function eliminarGasto(id) {
-            if (confirm("¿Confirms que desea eliminar este registro de gasto?")) {
+            if (confirm("¿Confirma que desea eliminar este registro de gasto?")) {
                 try {
                     const res = await fetch(`/api/gastos/${id}`, { method: 'DELETE' });
                     if (res.ok) {
@@ -1991,7 +1992,52 @@
         function toggleTipoVenta() {
             const tipo = document.getElementById('tipo-venta').value;
             document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
-            renderCarrito('venta');
+            
+            if (tipo === 'Venta al Costo') {
+                aplicarPreciosAlCostoCarrito();
+            } else if (tipo === 'Normal') {
+                carrito.forEach(item => {
+                    const prod = productosCache.find(p => String(p.id || p._id) === String(item.producto_id));
+                    if (prod) {
+                        item.precio_unitario = prod.precio_venta || 0;
+                        item.subtotal = Math.max(0, (item.precio_unitario * item.cantidad) - ((item.descuento || 0) * item.cantidad));
+                    }
+                });
+                renderCarrito('venta');
+            } else {
+                renderCarrito('venta');
+            }
+        }
+
+        async function aplicarPreciosAlCostoCarrito() {
+            try {
+                const resEmp = await fetch('/api/empaques/resumen');
+                const resumenEmp = await resEmp.json();
+
+                carrito.forEach(item => {
+                    const prod = productosCache.find(p => String(p.id || p._id) === String(item.producto_id));
+                    const costoLibra = prod ? (prod.costo_por_libra || 0) : 0;
+                    const costoGramo = costoLibra / 500.0;
+                    const costoCafeUnitario = (item.gramaje || 0) * costoGramo;
+
+                    let costoEmpaqueUnitario = 0;
+                    if (item.gramaje === 250) {
+                        costoEmpaqueUnitario = (resumenEmp["bolsa_250g"]?.costo_unitario || 0) + (resumenEmp["etiqueta_250g"]?.costo_unitario || 0);
+                    } else if (item.gramaje === 500) {
+                        costoEmpaqueUnitario = (resumenEmp["bolsa_500g"]?.costo_unitario || 0) + (resumenEmp["etiqueta_500g"]?.costo_unitario || 0);
+                    } else if (item.gramaje === 2500) {
+                        costoEmpaqueUnitario = (resumenEmp["etiqueta_500g"]?.costo_unitario || 0);
+                    }
+
+                    const costoTotalUnitario = Math.round(costoCafeUnitario + costoEmpaqueUnitario);
+                    item.precio_unitario = costoTotalUnitario;
+                    item.subtotal = Math.max(0, (costoTotalUnitario * item.cantidad) - ((item.descuento || 0) * item.cantidad));
+                });
+
+                renderCarrito('venta');
+            } catch (err) {
+                console.error("Error al calcular precios al costo:", err);
+            }
         }
 
         function agregarAlCarrito(modo) {
@@ -2007,7 +2053,16 @@
             if (!prod) return alert('Seleccione un producto válido');
 
             const prodIdFinal = prod.id || prod._id;
-            const precioBase = prod.precio_venta || 0;
+            const tipoVenta = !esCot ? document.getElementById('tipo-venta').value : 'Normal';
+            
+            let precioBase = prod.precio_venta || 0;
+
+            if (tipoVenta === 'Venta al Costo') {
+                const costoLibra = prod.costo_por_libra || 0;
+                const costoGramo = costoLibra / 500.0;
+                precioBase = Math.round((prod.gramaje || 0) * costoGramo);
+            }
+
             const subtotalCalculado = Math.max(0, (precioBase * cant) - (descuento * cant));
             const targetCarrito = esCot ? carritoCotizacion : carrito;
 
@@ -2035,7 +2090,11 @@
             document.getElementById('cant-producto' + suffix).value = 1;
             document.getElementById('desc-producto' + suffix).value = 0;
 
-            renderCarrito(modo);
+            if (tipoVenta === 'Venta al Costo') {
+                aplicarPreciosAlCostoCarrito();
+            } else {
+                renderCarrito(modo);
+            }
         }
 
         function actualizarPrecioEnCarrito(index, modo, nuevoPrecioStr) {
@@ -2131,7 +2190,7 @@
                 if (data.estado_despacho === 'Pendiente') {
                     alert('⚠️ Advertencia: No hay suficiente stock/empaques. La venta se registró con éxito como Venta Parcial (Pendiente).');
                 } else {
-                    alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : 'Venta procesada con éxito');
+                    alert(tipoVenta === 'Obsequio' ? 'Obsequio registrado' : (tipoVenta === 'Venta al Costo' ? 'Venta al costo procesada con éxito' : 'Venta procesada con éxito'));
                 }
                 carrito = [];
                 renderCarrito('venta');
