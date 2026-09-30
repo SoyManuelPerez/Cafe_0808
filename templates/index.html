@@ -699,7 +699,7 @@
                 </div>
 
                 <label style="margin-top: 10px; display: block;">Tipo de Venta:</label>
-                <select id="tipo-venta" onchange="toggleTipoVenta()">
+                <select id="tipo-venta" onchange="toggleTipoVenta('venta')">
                     <option value="Normal">Normal</option>
                     <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
                     <option value="Venta al Costo">Venta al Costo (Sin ganancia)</option>
@@ -794,11 +794,20 @@
                     </button>
                 </div>
 
-                <label style="margin-top: 10px; display: block;">Forma de Pago Propuesta:</label>
-                <select id="pago-cot">
-                    <option value="Contado">Contado</option>
-                    <option value="Crédito">Crédito</option>
+                <label style="margin-top: 10px; display: block;">Tipo de Pedido:</label>
+                <select id="tipo-cot" onchange="toggleTipoVenta('cotizacion')">
+                    <option value="Normal">Normal</option>
+                    <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
+                    <option value="Venta al Costo">Venta al Costo (Sin ganancia)</option>
                 </select>
+
+                <div id="div-metodo-pago-cot">
+                    <label style="margin-top: 10px; display: block;">Forma de Pago Propuesta:</label>
+                    <select id="pago-cot">
+                        <option value="Contado">Contado</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
+                </div>
 
                 <button class="btn-gold" style="margin-top:15px;" onclick="procesarCotizacion()">📦 Registrar Pedido</button>
             </div>
@@ -809,7 +818,7 @@
                 <div class="table-responsive">
                     <table id="tabla-mis-cotizaciones">
                         <thead>
-                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th>Total Pedido</th><th>Acción</th></tr>
+                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Pedido</th><th>Estado</th><th>Total Pedido</th><th>Acción</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -1665,6 +1674,7 @@
                                 <td><strong>${numCot}</strong></td>
                                 <td>${c.fecha || ''}</td>
                                 <td>${c.cliente || ''}</td>
+                                <td><strong>${c.tipo_venta || 'Normal'}</strong></td>
                                 <td>${badgeEstado}</td>
                                 <td>${fmtCOP(c.total_venta)}</td>
                                 <td>
@@ -1988,32 +1998,41 @@
             }
         }
 
-        function toggleTipoVenta() {
-            const tipo = document.getElementById('tipo-venta').value;
-            document.getElementById('div-metodo-pago').style.display = (tipo === 'Obsequio') ? 'none' : 'block';
+        function toggleTipoVenta(modo = 'venta') {
+            const esCot = modo === 'cotizacion';
+            const suffixSelect = esCot ? 'tipo-cot' : 'tipo-venta';
+            const suffixDiv = esCot ? 'div-metodo-pago-cot' : 'div-metodo-pago';
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+
+            const tipo = document.getElementById(suffixSelect).value;
+            const divPago = document.getElementById(suffixDiv);
+            if (divPago) divPago.style.display = (tipo === 'Obsequio') ? 'none' : 'block';
             
             if (tipo === 'Venta al Costo') {
-                aplicarPreciosAlCostoCarrito();
+                aplicarPreciosAlCostoCarrito(modo);
             } else if (tipo === 'Normal') {
-                carrito.forEach(item => {
+                targetCarrito.forEach(item => {
                     const prod = productosCache.find(p => String(p.id || p._id) === String(item.producto_id));
                     if (prod) {
                         item.precio_unitario = prod.precio_venta || 0;
                         item.subtotal = Math.max(0, (item.precio_unitario * item.cantidad) - ((item.descuento || 0) * item.cantidad));
                     }
                 });
-                renderCarrito('venta');
+                renderCarrito(modo);
             } else {
-                renderCarrito('venta');
+                renderCarrito(modo);
             }
         }
 
-        async function aplicarPreciosAlCostoCarrito() {
+        async function aplicarPreciosAlCostoCarrito(modo = 'venta') {
+            const esCot = modo === 'cotizacion';
+            const targetCarrito = esCot ? carritoCotizacion : carrito;
+
             try {
                 const resEmp = await fetch('/api/empaques/resumen');
                 const resumenEmp = await resEmp.json();
 
-                carrito.forEach(item => {
+                targetCarrito.forEach(item => {
                     const prod = productosCache.find(p => String(p.id || p._id) === String(item.producto_id));
                     const costoLibra = prod ? (prod.costo_por_libra || 0) : 0;
                     const costoGramo = costoLibra / 500.0;
@@ -2033,7 +2052,7 @@
                     item.subtotal = Math.max(0, (costoTotalUnitario * item.cantidad) - ((item.descuento || 0) * item.cantidad));
                 });
 
-                renderCarrito('venta');
+                renderCarrito(modo);
             } catch (err) {
                 console.error("Error al calcular precios al costo:", err);
             }
@@ -2052,7 +2071,8 @@
             if (!prod) return alert('Seleccione un producto válido');
 
             const prodIdFinal = prod.id || prod._id;
-            const tipoVenta = !esCot ? document.getElementById('tipo-venta').value : 'Normal';
+            const selectTipo = document.getElementById(esCot ? 'tipo-cot' : 'tipo-venta');
+            const tipoVenta = selectTipo ? selectTipo.value : 'Normal';
             
             let precioBase = prod.precio_venta || 0;
 
@@ -2090,7 +2110,7 @@
             document.getElementById('desc-producto' + suffix).value = 0;
 
             if (tipoVenta === 'Venta al Costo') {
-                aplicarPreciosAlCostoCarrito();
+                aplicarPreciosAlCostoCarrito(modo);
             } else {
                 renderCarrito(modo);
             }
@@ -2134,7 +2154,8 @@
             const esCot = modo === 'cotizacion';
             const targetCarrito = esCot ? carritoCotizacion : carrito;
             const tbody = document.querySelector(esCot ? '#tabla-carrito-cot tbody' : '#tabla-carrito tbody');
-            const esObsequio = !esCot && document.getElementById('tipo-venta').value === 'Obsequio';
+            const selectTipo = document.getElementById(esCot ? 'tipo-cot' : 'tipo-venta');
+            const esObsequio = selectTipo && selectTipo.value === 'Obsequio';
             let total = 0;
 
             if (tbody) {
@@ -2205,12 +2226,14 @@
 
             const clienteInput = document.getElementById('select-cliente-cot').value.trim();
             const clienteFinal = clienteInput || 'Cliente General';
+            const tipoCot = document.getElementById('tipo-cot').value;
 
             const payload = {
                 fecha: new Date().toISOString().split('T')[0],
                 cliente: clienteFinal,
                 vendedor: usuarioActual,
-                tipo_pago: document.getElementById('pago-cot').value,
+                tipo_pago: tipoCot === 'Obsequio' ? 'N/A' : document.getElementById('pago-cot').value,
+                tipo_venta: tipoCot,
                 items: carritoCotizacion
             };
 
