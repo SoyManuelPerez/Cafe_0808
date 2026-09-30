@@ -113,14 +113,11 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
 # ==========================================
-# ENDPOINT DE REPORTE RESUMEN DE VENTAS (CORREGIDO)
+# ENDPOINT DE REPORTE RESUMEN DE VENTAS
 # ==========================================
 
 @app.get("/api/reportes/resumen-ventas")
 def obtener_resumen_ventas():
-    """
-    Genera un reporte consolidado global de ventas no anuladas.
-    """
     pipeline_agregacion = [
         {"$match": {"tipo_venta": {"$ne": "Anulado"}, "estado_despacho": {"$ne": "Anulado"}}},
         {
@@ -637,7 +634,7 @@ def registrar_venta(venta: VentaCreate, request: Request):
         "cliente": venta.cliente,
         "vendedor": vendedor,
         "tipo_pago": tipo_pago_final,
-        "tipo_venta": venta.tipo_venta,
+        "tipo_venta": venta.tipo_venta or "Normal",
         "estado_despacho": estado_despacho,
         "faltantes": motivo_faltante if stock_insuficiente else {},
         "estado_credito": "Pendiente" if (tipo_pago_final == "Crédito" and not es_obsequio) else "N/A",
@@ -794,10 +791,11 @@ def editar_detalles_venta(venta_id: str, data: dict):
 @app.post("/api/cotizaciones", status_code=201)
 def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
     vendedor = cotizacion.vendedor or request.cookies.get("session_user", "admin")
-    total_cotizacion = sum(i.subtotal for i in cotizacion.items)
+    es_obsequio = (cotizacion.tipo_venta == "Obsequio")
+    total_cotizacion = 0.0 if es_obsequio else sum(i.subtotal for i in cotizacion.items)
     consecutivo = obtener_siguiente_consecutivo("cotizacion_num")
 
-    tipo_pago_cot = cotizacion.tipo_pago if cotizacion.tipo_pago else "Contado"
+    tipo_pago_cot = "N/A" if es_obsequio else (cotizacion.tipo_pago if cotizacion.tipo_pago else "Contado")
     if tipo_pago_cot == "Efectivo":
         tipo_pago_cot = "Contado"
 
@@ -807,6 +805,7 @@ def registrar_cotizacion(cotizacion: VentaCreate, request: Request):
         "cliente": cotizacion.cliente,
         "vendedor": vendedor,
         "tipo_pago": tipo_pago_cot,
+        "tipo_venta": cotizacion.tipo_venta or "Normal",
         "estado": "Pendiente",
         "total_venta": total_cotizacion,
         "items": [i.model_dump() if hasattr(i, "model_dump") else i.dict() for i in cotizacion.items],
@@ -897,7 +896,8 @@ def despachar_pedido(cotizacion_id: str, request: Request):
     costo_est = round(costo_cafe + costo_empaques_total)
     consecutivo_venta = obtener_siguiente_consecutivo("factura_num")
 
-    tipo_pago = pedido.get("tipo_pago", "Contado")
+    tipo_venta_pedido = pedido.get("tipo_venta", "Normal")
+    tipo_pago = "N/A" if tipo_venta_pedido == "Obsequio" else pedido.get("tipo_pago", "Contado")
     if tipo_pago == "Efectivo":
         tipo_pago = "Contado"
 
@@ -911,10 +911,10 @@ def despachar_pedido(cotizacion_id: str, request: Request):
         "cliente": pedido.get("cliente", "Cliente General"),
         "vendedor": pedido.get("vendedor", "admin"),
         "tipo_pago": tipo_pago,
-        "tipo_venta": "Pedido Despachado",
+        "tipo_venta": tipo_venta_pedido,
         "estado_despacho": estado_despacho,
         "faltantes": motivo_faltante if stock_insuficiente else {},
-        "estado_credito": "Pendiente" if tipo_pago == "Crédito" else "N/A",
+        "estado_credito": "Pendiente" if (tipo_pago == "Crédito" and tipo_venta_pedido != "Obsequio") else "N/A",
         "total_venta": total_venta,
         "costo_estimado": costo_est,
         "ganancia": total_venta - costo_est,
