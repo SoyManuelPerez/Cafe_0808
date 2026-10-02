@@ -1650,7 +1650,12 @@
                 
                 const list = Array.isArray(cotizaciones) ? cotizaciones : [];
                 const misCot = (rolActual === 'admin') ? list : list.filter(c => c && c.vendedor === usuarioActual);
-
+                    // --- ORDENAR DE MENOR A MAYOR POR NÚMERO DE PEDIDO ---
+                        misCot.sort((a, b) => {
+                            const numA = parseInt(a.consecutivo_str || a.consecutivo || a.id || 0, 10);
+                            const numB = parseInt(b.consecutivo_str || b.consecutivo || b.id || 0, 10);
+                            return numA - numB; // De menor a mayor (Ascendente)
+                        });
                 renderTablaPaginada('tabla-mis-cotizaciones', misCot, c => {
                     try {
                         if (!c) return '';
