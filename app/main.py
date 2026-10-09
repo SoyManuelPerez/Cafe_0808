@@ -22,7 +22,6 @@ from reportlab.lib import colors
 # -----------------------------------------------------------------------------
 # CONFIGURACIÓN GENERAL Y RUTAS DE ARCHIVOS
 # -----------------------------------------------------------------------------
-# Obtener la ruta del directorio donde se ubica este archivo (main.py)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -33,14 +32,14 @@ db = client[DB_NAME]
 
 app = FastAPI(title="0808 Café de Especialidad - Sistema ERP")
 
-# Servir archivos estáticos y plantillas Jinja2 si existen
-static_dir = os.path.join(BASE_DIR, "static")
-templates_dir = os.path.join(BASE_DIR, "templates")
+# Configurar estáticos
+static_dir_root = os.path.join(BASE_DIR, "..", "static")
+static_dir_app = os.path.join(BASE_DIR, "static")
 
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-templates = Jinja2Templates(directory=templates_dir) if os.path.exists(templates_dir) else None
+if os.path.exists(static_dir_root):
+    app.mount("/static", StaticFiles(directory=static_dir_root), name="static")
+elif os.path.exists(static_dir_app):
+    app.mount("/static", StaticFiles(directory=static_dir_app), name="static")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -105,14 +104,14 @@ class InsumoAjuste(BaseModel):
 # -----------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    # Buscar index.html en la carpeta del módulo o en el directorio raíz del proyecto
-    path_app = os.path.join(BASE_DIR, "index.html")
-    path_root = os.path.join(BASE_DIR, "..", "index.html")
+    # Buscar index.html en templates/
+    path_root = os.path.join(BASE_DIR, "..", "templates", "index.html")
+    path_app = os.path.join(BASE_DIR, "templates", "index.html")
     
-    target_path = path_app if os.path.exists(path_app) else path_root
+    target_path = path_root if os.path.exists(path_root) else path_app
 
     if not os.path.exists(target_path):
-        raise HTTPException(status_code=404, detail="Archivo index.html no encontrado")
+        raise HTTPException(status_code=404, detail="Archivo index.html no encontrado en templates/")
 
     with open(target_path, "r", encoding="utf-8") as f:
         html_content = f.read()
@@ -361,7 +360,6 @@ async def generar_pdf_pedido(pedido_id: str):
     story.append(Paragraph(f"<b>Forma de Pago:</b> {pedido.get('forma_pago', 'Efectivo')}", normal_style))
     story.append(Spacer(1, 15))
 
-    # Tabla de productos
     tabla_datos = [["Producto / Presentación", "Cantidad", "P. Unitario", "Subtotal"]]
     for item in pedido.get("items", []):
         subtotal = item['cantidad'] * item['precio_unitario']
