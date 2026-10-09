@@ -8,6 +8,7 @@ reportlab
 jinja2
 gunicorn
 bcrypt
+passlib[bcrypt]
 python-multipart
 pytz
 pyjwt
