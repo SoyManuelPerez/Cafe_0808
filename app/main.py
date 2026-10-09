@@ -20,8 +20,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # -----------------------------------------------------------------------------
-# CONFIGURACIÓN GENERAL Y DB
+# CONFIGURACIÓN GENERAL Y RUTAS DE ARCHIVOS
 # -----------------------------------------------------------------------------
+# Obtener la ruta del directorio donde se ubica este archivo (main.py)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "cafe_0808_db")
 
@@ -31,8 +34,13 @@ db = client[DB_NAME]
 app = FastAPI(title="0808 Café de Especialidad - Sistema ERP")
 
 # Servir archivos estáticos y plantillas Jinja2 si existen
-app.mount("/static", StaticFiles(directory="static"), name="static") if os.path.exists("static") else None
-templates = Jinja2Templates(directory="templates") if os.path.exists("templates") else None
+static_dir = os.path.join(BASE_DIR, "static")
+templates_dir = os.path.join(BASE_DIR, "templates")
+
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates = Jinja2Templates(directory=templates_dir) if os.path.exists(templates_dir) else None
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -49,7 +57,6 @@ def fix_id(doc):
 async def get_current_user(request: Request):
     user_id = request.cookies.get("session_user")
     if not user_id:
-        # Modo pruebas/desarrollo o verificar si no hay autenticación estricta
         user = await db.usuarios.find_one({"rol": "admin"})
         if user:
             return fix_id(user)
@@ -68,7 +75,7 @@ class ItemVenta(BaseModel):
     nombre: str
     cantidad: float
     precio_unitario: float
-    tipo_presentacion: Optional[str] = "250g" # 250g, 500g, libra, etc.
+    tipo_presentacion: Optional[str] = "250g"
 
 class PedidoCreate(BaseModel):
     cliente_id: Optional[str] = None
@@ -77,10 +84,10 @@ class PedidoCreate(BaseModel):
     cliente_direccion: Optional[str] = ""
     items: List[ItemVenta]
     forma_pago: str = "Efectivo"
-    tipo_venta: str = "Normal" # Normal, Obsequio, Venta al Costo
+    tipo_venta: str = "Normal"
     observaciones: Optional[str] = ""
     despachado: bool = False
-    consecutivo_existente: Optional[int] = None # Para mantener consecutivo al editar
+    consecutivo_existente: Optional[int] = None
 
 class ClienteModel(BaseModel):
     nombre: str
@@ -89,7 +96,7 @@ class ClienteModel(BaseModel):
     direccion: Optional[str] = ""
 
 class InsumoAjuste(BaseModel):
-    tipo: str # bolsa_250g, bolsa_500g, etiqueta_250g, etiqueta_500g
+    tipo: str
     cantidad: float
     costo_unitario: Optional[float] = 0.0
 
@@ -98,7 +105,16 @@ class InsumoAjuste(BaseModel):
 # -----------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    with open("index.html", "r", encoding="utf-8") as f:
+    # Buscar index.html en la carpeta del módulo o en el directorio raíz del proyecto
+    path_app = os.path.join(BASE_DIR, "index.html")
+    path_root = os.path.join(BASE_DIR, "..", "index.html")
+    
+    target_path = path_app if os.path.exists(path_app) else path_root
+
+    if not os.path.exists(target_path):
+        raise HTTPException(status_code=404, detail="Archivo index.html no encontrado")
+
+    with open(target_path, "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
 
@@ -122,7 +138,6 @@ async def logout():
 # CONTROL DE CONSECUTIVOS
 # -----------------------------------------------------------------------------
 async def obtener_siguiente_consecutivo(tipo: str) -> int:
-    # tipo: 'factura' o 'pedido'
     doc = await db.consecutivos.find_one_and_update(
         {"tipo": tipo},
         {"$inc": {"valor": 1}},
@@ -166,7 +181,6 @@ async def actualizar_cliente(cliente_id: str, cliente: ClienteModel):
 # -----------------------------------------------------------------------------
 @app.get("/api/inventario")
 async def obtener_inventario():
-    # Obtener inventario de café de especialidad y empaques
     cafe = await db.materia_prima.find_one({"tipo": "cafe_verde"}) or {"gramos": 0, "costo_por_gramo": 0}
     empaques = await db.insumos.find_one({"tipo": "empaques"}) or {
         "bolsa_250g": 0, "bolsa_500g": 0, 
@@ -183,7 +197,6 @@ async def obtener_inventario():
 
 @app.post("/api/inventario/insumos")
 async def ajustar_insumos(insumo: InsumoAjuste):
-    # Permite añadir o corregir cantidades de empaques o etiquetas
     campo_cantidad = insumo.tipo
     campo_costo = f"costo_{insumo.tipo}"
     
@@ -203,10 +216,7 @@ async def ajustar_insumos(insumo: InsumoAjuste):
 @app.get("/api/pedidos")
 async def listar_pedidos():
     cursor = db.pedidos.find().sort("fecha", -1)
-    pedidos = []
-    async for p in cursor:
-        p = fix_id(p)
-        pedidos.append(p)
+    pedidos = [fix_id(p) async for p in cursor]
     return pedidos
 
 @app.get("/api/pedidos/{pedido_id}")
@@ -218,10 +228,8 @@ async def obtener_pedido(pedido_id: str):
 
 @app.post("/api/pedidos")
 async def crear_o_guardar_pedido(data: PedidoCreate):
-    # Calcular total del pedido
     total = sum(item.cantidad * item.precio_unitario for item in data.items)
     
-    # Manejar consecutivo (si viene de una edición se mantiene el mismo)
     if data.consecutivo_existente:
         consecutivo = data.consecutivo_existente
     else:
@@ -259,8 +267,6 @@ async def actualizar_pedido(pedido_id: str, data: PedidoCreate):
         raise HTTPException(status_code=400, detail="No se puede editar un pedido que ya ha sido despachado")
 
     total = sum(item.cantidad * item.precio_unitario for item in data.items)
-    
-    # Mantenemos el consecutivo original intacto
     consecutivo = pedido_existente.get("consecutivo")
 
     actualizacion = {
@@ -305,7 +311,6 @@ async def despachar_pedido(pedido_id: str):
     if pedido.get("despachado", False):
         raise HTTPException(status_code=400, detail="Este pedido ya fue despachado previamente")
 
-    # Generar factura formal
     consecutivo_factura = await obtener_siguiente_consecutivo("factura")
     
     factura = {
