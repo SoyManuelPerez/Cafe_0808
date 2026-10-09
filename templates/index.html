@@ -8,13 +8,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <style>
         :root {
-            --gold-primary: #d4af37;
-            --gold-bright: #f3e5ab;
             --bg-dark: #121212;
             --bg-card: #1e1e1e;
+            --bg-input: #2a2a2a;
+            --gold-primary: #d4af37;
+            --gold-bright: #ffd700;
             --text-light: #e0e0e0;
+            --border-color: #333333;
         }
 
         body {
@@ -24,39 +29,51 @@
         }
 
         .navbar {
-            background-color: #0a0a0a !important;
-            border-bottom: 2px solid var(--gold-primary);
+            background-color: var(--bg-card) !important;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .navbar-brand {
-            color: var(--gold-primary) !important;
+            color: var(--gold-bright) !important;
             font-weight: bold;
-            letter-spacing: 1px;
+            font-size: 1.4rem;
         }
 
         .nav-link {
-            color: #aaa !important;
-            transition: all 0.3s;
+            color: var(--text-light) !important;
+            transition: color 0.3s;
         }
 
         .nav-link:hover, .nav-link.active {
-            color: var(--gold-bright) !important;
-            border-bottom: 2px solid var(--gold-primary);
+            color: var(--gold-primary) !important;
         }
 
         .card {
             background-color: var(--bg-card);
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
             color: var(--text-light);
-            border-radius: 8px;
-            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
         .card-header {
-            background-color: #252525;
-            border-bottom: 1px solid #333;
+            background-color: rgba(212, 175, 55, 0.1);
+            border-bottom: 1px solid var(--border-color);
             color: var(--gold-primary);
             font-weight: bold;
+        }
+
+        .form-control, .form-select {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--bg-input);
+            border-color: var(--gold-primary);
+            color: var(--text-light);
+            box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
         }
 
         .btn-gold {
@@ -71,307 +88,361 @@
             color: #000;
         }
 
-        .table-dark-custom {
-            background-color: var(--bg-card);
+        .table {
             color: var(--text-light);
+            border-color: var(--border-color);
         }
 
-        .table-dark-custom th {
+        .table th {
+            background-color: rgba(255, 255, 255, 0.05);
             color: var(--gold-primary);
-            border-color: #444;
         }
 
-        .table-dark-custom td {
-            border-color: #333;
-            vertical-align: middle;
+        .seccion-modulo {
+            display: none;
         }
 
-        .badge-pending {
+        .seccion-modulo.activa {
+            display: block;
+        }
+
+        .badge-despachado {
+            background-color: #198754;
+        }
+
+        .badge-pendiente {
             background-color: #ffc107;
             color: #000;
         }
 
-        .badge-dispatched {
-            background-color: #198754;
-            color: #fff;
-        }
-
-        .editing-banner {
-            background-color: #ff9800;
-            color: #000;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
+        /* Banner indicador de modo edición */
+        #banner-edicion {
+            background-color: rgba(255, 193, 7, 0.15);
+            border: 1px solid #ffc107;
+            color: var(--gold-bright);
+            border-radius: 8px;
+            padding: 10px 15px;
             margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- Navegación -->
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">☕ 0808 CAFÉ</a>
+            <a class="navbar-brand" href="#"><i class="fa-solid fa-mug-hot me-2"></i>0808 Café</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#" onclick="navegar('ventas')"><i class="fa-solid fa-cart-shopping"></i> Nueva Venta / Pedido</a>
+                        <a class="nav-link active" href="#" onclick="navegarA('seccion-ventas', this)"><i class="fa-solid fa-cart-shopping me-1"></i> Ventas</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="navegar('pedidos')"><i class="fa-solid fa-list-check"></i> Pedidos y Cotizaciones</a>
+                        <a class="nav-link" href="#" onclick="navegarA('seccion-pedidos', this)"><i class="fa-solid fa-file-invoice-dollar me-1"></i> Pedidos</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="navegar('clientes')"><i class="fa-solid fa-users"></i> Clientes</a>
+                        <a class="nav-link" href="#" onclick="navegarA('seccion-clientes', this)"><i class="fa-solid fa-users me-1"></i> Clientes</a>
                     </li>
                     <li class="nav-item admin-only">
-                        <a class="nav-link" href="#" onclick="navegar('inventario')"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+                        <a class="nav-link" href="#" onclick="navegarA('seccion-inventario', this)"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventario</a>
                     </li>
                 </ul>
+                <button class="btn btn-outline-danger btn-sm" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket me-1"></i> Salir</button>
             </div>
         </div>
     </nav>
 
-    <!-- Contenido Principal -->
-    <div class="container my-4">
+    <div class="container pb-5">
 
-        <!-- SECCIÓN 1: VENTA Y REGISTRO DE PEDIDOS -->
-        <div id="seccion-ventas" class="seccion-vista">
-            
-            <!-- Banner cuando se está editando un pedido no despachado -->
-            <div id="editing-banner" class="editing-banner d-none">
-                <span><i class="fa-solid fa-pen-to-square"></i> Modificando Pedido Consecutivo #<span id="banner-consecutivo"></span></span>
-                <button class="btn btn-sm btn-dark" onclick="cancelarEdicionPedido()">Cancelar Edición</button>
-            </div>
-
+        <!-- ==================================================================== -->
+        <!-- MÓDULO DE VENTAS Y COTIZACIONES -->
+        <!-- ==================================================================== -->
+        <section id="seccion-ventas" class="seccion-modulo activa">
             <div class="row">
-                <!-- Formulario de Selección de Productos -->
                 <div class="col-md-7">
-                    <div class="card">
-                        <div class="card-header">
-                            <i class="fa-solid fa-mug-hot me-2"></i>Seleccionar Productos
-                        </div>
+                    <div class="card mb-3">
+                        <div class="card-header"><i class="fa-solid fa-cart-plus me-2"></i>Nueva Venta / Pedido</div>
                         <div class="card-body">
-                            <div class="row g-3">
+                            
+                            <!-- Banner de notificación al editar -->
+                            <div id="banner-edicion" class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fa-solid fa-pen-to-square me-2"></i>
+                                    <strong>Modo Edición:</strong> Editando Pedido <span id="lbl-consecutivo-edicion">#000</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-light" onclick="cancelarEdicionPedido()">Cancelar Edición</button>
+                            </div>
+
+                            <div class="row g-2 mb-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">Producto</label>
-                                    <select id="select-producto" class="form-select bg-dark text-light border-secondary">
-                                        <option value="p1" data-nombre="Café Premium Arábica" data-precio="35000">Café Premium Arábica</option>
-                                        <option value="p2" data-nombre="Café Blend Especial" data-precio="28000">Café Blend Especial</option>
-                                        <option value="p3" data-nombre="Edición Limitada Geisha" data-precio="50000">Edición Limitada Geisha</option>
+                                    <label class="form-label">Cliente</label>
+                                    <select id="select_cliente" class="form-select">
+                                        <option value="">Cliente Ocasional</option>
                                     </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Forma de Pago</label>
+                                    <select id="forma_pago" class="form-select">
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Transferencia">Transferencia / Nequi / Bancolombia</option>
+                                        <option value="Crédito">Crédito</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <hr class="border-secondary">
+
+                            <h6 class="text-gold mb-3">Agregar Productos</h6>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-5">
+                                    <label class="form-label">Producto / Café</label>
+                                    <input type="text" id="prod_nombre" class="form-control" placeholder="Ej. Café Molido 250g">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Presentación</label>
-                                    <select id="select-presentacion" class="form-select bg-dark text-light border-secondary">
+                                    <select id="prod_presentacion" class="form-select">
                                         <option value="250g">250g</option>
                                         <option value="500g">500g</option>
-                                        <option value="1000g">1000g</option>
+                                        <option value="Libra">Libra</option>
+                                        <option value="Kilo">Kilo</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Cantidad</label>
-                                    <input type="number" id="input-cantidad" class="form-control bg-dark text-light border-secondary" value="1" min="1">
+                                <div class="col-md-2">
+                                    <label class="form-label">Cant.</label>
+                                    <input type="number" id="prod_cantidad" class="form-control" value="1" min="1">
                                 </div>
-                                <div class="col-md-12 text-end">
-                                    <button class="btn btn-gold" onclick="agregarAlCarrito()"><i class="fa-solid fa-plus me-1"></i> Agregar al Carrito</button>
+                                <div class="col-md-2">
+                                    <label class="form-label">Precio ($)</label>
+                                    <input type="number" id="prod_precio" class="form-control" placeholder="15000">
                                 </div>
+                            </div>
+                            <button class="btn btn-gold w-100 mb-3" onclick="agregarAlCarrito()"><i class="fa-solid fa-plus me-1"></i> Agregar al Carrito</button>
+
+                            <div class="mb-3">
+                                <label class="form-label">Observaciones</label>
+                                <textarea id="observaciones_venta" class="form-control" rows="2" placeholder="Notas adicionales del pedido..."></textarea>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Tabla de Carrito -->
+                <!-- Resumen de Carrito -->
+                <div class="col-md-5">
                     <div class="card">
-                        <div class="card-header">
-                            <i class="fa-solid fa-basket-shopping me-2"></i>Detalle del Pedido
-                        </div>
+                        <div class="card-header"><i class="fa-solid fa-list-check me-2"></i>Resumen del Carrito</div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-dark-custom">
+                                <table class="table table-sm">
                                     <thead>
                                         <tr>
                                             <th>Producto</th>
-                                            <th>Presentación</th>
                                             <th>Cant.</th>
-                                            <th>Precio Unit.</th>
+                                            <th>Precio</th>
                                             <th>Subtotal</th>
-                                            <th>Acción</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tbody-carrito">
+                                    <tbody id="tbl_carrito">
                                         <!-- Filas dinámicas -->
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resumen y Datos del Cliente -->
-                <div class="col-md-5">
-                    <div class="card">
-                        <div class="card-header">
-                            <i class="fa-solid fa-user-check me-2"></i>Información de Venta / Cliente
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Cliente</label>
-                                <select id="select-cliente" class="form-select bg-dark text-light border-secondary">
-                                    <option value="">Cliente Ocasional</option>
-                                </select>
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
+                                <h5>Total:</h5>
+                                <h4 class="text-warning" id="lbl_total_carrito">$0</h4>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Forma de Pago</label>
-                                <select id="select-pago" class="form-select bg-dark text-light border-secondary">
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Transferencia">Transferencia / Nequi / B transfer</option>
-                                    <option value="Crédito">Crédito</option>
-                                </select>
+                            
+                            <div class="d-grid gap-2 mt-3">
+                                <button class="btn btn-gold" onclick="guardarPedidoVenta()"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Pedido / Cotización</button>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Observaciones / Notas</label>
-                                <textarea id="input-observaciones" class="form-control bg-dark text-light border-secondary" rows="2"></textarea>
-                            </div>
-                            <hr class="border-secondary">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4>TOTAL:</h4>
-                                <h3 class="text-warning" id="lbl-total">$0</h3>
-                            </div>
-                            <button class="btn btn-gold w-100 py-2 fs-5" id="btn-guardar-pedido" onclick="guardarPedido()"><i class="fa-solid fa-floppy-disk me-2"></i> Guardar / Generar Pedido</button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- SECCIÓN 2: HISTORIAL DE PEDIDOS Y COTIZACIONES -->
-        <div id="seccion-pedidos" class="seccion-vista d-none">
+        <!-- ==================================================================== -->
+        <!-- MÓDULO DE PEDIDOS -->
+        <!-- ==================================================================== -->
+        <section id="seccion-pedidos" class="seccion-modulo">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-receipt me-2"></i>Pedidos y Cotizaciones Registradas</span>
-                    <button class="btn btn-sm btn-outline-warning" onclick="cargarPedidos()"><i class="fa-solid fa-rotate-right"></i> Actualizar</button>
+                    <span><i class="fa-solid fa-file-invoice-dollar me-2"></i>Historial de Pedidos / Cotizaciones</span>
+                    <button class="btn btn-sm btn-outline-warning" onclick="cargarPedidos()"><i class="fa-solid fa-rotate me-1"></i> Actualizar</button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-dark-custom">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
-                                    <th>Consecutivo</th>
+                                    <th># Pedido</th>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
                                     <th>Total</th>
                                     <th>Estado</th>
-                                    <th>Acciones</th>
+                                    <th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-pedidos">
-                                <!-- Filas de pedidos -->
+                            <tbody id="tbl_pedidos">
+                                <!-- Pedidos dinámicos -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- SECCIÓN 3: CLIENTES -->
-        <div id="seccion-clientes" class="seccion-vista d-none">
+        <!-- ==================================================================== -->
+        <!-- MÓDULO DE CLIENTES -->
+        <!-- ==================================================================== -->
+        <section id="seccion-clientes" class="seccion-modulo">
             <div class="card">
-                <div class="card-header"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</span>
+                    <button class="btn btn-gold btn-sm" onclick="abrirModalCliente()"><i class="fa-solid fa-user-plus me-1"></i> Nuevo Cliente</button>
+                </div>
                 <div class="card-body">
-                    <p class="text-muted">Módulo de Clientes de 0808 Café.</p>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Celular</th>
+                                    <th>Dirección</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl_clientes">
+                                <!-- Clientes dinámicos -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- ==================================================================== -->
+        <!-- MÓDULO DE INVENTARIO -->
+        <!-- ==================================================================== -->
+        <section id="seccion-inventario" class="seccion-modulo">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-boxes-stacked me-2"></i>Estado del Inventario</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 border border-secondary rounded">
+                                <h6 class="text-gold">Materia Prima (Café)</h6>
+                                <p class="mb-1">Café Verde disponible: <strong id="inv_cafe_verde">0</strong> g</p>
+                                <p class="mb-0">Costo promedio / gramo: <strong id="inv_costo_gramo">$0</strong></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border border-secondary rounded">
+                                <h6 class="text-gold">Empaques e Insumos</h6>
+                                <p class="mb-1">Bolsas 250g: <strong id="inv_bolsa_250">0</strong> | Bolsas 500g: <strong id="inv_bolsa_500">0</strong></p>
+                                <p class="mb-0">Etiquetas 250g: <strong id="inv_etiq_250">0</strong> | Etiquetas 500g: <strong id="inv_etiq_500">0</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
     </div>
 
-    <!-- Modal para Vista Previa PDF -->
-    <div class="modal fade" id="modalPdf" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content bg-dark text-light">
+    <!-- MODAL NUEVO CLIENTE -->
+    <div class="modal fade" id="modalCliente" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Vista Previa Documento PDF</h5>
+                    <h5 class="modal-title text-warning">Registrar Nuevo Cliente</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-0" style="height: 80vh;">
-                    <iframe id="iframe-pdf" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo *</label>
+                        <input type="text" id="cli_nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Celular *</label>
+                        <input type="text" id="cli_celular" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" id="cli_direccion" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="cli_email" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-gold" onclick="guardarCliente()">Guardar Cliente</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap & JS Scripts -->
+    <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // ESTADO GLOBAL DE LA APLICACIÓN
+        // ESTADO GLOBAL
         let carrito = [];
-        let pedidoEnEdicion = null; // Guardará el objeto completo cuando se edite
-        let clientesLista = [];
+        let clientesData = [];
+        let pedidoEnEdicionId = null;
+        let consecutivoOriginal = null;
 
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener('DOMContentLoaded', () => {
             cargarClientes();
             cargarPedidos();
-            renderCarrito();
+            cargarInventario();
         });
 
-        // NAVEGACIÓN ENTRE VISTAS
-        function navegar(seccion) {
-            document.querySelectorAll('.seccion-vista').forEach(el => el.classList.add('d-none'));
-            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-
-            if (seccion === 'ventas') {
-                document.getElementById('seccion-ventas').classList.remove('d-none');
-            } else if (seccion === 'pedidos') {
-                document.getElementById('seccion-pedidos').classList.remove('d-none');
-                cargarPedidos();
-            } else if (seccion === 'clientes') {
-                document.getElementById('seccion-clientes').classList.remove('d-none');
-            }
+        function navegarA(seccionId, elemento) {
+            document.querySelectorAll('.seccion-modulo').forEach(sec => sec.classList.remove('activa'));
+            document.getElementById(seccionId).classList.add('activa');
+            document.querySelectorAll('.nav-link').forEach(nav => nav.classList.remove('active'));
+            if(elemento) elemento.classList.add('active');
         }
 
-        // LÓGICA DEL CARRITO
+        // ==========================================
+        // LÓGICA DE CARRITO Y VENTAS
+        // ==========================================
         function agregarAlCarrito() {
-            const selectProd = document.getElementById('select-producto');
-            const optSelected = selectProd.options[selectProd.selectedIndex];
-            
-            const prodId = selectProd.value;
-            const nombre = optSelected.getAttribute('data-nombre');
-            const precio = parseFloat(optSelected.getAttribute('data-precio'));
-            const presentacion = document.getElementById('select-presentacion').value;
-            const cantidad = parseFloat(document.getElementById('input-cantidad').value);
+            const nombre = document.getElementById('prod_nombre').value.trim();
+            const presentacion = document.getElementById('prod_presentacion').value;
+            const cantidad = parseFloat(document.getElementById('prod_cantidad').value) || 0;
+            const precio = parseFloat(document.getElementById('prod_precio').value) || 0;
 
-            if (cantidad <= 0 || isNaN(cantidad)) return;
-
-            // Verificar si ya está en carrito con la misma presentación
-            const itemExistente = carrito.find(i => i.producto_id === prodId && i.tipo_presentacion === presentacion);
-            if (itemExistente) {
-                itemExistente.cantidad += cantidad;
-            } else {
-                carrito.push({
-                    producto_id: prodId,
-                    nombre: nombre,
-                    cantidad: cantidad,
-                    precio_unitario: precio,
-                    tipo_presentacion: presentacion
-                });
+            if(!nombre || cantidad <= 0 || precio <= 0) {
+                alert("Por favor completa los datos del producto con una cantidad y precio válidos.");
+                return;
             }
 
-            renderCarrito();
-        }
+            carrito.push({
+                producto_id: 'prod_' + Date.now(),
+                nombre: nombre,
+                tipo_presentacion: presentacion,
+                cantidad: cantidad,
+                precio_unitario: precio
+            });
 
-        function eliminarDelCarrito(index) {
-            carrito.splice(index, 1);
+            // Limpiar formulario parcial
+            document.getElementById('prod_nombre').value = '';
+            document.getElementById('prod_cantidad').value = '1';
+            document.getElementById('prod_precio').value = '';
+
             renderCarrito();
         }
 
         function renderCarrito() {
-            const tbody = document.getElementById('tbody-carrito');
+            const tbody = document.getElementById('tbl_carrito');
             tbody.innerHTML = '';
             let total = 0;
 
@@ -381,225 +452,287 @@
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${item.nombre}</td>
-                        <td><span class="badge bg-secondary">${item.tipo_presentacion}</span></td>
+                        <td>${item.nombre} <small class="text-muted">(${item.tipo_presentacion})</small></td>
                         <td>${item.cantidad}</td>
                         <td>$${item.precio_unitario.toLocaleString()}</td>
                         <td>$${subtotal.toLocaleString()}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-danger" onclick="eliminarDelCarrito(${index})">
-                                <i class="fa-solid fa-trash"></i>
+                                <i class="fa-solid fa-xmark"></i>
                             </button>
                         </td>
                     </tr>
                 `;
             });
 
-            document.getElementById('lbl-total').innerText = `$${total.toLocaleString()}`;
+            document.getElementById('lbl_total_carrito').innerText = `$${total.toLocaleString()}`;
         }
 
-        // EDICIÓN Y MANEJO DE PEDIDOS
+        function eliminarDelCarrito(index) {
+            carrito.splice(index, 1);
+            renderCarrito();
+        }
+
+        async function guardarPedidoVenta() {
+            if(carrito.length === 0) {
+                alert("El carrito está vacío. Agrega al menos un producto.");
+                return;
+            }
+
+            const clienteSelect = document.getElementById('select_cliente');
+            const clienteId = clienteSelect.value || null;
+            const clienteNombre = clienteSelect.options[clienteSelect.selectedIndex]?.text || "Cliente Ocasional";
+            const formaPago = document.getElementById('forma_pago').value;
+            const observaciones = document.getElementById('observaciones_venta').value;
+
+            const payload = {
+                cliente_id: clienteId,
+                cliente_nombre: clienteNombre,
+                items: carrito,
+                forma_pago: formaPago,
+                observaciones: observaciones,
+                despachado: false,
+                consecutivo_existente: consecutivoOriginal
+            };
+
+            const url = pedidoEnEdicionId ? `/api/pedidos/${pedidoEnEdicionId}` : '/api/pedidos';
+            const metodo = pedidoEnEdicionId ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: metodo,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if(!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Error al procesar el pedido");
+                }
+
+                const data = await res.json();
+                alert(`Pedido #${data.consecutivo} ${pedidoEnEdicionId ? 'actualizado' : 'registrado'} con éxito.`);
+
+                cancelarEdicionPedido();
+                cargarPedidos();
+
+            } catch (error) {
+                console.error("Error al guardar pedido:", error);
+                alert("Ocurrió un error: " + error.message);
+            }
+        }
+
+        // ==========================================
+        // LÓGICA DE EDICIÓN DE PEDIDOS
+        // ==========================================
+        async function editarPedido(idPedido) {
+            try {
+                const res = await fetch(`/api/pedidos/${idPedido}`);
+                if (!res.ok) throw new Error("No se pudo obtener la información del pedido.");
+
+                const pedido = await res.json();
+
+                if (pedido.despachado) {
+                    alert("No se puede editar un pedido que ya ha sido despachado.");
+                    return;
+                }
+
+                // Guardar variables de estado de edición
+                pedidoEnEdicionId = pedido._id;
+                consecutivoOriginal = pedido.consecutivo;
+
+                // Cargar datos en el carrito
+                carrito = pedido.items.map(item => ({
+                    producto_id: item.producto_id || 'prod_' + Date.now(),
+                    nombre: item.nombre,
+                    tipo_presentacion: item.tipo_presentacion || '250g',
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precio_unitario
+                }));
+
+                // Cargar campos de formulario
+                if(document.getElementById('select_cliente')) document.getElementById('select_cliente').value = pedido.cliente_id || '';
+                if(document.getElementById('forma_pago')) document.getElementById('forma_pago').value = pedido.forma_pago || 'Efectivo';
+                if(document.getElementById('observaciones_venta')) document.getElementById('observaciones_venta').value = pedido.observaciones || '';
+
+                // Activar banner visual
+                document.getElementById('lbl-consecutivo-edicion').innerText = `#${pedido.consecutivo}`;
+                document.getElementById('banner-edicion').style.display = 'flex';
+
+                renderCarrito();
+                navegarA('seccion-ventas');
+
+            } catch (error) {
+                console.error("Error al editar pedido:", error);
+                alert("Ocurrió un error al cargar el pedido para edición.");
+            }
+        }
+
+        function cancelarEdicionPedido() {
+            pedidoEnEdicionId = null;
+            consecutivoOriginal = null;
+            carrito = [];
+            document.getElementById('banner-edicion').style.display = 'none';
+            document.getElementById('observaciones_venta').value = '';
+            renderCarrito();
+        }
+
+        // ==========================================
+        // LÓGICA DE PEDIDOS (HISTORIAL)
+        // ==========================================
         async function cargarPedidos() {
             try {
                 const res = await fetch('/api/pedidos');
                 const pedidos = await res.json();
-                const tbody = document.getElementById('tbody-pedidos');
+
+                const tbody = document.getElementById('tbl_pedidos');
                 tbody.innerHTML = '';
 
                 pedidos.forEach(p => {
-                    const esDespachado = p.despachado;
-                    const badgeEstado = esDespachado 
-                        ? `<span class="badge badge-dispatched"><i class="fa-solid fa-check"></i> Despachado</span>`
-                        : `<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Pendiente</span>`;
+                    const fechaStr = p.fecha ? new Date(p.fecha).toLocaleDateString() : 'N/A';
+                    const esDespachado = p.despachado === true;
 
-                    let botonEditar = '';
+                    let btnEditar = '';
                     if (!esDespachado) {
-                        botonEditar = `
-                            <button class="btn btn-sm btn-outline-warning me-1" onclick="cargarPedidoParaEditar('${p._id}')" title="Editar pedido manteniendo consecutivo">
+                        btnEditar = `
+                            <button class="btn btn-sm btn-outline-warning me-1" 
+                                    onclick="editarPedido('${p._id}')" 
+                                    title="Editar Pedido (Conservando Consecutivo)">
                                 <i class="fa-solid fa-pen-to-square"></i> Editar
-                            </button>
-                        `;
-                    }
-
-                    let botonDespachar = '';
-                    if (!esDespachado) {
-                        botonDespachar = `
-                            <button class="btn btn-sm btn-outline-success me-1" onclick="despacharPedido('${p._id}')" title="Aprobar y despachar">
-                                <i class="fa-solid fa-truck-fast"></i>
                             </button>
                         `;
                     }
 
                     tbody.innerHTML += `
                         <tr>
-                            <td><strong>#${p.consecutivo || '---'}</strong></td>
-                            <td>${new Date(p.fecha).toLocaleDateString()}</td>
+                            <td><strong>#${p.consecutivo}</strong></td>
+                            <td>${fechaStr}</td>
                             <td>${p.cliente_nombre || 'Cliente Ocasional'}</td>
-                            <td>$${p.total ? p.total.toLocaleString() : 0}</td>
-                            <td>${badgeEstado}</td>
+                            <td>$${(p.total || 0).toLocaleString()}</td>
                             <td>
-                                ${botonEditar}
-                                ${botonDespachar}
-                                <button class="btn btn-sm btn-outline-info me-1" onclick="verPdf('${p._id}')" title="Ver PDF">
+                                <span class="badge ${esDespachado ? 'badge-despachado' : 'badge-pendiente'}">
+                                    ${esDespachado ? 'Despachado' : 'Pendiente'}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                ${btnEditar}
+                                <a class="btn btn-sm btn-outline-info me-1" href="/api/pedidos/${p._id}/pdf" target="_blank" title="Ver PDF">
                                     <i class="fa-solid fa-file-pdf"></i>
-                                </button>
-                                ${!esDespachado ? `<button class="btn btn-sm btn-outline-danger" onclick="eliminarPedido('${p._id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                </a>
+                                ${!esDespachado ? `
+                                    <button class="btn btn-sm btn-outline-success" onclick="despacharPedido('${p._id}')" title="Despachar y Facturar">
+                                        <i class="fa-solid fa-truck-fast"></i>
+                                    </button>
+                                ` : ''}
                             </td>
                         </tr>
                     `;
                 });
-            } catch (err) {
-                console.error("Error al cargar pedidos:", err);
+            } catch (error) {
+                console.error("Error al cargar pedidos:", error);
             }
         }
 
-        async function cargarPedidoParaEditar(idPedido) {
+        async function despacharPedido(id) {
+            if(!confirm("¿Deseas despachar este pedido y generar su factura formal?")) return;
             try {
-                const res = await fetch(`/api/pedidos/${idPedido}`);
-                if (!res.ok) throw new Error("No se encontró el pedido");
-
-                const pedido = await res.json();
-
-                if (pedido.despachado) {
-                    alert("No es posible editar un pedido que ya ha sido despachado.");
-                    return;
+                const res = await fetch(`/api/pedidos/${id}/despachar`, { method: 'POST' });
+                if(res.ok) {
+                    alert("Pedido despachado exitosamente.");
+                    cargarPedidos();
                 }
-
-                // Guardar la referencia global de edición
-                pedidoEnEdicion = pedido;
-
-                // Cargar datos en el formulario
-                carrito = pedido.items || [];
-                renderCarrito();
-
-                document.getElementById('select-cliente').value = pedido.cliente_id || '';
-                document.getElementById('select-pago').value = pedido.forma_pago || 'Efectivo';
-                document.getElementById('input-observaciones').value = pedido.observaciones || '';
-
-                // Activar Banner de edición visual
-                document.getElementById('banner-consecutivo').innerText = pedido.consecutivo;
-                document.getElementById('editing-banner').classList.remove('d-none');
-                document.getElementById('btn-guardar-pedido').innerHTML = `<i class="fa-solid fa-rotate me-2"></i> Actualizar Pedido #${pedido.consecutivo}`;
-
-                // Redirigir a la vista de ventas
-                navegar('ventas');
-
-            } catch (err) {
-                alert("Error al intentar cargar el pedido para edición: " + err.message);
+            } catch (error) {
+                console.error("Error al despachar:", error);
             }
         }
 
-        function cancelarEdicionPedido() {
-            pedidoEnEdicion = null;
-            carrito = [];
-            renderCarrito();
-            document.getElementById('input-observaciones').value = '';
-            document.getElementById('editing-banner').classList.add('d-none');
-            document.getElementById('btn-guardar-pedido').innerHTML = `<i class="fa-solid fa-floppy-disk me-2"></i> Guardar / Generar Pedido`;
-        }
-
-        async function guardarPedido() {
-            if (carrito.length === 0) {
-                alert("El carrito está vacío. Agrega productos antes de continuar.");
-                return;
-            }
-
-            const clienteSelect = document.getElementById('select-cliente');
-            const clienteNombre = clienteSelect.options[clienteSelect.selectedIndex]?.text || "Cliente Ocasional";
-
-            const payload = {
-                cliente_id: clienteSelect.value || null,
-                cliente_nombre: clienteNombre,
-                items: carrito,
-                forma_pago: document.getElementById('select-pago').value,
-                observaciones: document.getElementById('input-observaciones').value,
-                despachado: false
-            };
-
-            try {
-                let res;
-                if (pedidoEnEdicion) {
-                    // EDICIÓN: PUT MANTENIENDO CONSECUTIVO
-                    res = await fetch(`/api/pedidos/${pedidoEnEdicion._id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                } else {
-                    // CREACIÓN: POST NUEVO CONSECUTIVO
-                    res = await fetch('/api/pedidos', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                }
-
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.detail || "Error al procesar pedido");
-                }
-
-                const data = await res.json();
-                alert(`¡Éxito! Pedido ${pedidoEnEdicion ? 'actualizado' : 'registrado'} correctamente con el Consecutivo #${data.consecutivo}`);
-
-                // Restablecer interfaz
-                cancelarEdicionPedido();
-                navegar('pedidos');
-
-            } catch (err) {
-                alert("Error: " + err.message);
-            }
-        }
-
-        async function despacharPedido(idPedido) {
-            if (!confirm("¿Confirma que desea despachar este pedido? Se generará su correspondiente factura.")) return;
-
-            try {
-                const res = await fetch(`/api/pedidos/${idPedido}/despachar`, { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail);
-                
-                alert(data.mensaje);
-                cargarPedidos();
-            } catch (err) {
-                alert("Error al despachar: " + err.message);
-            }
-        }
-
-        async function eliminarPedido(idPedido) {
-            if (!confirm("¿Está seguro de eliminar este pedido? Esta acción no se puede deshacer.")) return;
-
-            try {
-                const res = await fetch(`/api/pedidos/${idPedido}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail);
-
-                alert(data.mensaje);
-                cargarPedidos();
-            } catch (err) {
-                alert("Error al eliminar pedido: " + err.message);
-            }
-        }
-
-        function verPdf(idPedido) {
-            const iframe = document.getElementById('iframe-pdf');
-            iframe.src = `/api/pedidos/${idPedido}/pdf`;
-            const modal = new bootstrap.Modal(document.getElementById('modalPdf'));
-            modal.show();
-        }
-
+        // ==========================================
+        // LÓGICA DE CLIENTES E INVENTARIO
+        // ==========================================
         async function cargarClientes() {
             try {
                 const res = await fetch('/api/clientes');
-                clientesLista = await res.json();
-                const select = document.getElementById('select-cliente');
+                clientesData = await res.json();
+
+                const select = document.getElementById('select_cliente');
+                const tbody = document.getElementById('tbl_clientes');
+                
                 select.innerHTML = '<option value="">Cliente Ocasional</option>';
-                clientesLista.forEach(c => {
-                    select.innerHTML += `<option value="${c._id}">${c.nombre} (${c.celular})</option>`;
+                tbody.innerHTML = '';
+
+                clientesData.forEach(c => {
+                    select.innerHTML += `<option value="${c._id}">${c.nombre}</option>`;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${c.nombre}</td>
+                            <td>${c.celular}</td>
+                            <td>${c.direccion || '-'}</td>
+                            <td>${c.email || '-'}</td>
+                        </tr>
+                    `;
                 });
-            } catch (err) {
-                console.error("Error al cargar lista de clientes:", err);
+            } catch (error) {
+                console.error("Error al cargar clientes:", error);
             }
+        }
+
+        function abrirModalCliente() {
+            new bootstrap.Modal(document.getElementById('modalCliente')).show();
+        }
+
+        async function guardarCliente() {
+            const nombre = document.getElementById('cli_nombre').value.trim();
+            const celular = document.getElementById('cli_celular').value.trim();
+            const direccion = document.getElementById('cli_direccion').value.trim();
+            const email = document.getElementById('cli_email').value.trim();
+
+            if(!nombre || !celular) {
+                alert("Nombre y celular son campos obligatorios.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/clientes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nombre, celular, direccion, email })
+                });
+
+                if(res.ok) {
+                    alert("Cliente creado correctamente.");
+                    bootstrap.Modal.getInstance(document.getElementById('modalCliente')).hide();
+                    cargarClientes();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + err.detail);
+                }
+            } catch (error) {
+                console.error("Error al guardar cliente:", error);
+            }
+        }
+
+        async function cargarInventario() {
+            try {
+                const res = await fetch('/api/inventario');
+                const data = await res.json();
+
+                document.getElementById('inv_cafe_verde').innerText = (data.cafe_verde_g || 0).toLocaleString();
+                document.getElementById('inv_costo_gramo').innerText = `$${(data.costo_gramo_cafe || 0).toFixed(2)}`;
+
+                const emp = data.empaques || {};
+                document.getElementById('inv_bolsa_250').innerText = emp.bolsa_250g || 0;
+                document.getElementById('inv_bolsa_500').innerText = emp.bolsa_500g || 0;
+                document.getElementById('inv_etiq_250').innerText = emp.etiqueta_250g || 0;
+                document.getElementById('inv_etiq_500').innerText = emp.etiqueta_500g || 0;
+            } catch (error) {
+                console.error("Error al cargar inventario:", error);
+            }
+        }
+
+        function cerrarSesion() {
+            fetch('/api/logout', { method: 'POST' }).then(() => {
+                window.location.reload();
+            });
         }
     </script>
 </body>
