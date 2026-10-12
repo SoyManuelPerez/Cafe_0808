@@ -17,7 +17,8 @@ if ROOT_DIR not in sys.path:
 from app.database import get_db, fix_id
 from app.models import (
     CompraCreate, CompraEmpaqueCreate, ProductoCreate, ProductoUpdate, 
-    ClienteCreate, VentaCreate, UserLogin, UserCreate, UserUpdate
+    ClienteCreate, VentaCreate, UserLogin, UserCreate, UserUpdate,
+    AjusteInventarioCreate
 )
 from app.pdf_generator import generar_factura_pdf
 
@@ -438,7 +439,8 @@ def crear_compra(compra: CompraCreate):
 
 @app.get("/api/compras")
 def listar_compras():
-    compras = list(db.compras.find().sort("fecha", -1))
+    # Se excluyen ajustes manuales antiguos (gramos negativos): no son compras reales
+    compras = list(db.compras.find({"gramos": {"$gt": 0}}).sort("fecha", -1))
     prods_map = {str(p["_id"]): p["nombre"] for p in db.productos.find()}
     
     for c in compras:
@@ -480,19 +482,42 @@ def eliminar_producto(prod_id: str):
     db.productos.delete_one({"_id": ObjectId(prod_id)})
     return {"mensaje": "Producto eliminado exitosamente"}
 
+def gramos_ajustados_por_producto():
+    """Suma de ajustes manuales (entradas +, salidas -) por nombre de café, en gramos.
+    Los ajustes viven en su propia colección: NO son compras, por eso no afectan
+    costos, inversión ni ganancias."""
+    agrupados = db.ajustes_inventario.aggregate([
+        {"$group": {"_id": "$producto_nombre", "total_g": {"$sum": "$gramos"}}}
+    ])
+    return {a["_id"]: a["total_g"] for a in agrupados if a["_id"]}
+
 @app.get("/api/inventario/resumen")
 def resumen_inventario():
+    # Todas las compras (incluye ajustes antiguos guardados como compras negativas) -> solo para STOCK
     compras_agrupadas = list(db.compras.aggregate([
         {"$group": {
             "_id": "$producto_nombre",
+            "total_g": {"$sum": "$gramos"}
+        }}
+    ]))
+    dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
+
+    # Solo compras reales (gramos > 0) -> para COSTO PROMEDIO. Así los descuentos manuales
+    # antiguos (gramos negativos y costo 0) tampoco inflan el costo por gramo.
+    compras_reales = list(db.compras.aggregate([
+        {"$match": {"gramos": {"$gt": 0}}},
+        {"$group": {
+            "_id": None,
             "total_g": {"$sum": "$gramos"},
             "total_costo": {"$sum": "$costo_total"}
         }}
     ]))
-    
-    total_comprado_general = sum(c["total_g"] for c in compras_agrupadas)
-    total_inversion_general = sum(c["total_costo"] for c in compras_agrupadas)
-    dict_compras_nombre = {c["_id"]: c["total_g"] for c in compras_agrupadas if c["_id"]}
+    total_comprado_real = compras_reales[0]["total_g"] if compras_reales else 0.0
+    total_inversion_real = compras_reales[0]["total_costo"] if compras_reales else 0.0
+
+    dict_ajustes_nombre = gramos_ajustados_por_producto()
+    total_ajustes_general = sum(dict_ajustes_nombre.values())
+    total_comprado_general = sum(dict_compras_nombre.values())
 
     ventas_agrupadas = list(db.ventas.aggregate([
         {"$match": {"estado_despacho": {"$ne": "Pendiente"}, "tipo_venta": {"$ne": "Anulado"}}},
@@ -502,7 +527,7 @@ def resumen_inventario():
             "usados_g": {"$sum": "$items.gramos_totales"}
         }}
     ]))
-    
+
     dict_usados_nombre = {v["_id"]: v["usados_g"] for v in ventas_agrupadas if v["_id"]}
     total_usado_general = sum(dict_usados_nombre.values())
 
@@ -512,46 +537,83 @@ def resumen_inventario():
     resumen_tarjetas = []
     for nombre in nombres_unicos:
         comprado_g = dict_compras_nombre.get(nombre, 0.0)
+        ajustado_g = dict_ajustes_nombre.get(nombre, 0.0)
         usado_g = dict_usados_nombre.get(nombre, 0.0)
-        
-        disp_g = max(0.0, comprado_g - usado_g)
+
+        disp_g = max(0.0, comprado_g + ajustado_g - usado_g)
 
         resumen_tarjetas.append({
             "nombre": nombre,
-            "libras_disponibles": round(disp_g / 500.0, 1)
+            "libras_disponibles": round(disp_g / 500.0, 1),
+            "gramos_disponibles": disp_g
         })
 
     return {
-        "inventario_disponible_g": max(0.0, total_comprado_general - total_usado_general),
-        "costo_promedio_gramo": (total_inversion_general / total_comprado_general) if total_comprado_general > 0 else 0.0,
+        "inventario_disponible_g": max(0.0, total_comprado_general + total_ajustes_general - total_usado_general),
+        "costo_promedio_gramo": (total_inversion_real / total_comprado_real) if total_comprado_real > 0 else 0.0,
         "productos_stock": resumen_tarjetas
     }
 
-@app.put("/api/inventario/descontar-manual")
-def descontar_stock_manual(data: dict):
-    nombre_producto = data.get("nombre")
-    libras_a_descontar = float(data.get("libras", 0.0))
+@app.post("/api/inventario/ajustar", status_code=201)
+def ajustar_inventario_manual(ajuste: AjusteInventarioCreate, request: Request):
+    """Suma o descuenta café del inventario SIN registrar una compra.
+    No modifica costo_por_libra, ni la inversión, ni las ganancias."""
+    nombre = ajuste.nombre.strip()
+    tipo = (ajuste.tipo or "").strip().lower()
 
-    if not nombre_producto or libras_a_descontar <= 0:
-        raise HTTPException(status_code=400, detail="Debe proporcionar un producto válido y una cantidad mayor a 0.")
+    if not nombre:
+        raise HTTPException(status_code=400, detail="Debe seleccionar un café.")
+    if tipo not in ("entrada", "salida"):
+        raise HTTPException(status_code=400, detail="El tipo de ajuste debe ser 'entrada' o 'salida'.")
+    if ajuste.libras <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad de libras debe ser mayor a 0.")
+    if not db.productos.find_one({"nombre": nombre}):
+        raise HTTPException(status_code=404, detail="El café seleccionado no existe.")
 
-    gramos_a_descontar = libras_a_descontar * 500.0
+    gramos = round(ajuste.libras * 500.0, 2)
 
-    doc_ajuste = {
+    if tipo == "salida":
+        stock = resumen_inventario()["productos_stock"]
+        disponible_g = next((p["gramos_disponibles"] for p in stock if p["nombre"] == nombre), 0.0)
+        if gramos > disponible_g + 0.01:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No puedes descontar {ajuste.libras} lbs: de '{nombre}' solo hay {round(disponible_g / 500.0, 1)} lbs disponibles."
+            )
+
+    signo = 1 if tipo == "entrada" else -1
+    usuario = request.cookies.get("session_user", "admin")
+    doc = {
         "fecha": datetime.utcnow().strftime("%Y-%m-%d"),
-        "libras": -libras_a_descontar,
-        "gramos": -gramos_a_descontar,
-        "costo_total": 0.0,
-        "costo_por_gramo": 0.0,
-        "costo_por_libra": 0.0,
-        "producto_id": None,
-        "producto_nombre": nombre_producto,
-        "motivo": "Ajuste manual de descuento por error",
+        "producto_nombre": nombre,
+        "tipo": tipo,
+        "libras": signo * ajuste.libras,
+        "gramos": signo * gramos,
+        "motivo": (ajuste.motivo or "").strip() or "Ajuste manual",
+        "usuario": usuario,
         "creado_en": datetime.utcnow()
     }
-    
-    db.compras.insert_one(doc_ajuste)
-    return {"mensaje": f"Se descontaron {libras_a_descontar} lbs de {nombre_producto} del inventario."}
+    res = db.ajustes_inventario.insert_one(doc)
+    accion = "sumaron" if tipo == "entrada" else "descontaron"
+    return {"id": str(res.inserted_id), "mensaje": f"Se {accion} {ajuste.libras} lbs de {nombre} del inventario."}
+
+@app.get("/api/inventario/ajustes")
+def listar_ajustes_inventario():
+    ajustes = list(db.ajustes_inventario.find().sort("creado_en", -1).limit(100))
+    return [fix_id(a) for a in ajustes]
+
+@app.put("/api/inventario/descontar-manual")
+def descontar_stock_manual(data: dict, request: Request):
+    """Compatibilidad con el endpoint anterior: ahora delega en el ajuste manual (tipo salida)."""
+    try:
+        libras = float(data.get("libras", 0.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Cantidad de libras inválida.")
+    ajuste = AjusteInventarioCreate(
+        nombre=data.get("nombre") or "", libras=libras, tipo="salida",
+        motivo=data.get("motivo") or "Descuento manual"
+    )
+    return ajustar_inventario_manual(ajuste, request)
 
 # ==========================================
 # ENDPOINTS VENTAS Y VENTAS PARCIALES
@@ -827,11 +889,95 @@ def listar_cotizaciones():
         cotizaciones_clean.append(c_item)
     return cotizaciones_clean
 
+@app.put("/api/cotizaciones/{cotizacion_id}")
+def editar_pedido(cotizacion_id: str, datos: VentaCreate, request: Request):
+    """Edita un pedido que todavía NO se ha despachado, conservando su consecutivo."""
+    try:
+        oid = ObjectId(cotizacion_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID de pedido inválido")
+
+    pedido = db.cotizaciones.find_one({"_id": oid})
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    estado = pedido.get("estado", "Pendiente")
+    if estado != "Pendiente":
+        raise HTTPException(status_code=400, detail=f"Solo se pueden editar pedidos pendientes. Este pedido está '{estado}'.")
+
+    usuario = request.cookies.get("session_user", "admin")
+    user_doc = db.usuarios.find_one({"username": usuario})
+    es_admin = bool(user_doc and user_doc.get("rol") == "admin")
+    if not es_admin and pedido.get("vendedor") != usuario:
+        raise HTTPException(status_code=403, detail="Solo puedes editar tus propios pedidos.")
+
+    if not datos.items:
+        raise HTTPException(status_code=400, detail="El pedido debe tener al menos un producto. Si ya no aplica, anúlalo.")
+
+    # Se recalculan gramos y subtotales en el servidor (no se confía en los del navegador)
+    items_limpios = []
+    for it in datos.items:
+        if it.cantidad <= 0:
+            raise HTTPException(status_code=400, detail=f"La cantidad de '{it.nombre}' debe ser mayor a 0.")
+        d = it.model_dump() if hasattr(it, "model_dump") else it.dict()
+        precio = max(0.0, float(d.get("precio_unitario", 0.0)))
+        desc = max(0.0, float(d.get("descuento", 0.0)))
+        d["precio_unitario"] = precio
+        d["descuento"] = desc
+        d["gramos_totales"] = int(d["gramaje"]) * int(d["cantidad"])
+        d["subtotal"] = max(0.0, (precio - desc) * d["cantidad"])
+        items_limpios.append(d)
+
+    es_obsequio = (datos.tipo_venta == "Obsequio")
+    total_nuevo = 0.0 if es_obsequio else sum(i["subtotal"] for i in items_limpios)
+
+    tipo_pago = "N/A" if es_obsequio else (datos.tipo_pago or "Contado")
+    if tipo_pago == "Efectivo":
+        tipo_pago = "Contado"
+
+    cliente = (datos.cliente or "").strip() or "Cliente General"
+
+    res = db.cotizaciones.update_one(
+        {"_id": oid, "estado": {"$in": ["Pendiente", None]}},  # evita editar si lo despacharon mientras tanto
+        {
+            "$set": {
+                "cliente": cliente,
+                "tipo_pago": tipo_pago,
+                "tipo_venta": datos.tipo_venta or "Normal",
+                "total_venta": total_nuevo,
+                "items": items_limpios,
+                "editado_en": datetime.utcnow(),
+                "editado_por": usuario
+            },
+            "$push": {
+                "historial_ediciones": {
+                    "fecha": datetime.utcnow(),
+                    "usuario": usuario,
+                    "total_anterior": float(pedido.get("total_venta", 0.0)),
+                    "total_nuevo": total_nuevo,
+                    "items_anteriores": pedido.get("items", [])
+                }
+            }
+            # consecutivo_str, fecha, vendedor y creado_en NO se tocan
+        }
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=409, detail="El pedido cambió de estado mientras lo editabas. Recarga la lista.")
+
+    return {
+        "id": cotizacion_id,
+        "consecutivo": pedido.get("consecutivo_str", ""),
+        "total_venta": total_nuevo,
+        "mensaje": "Pedido actualizado correctamente"
+    }
+
 @app.post("/api/cotizaciones/{cotizacion_id}/despachar")
 def despachar_pedido(cotizacion_id: str, request: Request):
     pedido = db.cotizaciones.find_one({"_id": ObjectId(cotizacion_id)})
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    if pedido.get("estado", "Pendiente") != "Pendiente":
+        raise HTTPException(status_code=400, detail=f"Este pedido ya está '{pedido.get('estado')}' y no se puede despachar.")
 
     resumen_cafe = resumen_inventario()
     resumen_emp = resumen_empaques()
