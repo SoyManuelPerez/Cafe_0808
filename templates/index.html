@@ -763,7 +763,11 @@
                 </button>
             </div>
 
-            <div class="card">
+            <div class="card" id="card-carrito-pedido">
+                <div id="banner-edicion-pedido" style="display:none; background:#2a2410; border:1px solid var(--gold-primary); border-radius:6px; padding:10px 14px; margin-bottom:12px; color:var(--gold-bright); justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span>✏️ Editando <strong id="banner-edicion-num"></strong> — conserva su mismo consecutivo.</span>
+                    <button type="button" class="btn-danger" style="width:auto; padding:4px 10px;" onclick="cancelarEdicionPedido()">Cancelar edición</button>
+                </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>📦 Carrito de Pedido</h3>
                     <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">
@@ -809,7 +813,7 @@
                     </select>
                 </div>
 
-                <button class="btn-gold" style="margin-top:15px;" onclick="procesarCotizacion()">📦 Registrar Pedido</button>
+                <button class="btn-gold" id="btn-procesar-cot" style="margin-top:15px;" onclick="procesarCotizacion()">📦 Registrar Pedido</button>
             </div>
 
             <!-- TABLA PRINCIPAL DE PEDIDOS -->
@@ -1005,14 +1009,32 @@
         <div id="inventario" class="section admin-only">
             <h1>📊 Productos e Inventario</h1>
 
-            <!-- MÓDULO DE DESCUENTO MANUAL DE INVENTARIO -->
+            <!-- MÓDULO DE AJUSTE MANUAL DE INVENTARIO -->
             <div class="card">
-                <h3>📉 Descuento Manual de Inventario (Café)</h3>
-                <p style="color: #aaa; font-size: 14px; margin-top:0;">Utilice esta opción para descontar stock por mermas, consumo interno o corrección de datos.</p>
+                <h3>⚖️ Ajuste Manual de Inventario (Café)</h3>
+                <p style="color: #aaa; font-size: 14px; margin-top:0;">Suma o descuenta libras de un café <strong>sin registrar una compra</strong>. No modifica costos, inversión ni ganancias. Úsalo para mermas, consumo interno, obsequios no registrados o correcciones de conteo.</p>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <select id="descuento-producto" style="flex: 2; min-width: 200px; margin:0;"></select>
-                    <input type="number" id="descuento-libras" placeholder="Libras a descontar" step="0.1" min="0.1" style="flex: 1; min-width: 150px; margin:0;">
-                    <button class="btn-danger" style="padding: 10px 15px; margin:0; width:auto;" onclick="ejecutarDescuentoManual()">🔥 Descontar Stock</button>
+                    <select id="descuento-producto" onchange="mostrarStockAjuste()" style="flex: 2; min-width: 200px; margin:0;"></select>
+                    <select id="ajuste-tipo" style="flex: 1; min-width: 140px; margin:0;">
+                        <option value="salida">➖ Descontar</option>
+                        <option value="entrada">➕ Agregar</option>
+                    </select>
+                    <input type="number" id="descuento-libras" placeholder="Libras" step="0.1" min="0.1" style="flex: 1; min-width: 110px; margin:0;">
+                </div>
+                <input type="text" id="ajuste-motivo" placeholder="Motivo (ej: merma, corrección de conteo, muestra...)" style="margin-top:10px;">
+                <div id="ajuste-stock-actual" style="color:#aaa; font-size:13px; margin:6px 0 10px;"></div>
+                <button class="btn-gold" style="width:auto;" onclick="ejecutarAjusteInventario()">💾 Aplicar Ajuste</button>
+            </div>
+
+            <div class="card">
+                <h3>🧾 Historial de Ajustes de Inventario</h3>
+                <div class="table-responsive">
+                    <table id="tabla-ajustes-inventario">
+                        <thead>
+                            <tr><th>Fecha</th><th>Café</th><th>Movimiento</th><th>Libras</th><th>Motivo</th><th>Usuario</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1200,6 +1222,8 @@
     <script>
         let carrito = [];
         let carritoCotizacion = [];
+        let cotizacionesCache = [];
+        let pedidoEditandoId = null;
         let productosCache = [];
         let clientesCache = [];
         let productosUnicos = [];
@@ -1485,6 +1509,7 @@
             if(id === 'inventario') {
                 cargarProductos();
                 cargarOpcionesDescuento();
+                cargarHistorialAjustes();
             }
             if(id === 'creditos') cargarCreditos();
             if(id === 'reportes') cargarReportes();
@@ -1649,6 +1674,7 @@
                 const cotizaciones = await res.json();
                 
                 const list = Array.isArray(cotizaciones) ? cotizaciones : [];
+                cotizacionesCache = list;
                 const misCot = (rolActual === 'admin') ? list : list.filter(c => c && c.vendedor === usuarioActual);
                    // --- ORDENAR DE MAYOR A MENOR (El más reciente primero, el 0001 al final) ---
                     misCot.sort((a, b) => {
@@ -1684,6 +1710,7 @@
                                 <td>${fmtCOP(c.total_venta)}</td>
                                 <td>
                                     ${(!esAnulado && !esDespachado) ? `<button class="btn-approve" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="despacharPedido('${idVal}')">✅ Aprobar Pedido</button>` : ''}
+                                    ${(!esAnulado && !esDespachado) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="editarPedido('${idVal}')">✏️ Editar</button>` : ''}
                                     <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalPdf('/api/cotizaciones/${idVal}/pdf', 'Pedido N° ${numCot}', 'Pedido_${numCot}.pdf')">👁️ Ver</button>
                                     ${!esAnulado ? `<button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="anularPedido('${idVal}')">🚫 Anular</button>` : '<span>-</span>'}
                                 </td>
@@ -1725,9 +1752,63 @@
             }
         }
 
+        function editarPedido(pedidoId) {
+            const pedido = cotizacionesCache.find(c => String(c.id || c._id) === String(pedidoId));
+            if (!pedido) return alert('No se encontró el pedido. Recarga la lista.');
+            if ((pedido.estado || 'Pendiente') !== 'Pendiente') return alert('Solo se pueden editar pedidos pendientes.');
+
+            if (carritoCotizacion.length > 0 && !pedidoEditandoId) {
+                if (!confirm('Tienes productos en el carrito de pedido. Si continúas se reemplazarán por los del pedido a editar. ¿Continuar?')) return;
+            }
+
+            pedidoEditandoId = String(pedido.id || pedido._id);
+            carritoCotizacion = (pedido.items || []).map(i => ({
+                producto_id: i.producto_id,
+                nombre: i.nombre,
+                gramaje: Number(i.gramaje) || 0,
+                cantidad: Number(i.cantidad) || 1,
+                valor_add: 0,
+                descuento: Number(i.descuento) || 0,
+                presentacion: i.presentacion || 'Grano',
+                gramos_totales: Number(i.gramos_totales) || 0,
+                precio_unitario: Number(i.precio_unitario) || 0,
+                subtotal: Number(i.subtotal) || 0
+            }));
+
+            document.getElementById('select-cliente-cot').value = pedido.cliente || '';
+            document.getElementById('tipo-cot').value = pedido.tipo_venta || 'Normal';
+            if (pedido.tipo_pago && pedido.tipo_pago !== 'N/A') document.getElementById('pago-cot').value = pedido.tipo_pago;
+            const divPago = document.getElementById('div-metodo-pago-cot');
+            if (divPago) divPago.style.display = (pedido.tipo_venta === 'Obsequio') ? 'none' : 'block';
+
+            // OJO: no se llama toggleTipoVenta() aquí para no recalcular los precios que ya tenía el pedido
+            renderCarrito('cotizacion');
+
+            const num = pedido.consecutivo_str || String(pedidoEditandoId).substring(0, 8);
+            document.getElementById('banner-edicion-num').innerText = 'Pedido N° ' + num;
+            document.getElementById('banner-edicion-pedido').style.display = 'flex';
+            document.getElementById('btn-procesar-cot').innerText = '💾 Guardar Cambios del Pedido';
+            document.getElementById('card-carrito-pedido').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function cancelarEdicionPedido(silencioso = false) {
+            if (!silencioso && carritoCotizacion.length > 0 && !confirm('¿Cancelar la edición? Se descartarán los cambios no guardados.')) return;
+            pedidoEditandoId = null;
+            carritoCotizacion = [];
+            document.getElementById('select-cliente-cot').value = '';
+            document.getElementById('tipo-cot').value = 'Normal';
+            document.getElementById('pago-cot').value = 'Contado';
+            const divPago = document.getElementById('div-metodo-pago-cot');
+            if (divPago) divPago.style.display = 'block';
+            document.getElementById('banner-edicion-pedido').style.display = 'none';
+            document.getElementById('btn-procesar-cot').innerText = '📦 Registrar Pedido';
+            renderCarrito('cotizacion');
+        }
+
         async function anularPedido(pedidoId) {
             if (confirm('¿Deseas anular este pedido? Quedará registrado en el sistema como Anulado.')) {
                 await fetch(`/api/cotizaciones/${pedidoId}/anular`, { method: 'PUT' });
+                if (pedidoEditandoId === pedidoId) cancelarEdicionPedido(true);
                 cargarMisCotizaciones();
             }
         }
@@ -1849,44 +1930,91 @@
                 
                 const select = document.getElementById('descuento-producto');
                 if (!select) return;
-                select.innerHTML = '<option value="">Seleccione el café a descontar...</option>';
+                select.innerHTML = '<option value="">Seleccione el café...</option>';
                 productos.forEach(p => {
                     select.innerHTML += `<option value="${p.nombre}">${p.nombre}</option>`;
                 });
+                mostrarStockAjuste();
             } catch (err) {
                 console.error("Error al cargar productos para descuento:", err);
             }
         }
 
-        async function ejecutarDescuentoManual() {
+        let stockAjusteCache = [];
+
+        async function mostrarStockAjuste() {
+            const nombre = document.getElementById('descuento-producto').value;
+            const cont = document.getElementById('ajuste-stock-actual');
+            if (!cont) return;
+            if (!nombre) { cont.innerText = ''; return; }
+            try {
+                const res = await fetch('/api/inventario/resumen');
+                const data = await res.json();
+                stockAjusteCache = Array.isArray(data.productos_stock) ? data.productos_stock : [];
+                const item = stockAjusteCache.find(s => s.nombre === nombre);
+                cont.innerText = item ? `Stock actual de "${nombre}": ${item.libras_disponibles} lbs` : '';
+            } catch (e) { cont.innerText = ''; }
+        }
+
+        async function ejecutarAjusteInventario() {
             const nombre = document.getElementById('descuento-producto').value;
             const libras = parseFloat(document.getElementById('descuento-libras').value);
+            const tipo = document.getElementById('ajuste-tipo').value;
+            const motivo = document.getElementById('ajuste-motivo').value.trim();
 
             if (!nombre || isNaN(libras) || libras <= 0) {
                 alert("Por favor seleccione un café e ingrese una cantidad de libras válida.");
                 return;
             }
 
-            if (!confirm(`¿Confirma el descuento manual de ${libras} lbs de "${nombre}"?`)) return;
+            const verbo = tipo === 'entrada' ? 'AGREGAR' : 'DESCONTAR';
+            if (!confirm(`¿Confirma ${verbo} ${libras} lbs de "${nombre}"?\n\nEsto NO se registra como compra y no afecta costos ni ganancias.`)) return;
 
             try {
-                const res = await fetch('/api/inventario/descontar-manual', {
-                    method: 'PUT',
+                const res = await fetch('/api/inventario/ajustar', {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: nombre, libras: libras })
+                    body: JSON.stringify({ nombre: nombre, libras: libras, tipo: tipo, motivo: motivo })
                 });
 
                 const data = await res.json();
                 if (res.ok) {
                     alert(data.mensaje);
                     document.getElementById('descuento-libras').value = '';
-                    cargarVentasData();
+                    document.getElementById('ajuste-motivo').value = '';
+                    mostrarStockAjuste();
+                    cargarHistorialAjustes();
                 } else {
-                    alert(data.detail || "Error al aplicar el descuento.");
+                    alert(data.detail || "Error al aplicar el ajuste.");
                 }
             } catch (err) {
-                console.error("Error al descontar stock:", err);
+                console.error("Error al ajustar inventario:", err);
                 alert("Ocurrió un error al intentar actualizar el inventario.");
+            }
+        }
+
+        async function cargarHistorialAjustes() {
+            try {
+                const res = await fetch('/api/inventario/ajustes');
+                if (!res.ok) return;
+                const ajustes = await res.json();
+                renderTablaPaginada('tabla-ajustes-inventario', Array.isArray(ajustes) ? ajustes : [], a => {
+                    const esEntrada = a.tipo === 'entrada';
+                    const color = esEntrada ? '#2ecc71' : '#ff6b6b';
+                    const lbs = Math.abs(Number(a.libras) || 0);
+                    return `
+                        <tr>
+                            <td>${a.fecha || ''}</td>
+                            <td><strong>${a.producto_nombre || ''}</strong></td>
+                            <td style="color:${color}; font-weight:bold;">${esEntrada ? '➕ Entrada' : '➖ Salida'}</td>
+                            <td>${lbs.toLocaleString('es-CO')} Lbs</td>
+                            <td>${a.motivo || ''}</td>
+                            <td>${a.usuario || ''}</td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error cargando historial de ajustes:", err);
             }
         }
 
@@ -2136,6 +2264,29 @@
             }
         }
 
+        function actualizarCantidadEnCarrito(index, modo, valorStr) {
+            const target = modo === 'cotizacion' ? carritoCotizacion : carrito;
+            const item = target[index];
+            const cant = parseInt(valorStr, 10);
+            if (!item) return;
+            if (isNaN(cant) || cant < 1) { renderCarrito(modo); return; }
+            item.cantidad = cant;
+            item.gramos_totales = (item.gramaje || 0) * cant;
+            item.subtotal = Math.max(0, ((item.precio_unitario || 0) - (item.descuento || 0)) * cant);
+            renderCarrito(modo);
+        }
+
+        function actualizarDescuentoEnCarrito(index, modo, valorStr) {
+            const target = modo === 'cotizacion' ? carritoCotizacion : carrito;
+            const item = target[index];
+            const desc = parseFloat(valorStr);
+            if (!item) return;
+            if (isNaN(desc) || desc < 0) { renderCarrito(modo); return; }
+            item.descuento = desc;
+            item.subtotal = Math.max(0, ((item.precio_unitario || 0) - desc) * item.cantidad);
+            renderCarrito(modo);
+        }
+
         function quitarDelCarrito(index, modo) {
             if(modo === 'cotizacion') {
                 carritoCotizacion.splice(index, 1);
@@ -2175,8 +2326,8 @@
                             <td>
                                 ${esObsequio ? '$0' : `<input type="number" class="input-cart-price" value="${i.precio_unitario}" min="0" step="100" onchange="actualizarPrecioEnCarrito(${index}, '${modo}', this.value)">`}
                             </td>
-                            <td>${i.cantidad}</td>
-                            <td>${esObsequio ? '$0' : fmtCOP(i.descuento || 0)}</td>
+                            <td><input type="number" class="input-cart-price" style="width:70px;" value="${i.cantidad}" min="1" step="1" onchange="actualizarCantidadEnCarrito(${index}, '${modo}', this.value)"></td>
+                            <td>${esObsequio ? '$0' : `<input type="number" class="input-cart-price" style="width:90px;" value="${i.descuento || 0}" min="0" step="100" onchange="actualizarDescuentoEnCarrito(${index}, '${modo}', this.value)">`}</td>
                             <td>${fmtCOP(sub)}</td>
                             <td><button class="btn-danger" onclick="quitarDelCarrito(${index}, '${modo}')">❌ Quitar</button></td>
                         </tr>
@@ -2241,6 +2392,27 @@
                 tipo_venta: tipoCot,
                 items: carritoCotizacion
             };
+
+            // --- MODO EDICIÓN: se actualiza el pedido existente (mismo consecutivo) ---
+            if (pedidoEditandoId) {
+                const resEdit = await fetch(`/api/cotizaciones/${pedidoEditandoId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if (resEdit.ok) {
+                    const dataEdit = await resEdit.json();
+                    alert(`Pedido N° ${dataEdit.consecutivo} actualizado con éxito`);
+                    cancelarEdicionPedido(true);
+                    cargarCotizacionesData();
+                } else {
+                    let msg = 'Error al guardar los cambios del pedido';
+                    try { const err = await resEdit.json(); msg = err.detail || msg; } catch (_) {}
+                    alert(msg);
+                    if (resEdit.status === 400 || resEdit.status === 409) cargarMisCotizaciones();
+                }
+                return;
+            }
 
             const res = await fetch('/api/cotizaciones', {
                 method: 'POST',
