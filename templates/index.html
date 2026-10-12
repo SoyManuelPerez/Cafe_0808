@@ -552,8 +552,19 @@
                 font-size: 14px;
             }
 
+            /* Barra de menú fija: siempre visible al hacer scroll en móvil */
             .hamburger-btn {
                 display: flex;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 900;
+                margin: 0;
+                border-radius: 0;
+                border-width: 0 0 1px 0;
+                padding: 12px 15px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.6);
             }
 
             .sidebar {
@@ -570,7 +581,7 @@
             }
 
             .content {
-                padding: 15px;
+                padding: 65px 15px 15px; /* espacio para la barra fija */
             }
 
             .modal-container {
@@ -1498,6 +1509,11 @@
             if (window.innerWidth <= 768) {
                 document.getElementById('main-sidebar').classList.remove('mobile-open');
             }
+
+            // Al cambiar de módulo, volver al inicio de la página
+            window.scrollTo(0, 0);
+            const contenedorContenido = document.querySelector('.content');
+            if (contenedorContenido) contenedorContenido.scrollTop = 0;
 
             if(id === 'ventas') cargarVentasData();
             if(id === 'pedidos-sec') cargarCotizacionesData();
