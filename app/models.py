@@ -83,3 +83,14 @@ class VentaCreate(BaseModel):
     tipo_pago: str
     tipo_venta: str  # Puede ser: "Normal", "Obsequio", "Venta al Costo"
     items: List[VentaItem]
+
+
+# ==========================================
+# MODELO DE AJUSTES MANUALES DE INVENTARIO (NO SON COMPRAS)
+# ==========================================
+
+class AjusteInventarioCreate(BaseModel):
+    nombre: str                 # Nombre del café (producto)
+    libras: float               # Siempre positivo; el sentido lo da "tipo"
+    tipo: str                   # "entrada" (suma stock) o "salida" (descuenta stock)
+    motivo: Optional[str] = None
