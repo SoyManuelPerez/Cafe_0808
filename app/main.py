@@ -6,6 +6,7 @@ from bson import ObjectId
 from pydantic import BaseModel
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,9 +41,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-os.makedirs("static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+STATIC_DIR = os.path.join(ROOT_DIR, "static")
+LANDING_DIR = os.path.join(ROOT_DIR, "landing")
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Imágenes de la landing page (la landing las pide como "img/...")
+app.mount("/img", StaticFiles(directory=os.path.join(LANDING_DIR, "img")), name="landing_img")
+templates = Jinja2Templates(directory=os.path.join(ROOT_DIR, "templates"))
 
 db = get_db()
 
@@ -109,9 +114,26 @@ def logout(response: Response):
     response.delete_cookie("session_user")
     return {"mensaje": "Sesión cerrada"}
 
-@app.get("/")
-def home(request: Request):
+# ---- Página pública (landing) en la raíz ----
+@app.get("/", include_in_schema=False)
+def landing():
+    return FileResponse(os.path.join(LANDING_DIR, "index.html"))
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    txt = "User-agent: *\nAllow: /\nDisallow: /sistema\nDisallow: /api\n"
+    return Response(content=txt, media_type="text/plain")
+
+# ---- Sistema de inventario / administración en /sistema/ ----
+@app.get("/sistema/", include_in_schema=False)
+def sistema(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+# El service worker vive dentro de /sistema/ para no afectar la landing
+@app.get("/sistema/sw.js", include_in_schema=False)
+def sistema_sw():
+    return FileResponse(os.path.join(ROOT_DIR, "sw.js"), media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})
 
 # ==========================================
 # ENDPOINT DE REPORTE RESUMEN DE VENTAS
@@ -1114,3 +1136,14 @@ def anular_cotizacion(cotizacion_id: str):
         }}
     )
     return {"mensaje": "Pedido anulado correctamente"}
+
+
+# ==========================================
+# /Sistema, /SISTEMA, /sistema (sin barra) -> /sistema/
+# (va al final: solo atrapa rutas que no coincidieron con nada)
+# ==========================================
+@app.get("/{ruta:path}", include_in_schema=False)
+def atrapa_todo(ruta: str):
+    if ruta.strip("/").lower() == "sistema":
+        return RedirectResponse(url="/sistema/", status_code=307)
+    raise HTTPException(status_code=404, detail="No encontrado")

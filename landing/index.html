@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0808 Café de Especialidad · Café artesanal de Colombia</title>
+<meta name="description" content="Café de especialidad tostado en Colombia. Bourbon Rosado de Huila, Blend de Ciudad Bolívar y Chiroso de Urrao. Pide por WhatsApp.">
+<meta name="theme-color" content="#000000">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Oswald:wght@400;500;600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============ VARIABLES (cambia aquí colores y tipografías) ============ */
+:root{
+  --negro:#000;
+  --carbon:#1f1f1f;
+  --carbon-2:#2a2a2a;
+  --ambar:#f5a70b;
+  --ambar-claro:#ffc94a;
+  --ambar-oscuro:#c98400;
+  --crema:#fff4d6;
+  --blanco:#fff;
+  --whatsapp:#25d366;
+  --f-titulo:'Fjalla One','Oswald',Impact,sans-serif;
+  --f-cond:'Oswald','Arial Narrow',sans-serif;
+  --f-texto:'Poppins',system-ui,sans-serif;
+  --radio:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{background:var(--negro);color:var(--crema);font-family:var(--f-texto);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:inherit}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+:focus-visible{outline:3px solid var(--ambar-claro);outline-offset:3px}
+.contenedor{width:min(1120px,92%);margin-inline:auto}
+section{padding:96px 0;position:relative}
+h2{font-family:var(--f-titulo);font-weight:400;font-size:clamp(2rem,5vw,3.4rem);line-height:1.05;color:var(--ambar);letter-spacing:.5px}
+.sub{max-width:56ch;color:#d9c9a0;margin-top:14px}
+.cabecera{margin-bottom:48px}
+
+/* ============ NAV ============ */
+nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;justify-content:flex-end;align-items:center;padding:12px 4%;transition:background .3s,box-shadow .3s}
+nav.scrolled{background:rgba(0,0,0,.88);backdrop-filter:blur(8px);box-shadow:0 1px 0 rgba(245,167,11,.25)}
+.nav-links{display:flex;gap:26px;list-style:none}
+.nav-links a{font-family:var(--f-cond);text-decoration:none;font-size:1.02rem;letter-spacing:1px;position:relative;padding:4px 0}
+.nav-links a::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--ambar);transition:width .3s}
+.nav-links a:hover::after{width:100%}
+.menu-btn{display:none;width:44px;height:44px;border:1.5px solid var(--ambar);border-radius:50%;color:var(--ambar);font-size:1.3rem}
+@media(max-width:760px){
+  .menu-btn{display:block}
+  .nav-links{position:fixed;inset:0 0 auto 0;top:0;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:28px;height:100vh;transform:translateY(-100%);transition:transform .45s cubic-bezier(.7,0,.2,1);font-size:1.4rem}
+  .nav-links.abierto{transform:none}
+  .nav-links a{font-size:1.6rem}
+  .menu-btn{position:relative;z-index:60}
+}
+
+/* ============ HERO ============ */
+.hero{position:relative;width:100%;min-height:auto;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 0 100px;overflow:hidden;background:#000}
+#granos{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hero-logo{position:relative;z-index:1;display:block;margin:0 auto;width:min(640px,100%);height:auto;mix-blend-mode:lighten;
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 9%,#000 91%,transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 9%,#000 91%,transparent 100%)}
+.hero-contenido{position:relative;z-index:2;width:min(1120px,92%);margin:34px auto 0}
+.hero h1{font-family:var(--f-titulo);font-weight:400;font-size:clamp(1.8rem,4.6vw,3.2rem);line-height:1.1;color:var(--crema);max-width:20ch;margin-inline:auto;text-shadow:0 2px 24px #000}
+.hero p{max-width:46ch;margin:16px auto 30px;color:#e6d6ab;text-shadow:0 2px 14px #000}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:999px;font-family:var(--f-cond);font-weight:500;letter-spacing:1px;font-size:1.05rem;text-decoration:none;transition:transform .2s,background .2s,color .2s,box-shadow .2s}
+.btn-ambar{background:var(--ambar);color:#111;box-shadow:0 8px 28px rgba(245,167,11,.28)}
+.btn-ambar:hover{background:var(--ambar-claro);transform:translateY(-3px)}
+.btn-borde{border:2px solid var(--ambar);color:var(--ambar)}
+.btn-borde:hover{background:var(--ambar);color:#111;transform:translateY(-3px)}
+.scroll-pista{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:2;width:26px;height:42px;border:2px solid var(--ambar);border-radius:20px}
+.scroll-pista::after{content:"";position:absolute;left:50%;top:8px;width:5px;height:9px;border-radius:3px;background:var(--ambar);transform:translateX(-50%);animation:scroll 1.6s infinite}
+@keyframes scroll{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,14px)}}
+
+/* ============ CINTA ============ */
+.cinta{background:var(--ambar);color:#111;overflow:hidden;white-space:nowrap;padding:12px 0;transform:rotate(-1.2deg);margin:-14px -2% 0;position:relative;z-index:3}
+.cinta-pista{display:inline-flex;gap:46px;animation:cinta 28s linear infinite;font-family:var(--f-titulo);font-size:1.25rem;letter-spacing:2px}
+@keyframes cinta{to{transform:translateX(-50%)}}
+
+/* ============ PRODUCTOS ============ */
+.productos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:28px}
+.card{background:var(--carbon);border:1px solid rgba(245,167,11,.25);border-radius:var(--radio);overflow:hidden;display:flex;flex-direction:column;transform-style:preserve-3d;transition:transform .15s ease-out,border-color .3s,box-shadow .3s;will-change:transform}
+.card:hover{border-color:var(--ambar);box-shadow:0 22px 60px rgba(245,167,11,.12)}
+.card-img{position:relative;cursor:zoom-in;overflow:hidden;background:#222}
+.card-img img{width:100%;aspect-ratio:1181/1346;object-fit:cover;transition:transform .6s}
+.card:hover .card-img img{transform:scale(1.04)}
+.card-img .zoom{position:absolute;right:12px;bottom:12px;background:rgba(0,0,0,.75);color:var(--ambar);font-size:.78rem;padding:6px 12px;border-radius:999px;font-family:var(--f-cond);letter-spacing:1px}
+.card-cuerpo{padding:22px;display:flex;flex-direction:column;gap:14px;flex:1}
+.card h3{font-family:var(--f-titulo);font-weight:400;font-size:1.7rem;color:var(--ambar);line-height:1.1}
+.origen{font-family:var(--f-cond);color:#d9c9a0;font-size:.95rem;letter-spacing:.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:.78rem;padding:4px 12px;border-radius:999px;border:1px solid rgba(245,167,11,.5);color:var(--crema)}
+.notas{font-size:.9rem;color:#d9c9a0}
+.notas b{color:var(--ambar);font-weight:600}
+.opcion{display:flex;flex-direction:column;gap:6px}
+.opcion label,.opcion .etq{font-family:var(--f-cond);font-size:.85rem;letter-spacing:1.5px;color:var(--ambar)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:6px 14px;border-radius:999px;border:1.5px solid #555;font-size:.82rem;transition:all .2s}
+.seg button[aria-pressed="true"]{background:var(--ambar);border-color:var(--ambar);color:#111;font-weight:600}
+.seg button:hover{border-color:var(--ambar)}
+.acciones{display:flex;gap:10px;margin-top:auto;align-items:center}
+.cant{display:flex;align-items:center;border:1.5px solid #555;border-radius:999px;overflow:hidden}
+.cant button{width:36px;height:40px;font-size:1.2rem;color:var(--ambar)}
+.cant button:hover{background:rgba(245,167,11,.15)}
+.cant span{min-width:28px;text-align:center;font-weight:600}
+.btn-add{flex:1;justify-content:center;padding:10px 16px;font-size:.95rem}
+.altura{display:flex;align-items:center;gap:8px;font-size:.8rem;color:#bba978}
+
+/* ============ ALTITUD ============ */
+.altitud{background:linear-gradient(180deg,#000,#141414 60%,#000)}
+.montana{width:100%;height:auto;margin-top:10px}
+.montana .pico{fill:#262626;stroke:var(--ambar);stroke-width:2;stroke-dasharray:1400;stroke-dashoffset:1400;transition:stroke-dashoffset 2.4s ease}
+.montana.visible .pico{stroke-dashoffset:0}
+.montana text{font-family:var(--f-cond);fill:var(--crema);font-size:15px}
+.montana .num{font-family:var(--f-titulo);fill:var(--ambar);font-size:28px}
+.montana .marca{opacity:0;transition:opacity .6s 1.6s,transform .6s 1.6s;transform:translateY(10px)}
+.montana.visible .marca{opacity:1;transform:none}
+
+/* ============ QUIZ ============ */
+.quiz{background:var(--ambar);color:#111}
+.quiz h2{color:#111}
+.quiz .sub{color:#3b2a00}
+.quiz-caja{background:#111;color:var(--crema);border-radius:26px;padding:clamp(22px,4vw,44px);max-width:760px;margin-inline:auto;box-shadow:0 30px 70px rgba(0,0,0,.35);min-height:340px;position:relative}
+.progreso{height:6px;background:#333;border-radius:6px;overflow:hidden;margin-bottom:26px}
+.progreso i{display:block;height:100%;width:0;background:var(--ambar);transition:width .4s}
+.quiz-q{font-family:var(--f-titulo);font-size:clamp(1.4rem,3vw,2rem);color:var(--ambar);margin-bottom:20px;line-height:1.15}
+.quiz-ops{display:grid;gap:12px}
+.quiz-ops button{text-align:left;padding:16px 20px;border:1.5px solid #444;border-radius:14px;transition:all .2s;font-size:1rem}
+.quiz-ops button:hover{border-color:var(--ambar);background:rgba(245,167,11,.1);transform:translateX(6px)}
+.quiz-res{text-align:center;animation:pop .5s}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.quiz-res img{width:min(220px,60%);margin:0 auto 18px;border-radius:12px;border:2px solid var(--ambar)}
+.quiz-res h3{font-family:var(--f-titulo);font-weight:400;font-size:2rem;color:var(--ambar)}
+.quiz-res p{margin:10px auto 22px;max-width:44ch;color:#d9c9a0}
+.quiz-res .btn{margin:4px}
+
+/* ============ MOLIENDA ============ */
+.metodos{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:30px}
+.metodos button{padding:10px 20px;border:1.5px solid var(--ambar);border-radius:999px;font-family:var(--f-cond);letter-spacing:1px;transition:all .2s}
+.metodos button[aria-selected="true"]{background:var(--ambar);color:#111}
+.molienda-panel{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;background:var(--carbon);border-radius:var(--radio);padding:34px;border:1px solid rgba(245,167,11,.25)}
+@media(max-width:720px){.molienda-panel{grid-template-columns:1fr}}
+.polvo{height:170px;border-radius:14px;background:#0d0d0d;position:relative;overflow:hidden;border:1px dashed rgba(245,167,11,.4)}
+.polvo i{position:absolute;border-radius:50%;background:#6b3f1d;box-shadow:inset -2px -2px 0 rgba(0,0,0,.35),inset 1px 1px 0 rgba(255,255,255,.12);transition:all .6s}
+.molienda-panel h3{font-family:var(--f-titulo);font-weight:400;font-size:2rem;color:var(--ambar)}
+.molienda-panel .tiempo{font-family:var(--f-cond);letter-spacing:1px;color:var(--ambar-claro);margin:6px 0 10px}
+.vapor{display:inline-block;animation:vapor 2.4s infinite}
+@keyframes vapor{0%,100%{transform:translateY(0);opacity:.9}50%{transform:translateY(-6px);opacity:.4}}
+
+/* ============ HISTORIA ============ */
+.historia-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center}
+@media(max-width:800px){.historia-grid{grid-template-columns:1fr}}
+.sello{width:min(300px,70%);aspect-ratio:1;margin-inline:auto;border-radius:50%;border:3px solid var(--blanco);display:grid;place-items:center;text-align:center;position:relative;animation:giro 40s linear infinite}
+.sello svg{position:absolute;inset:0;width:100%;height:100%}
+.sello svg text{fill:#fff;font-family:var(--f-texto);font-weight:600;font-size:15.5px;letter-spacing:4px}
+.sello b{font-family:var(--f-titulo);font-weight:400;color:#fff;font-size:1.9rem;animation:giro 40s linear infinite reverse}
+@keyframes giro{to{transform:rotate(360deg)}}
+.historia p+p{margin-top:14px}
+.contadores{display:flex;gap:30px;margin-top:28px;flex-wrap:wrap}
+.contadores div{border-left:3px solid var(--ambar);padding-left:14px}
+.contadores strong{display:block;font-family:var(--f-titulo);font-weight:400;font-size:2.4rem;color:var(--ambar);line-height:1}
+.contadores span{font-size:.85rem;color:#d9c9a0}
+
+/* ============ CONTACTO ============ */
+.contacto{text-align:center;background:radial-gradient(ellipse at 50% 100%,rgba(245,167,11,.18),transparent 60%)}
+.contacto .btn{margin:6px}
+footer{padding:30px 4%;text-align:center;font-size:.82rem;color:#8d7f5c;border-top:1px solid rgba(245,167,11,.2)}
+
+/* ============ MODAL ============ */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:100;display:none;place-items:center;padding:20px}
+.modal.abierto{display:grid;animation:pop .3s}
+.modal img{max-height:88vh;width:auto;border-radius:12px;border:2px solid var(--ambar)}
+.modal .cerrar{position:absolute;top:18px;right:22px;width:46px;height:46px;border-radius:50%;border:2px solid var(--ambar);color:var(--ambar);font-size:1.4rem}
+
+/* ============ BOTÓN GRANO DE CAFÉ (WhatsApp) ============ */
+.grano-wa{position:fixed;right:20px;bottom:20px;z-index:90;width:96px;height:96px;display:block;text-decoration:none;filter:drop-shadow(0 12px 18px rgba(0,0,0,.6));transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
+.grano-wa svg{width:100%;height:100%;overflow:visible;animation:flota 3.6s ease-in-out infinite}
+.grano-wa:hover{transform:scale(1.15) rotate(-8deg)}
+.grano-wa:hover svg{animation:tiembla .5s}
+@keyframes flota{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(5deg)}}
+@keyframes tiembla{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+.grano-wa .onda{position:absolute;inset:8px;border-radius:50%;border:2px solid var(--ambar);animation:onda 2.4s infinite;pointer-events:none}
+.grano-wa .onda:nth-child(2){animation-delay:1.2s}
+@keyframes onda{0%{transform:scale(.7);opacity:.8}100%{transform:scale(1.6);opacity:0}}
+.grano-wa .etiqueta{position:absolute;right:92px;top:50%;transform:translateY(-50%) translateX(10px);background:var(--ambar);color:#111;font-family:var(--f-cond);font-weight:500;letter-spacing:1px;padding:8px 16px;border-radius:999px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .3s}
+.grano-wa:hover .etiqueta,.grano-wa.mostrar .etiqueta{opacity:1;transform:translateY(-50%)}
+.grano-wa .contador{position:absolute;top:2px;right:2px;min-width:26px;height:26px;border-radius:50%;background:#fff;color:#111;font-weight:700;font-size:.8rem;display:none;place-items:center;border:2px solid #111;z-index:2}
+.grano-wa .contador.on{display:grid;animation:pop .35s}
+.grano-wa .contador.rebote{animation:rebote .5s}
+@keyframes rebote{50%{transform:scale(1.5)}}
+@media(max-width:600px){.grano-wa{width:78px;height:78px;right:12px;bottom:12px}.grano-wa .etiqueta{display:none}}
+
+/* ============ ANIMACIÓN AL SCROLL ============ */
+.rev{opacity:0;transform:translateY(26px);transition:opacity .8s,transform .8s}
+.rev.visible{opacity:1;transform:none}
+
+/* ============ TOAST ============ */
+.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,120px);background:var(--ambar);color:#111;padding:12px 22px;border-radius:999px;font-family:var(--f-cond);letter-spacing:1px;z-index:120;transition:transform .4s cubic-bezier(.3,1.5,.5,1);max-width:90vw;text-align:center}
+.toast.on{transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .rev{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <button class="menu-btn" id="menuBtn" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#cafes">Nuestros cafés</a></li>
+    <li><a href="#altura">Origen</a></li>
+    <li><a href="#quiz">Tu café ideal</a></li>
+    <li><a href="#molienda">Molienda</a></li>
+    <li><a href="#historia">Nosotros</a></li>
+    <li><a href="#contacto">Contacto</a></li>
+  </ul>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="inicio">
+  <canvas id="granos" aria-hidden="true"></canvas>
+  <img class="hero-logo" src="img/logo-hero.jpeg" alt="0808 Café de Especialidad, con ramas de café">
+  <div class="hero-contenido contenedor">
+    <h1>Café de altura, tostado con calma</h1>
+    <p>Cosecha selecta de Huila y Antioquia, entre 1950 y 2000 metros. Café 100% colombiano en bolsa de 500 g.</p>
+    <div class="hero-btns">
+      <a href="#cafes" class="btn btn-ambar">Ver los cafés</a>
+      <a href="#quiz" class="btn btn-borde">Encuentra el tuyo</a>
+    </div>
+  </div>
+</header>
+
+<div class="cinta" aria-hidden="true">
+  <div class="cinta-pista" id="cinta"></div>
+</div>
+
+<!-- ============ PRODUCTOS ============ -->
+<section id="cafes">
+  <div class="contenedor">
+    <div class="cabecera rev">
+      <h2>Tres cafés, tres montañas</h2>
+      <p class="sub">Elige molienda y tostión, agrega a tu pedido y envíalo por WhatsApp. Toca la bolsa para verla completa.</p>
+    </div>
+    <div class="productos-grid" id="productos"></div>
+  </div>
+</section>
+
+<!-- ============ ALTITUD ============ -->
+<section class="altitud" id="altura">
+  <div class="contenedor">
+    <div class="cabecera rev">
+      <h2>Más altura, más dulzor</h2>
+      <p class="sub">El café crece lento en las alturas de Colombia. Así se ven nuestros orígenes sobre el nivel del mar.</p>
+    </div>
+    <svg class="montana" id="montana" viewBox="0 0 900 340" role="img" aria-label="Gráfico de altitudes: Gigante 1950 msnm, Ciudad Bolívar 1950 msnm, Urrao 2000 msnm">
+      <path class="pico" d="M0 320 L120 230 L220 270 L330 150 L430 230 L540 100 L650 215 L760 170 L900 300 L900 340 L0 340 Z"/>
+      <g class="marca"><line x1="330" y1="150" x2="330" y2="60" stroke="#f5a70b" stroke-dasharray="4 4"/><text class="num" x="330" y="46" text-anchor="middle">1950</text><text x="330" y="26" text-anchor="middle">Gigante · Huila</text></g>
+      <g class="marca"><line x1="540" y1="100" x2="540" y2="60" stroke="#f5a70b" stroke-dasharray="4 4"/><text class="num" x="540" y="46" text-anchor="middle">2000</text><text x="540" y="26" text-anchor="middle">Urrao · Antioquia</text></g>
+      <g class="marca"><line x1="760" y1="170" x2="760" y2="110" stroke="#f5a70b" stroke-dasharray="4 4"/><text class="num" x="760" y="96" text-anchor="middle">1950</text><text x="760" y="76" text-anchor="middle">Ciudad Bolívar · Antioquia</text></g>
+      <text x="14" y="300">msnm</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="quiz" id="quiz">
+  <div class="contenedor">
+    <div class="cabecera rev" style="text-align:center">
+      <h2>¿Cuál café es para ti?</h2>
+      <p class="sub" style="margin-inline:auto">Tres preguntas rápidas y te decimos cuál pedir.</p>
+    </div>
+    <div class="quiz-caja rev" id="quizCaja" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ============ MOLIENDA ============ -->
+<section id="molienda">
+  <div class="contenedor">
+    <div class="cabecera rev">
+      <h2>¿Cómo lo preparas?</h2>
+      <p class="sub">Escoge tu método y te decimos qué molienda pedir.</p>
+    </div>
+    <div class="metodos" id="metodos" role="tablist" aria-label="Métodos de preparación"></div>
+    <div class="molienda-panel rev">
+      <div class="polvo" id="polvo" aria-hidden="true"></div>
+      <div>
+        <h3 id="mNombre"></h3>
+        <div class="tiempo"><span class="vapor">♨</span> <span id="mTiempo"></span></div>
+        <p id="mTip"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HISTORIA ============ -->
+<section id="historia">
+  <div class="contenedor historia-grid">
+    <div class="rev">
+      <div class="sello" aria-label="Café artesanal, cosecha selecta, desde 2026">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <defs><path id="arcoSup" d="M 28 100 A 72 72 0 0 1 172 100"/><path id="arcoInf" d="M 22 100 A 78 78 0 0 0 178 100"/></defs>
+          <text><textPath href="#arcoSup" startOffset="50%" text-anchor="middle">CAFÉ ARTESANAL</textPath></text>
+          <text><textPath href="#arcoInf" startOffset="50%" text-anchor="middle" dominant-baseline="hanging">COSECHA SELECTA</textPath></text>
+        </svg>
+        <b>EST.<br>2026</b>
+      </div>
+    </div>
+    <div class="historia rev">
+      <h2>Del cafetal a tu taza</h2>
+      <p style="margin-top:18px">0808 nació de las ganas de que el buen café colombiano llegue a tu casa sin intermediarios. Elegimos lotes de cosecha selecta, los tostamos en pequeñas cantidades y los empacamos en bolsas de 500 g.</p>
+      <p>Cada café tiene su origen, su proceso y sus notas escritas en la etiqueta. Sin misterios: lo que ves es lo que vas a probar.</p>
+      <div class="contadores">
+        <div><strong data-n="3">0</strong><span>orígenes</span></div>
+        <div><strong data-n="500">0</strong><span>gramos por bolsa</span></div>
+        <div><strong data-n="100">0</strong><span>% colombiano</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACTO ============ -->
+<section class="contacto" id="contacto">
+  <div class="contenedor rev">
+    <h2>¿Listo para tu primera bolsa?</h2>
+    <p class="sub" style="margin:14px auto 28px">Escríbenos y coordinamos tu pedido. Respondemos por WhatsApp.</p>
+    <a class="btn btn-ambar" id="btnContacto" href="#" target="_blank" rel="noopener">Pedir por WhatsApp</a>
+    <a class="btn btn-borde" href="https://www.instagram.com/0808cafe/" target="_blank" rel="noopener">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+      Instagram
+    </a>
+    <a class="btn btn-borde" href="https://www.tiktok.com/@0808cafe" target="_blank" rel="noopener">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1.04-.1z"/></svg>
+      TikTok
+    </a>
+  </div>
+</section>
+
+<footer>
+  <div style="display:flex;gap:18px;justify-content:center;margin-bottom:10px">
+    <a href="https://www.instagram.com/0808cafe/" target="_blank" rel="noopener" style="color:var(--ambar)">Instagram</a>
+    <a href="https://www.tiktok.com/@0808cafe" target="_blank" rel="noopener" style="color:var(--ambar)">TikTok</a>
+  </div>
+  © 2026 0808 Café de Especialidad · Hecho en Colombia
+</footer>
+
+<!-- ============ MODAL ============ -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Etiqueta del café">
+  <button class="cerrar" id="modalCerrar" aria-label="Cerrar">✕</button>
+  <img id="modalImg" src="" alt="">
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<!-- ============ BOTÓN GRANO DE CAFÉ → WHATSAPP ============ -->
+<a class="grano-wa" id="granoWA" href="#" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp">
+  <span class="onda"></span><span class="onda"></span>
+  <span class="etiqueta" id="granoEtq">¡Escríbenos!</span>
+  <span class="contador" id="granoCont">0</span>
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <radialGradient id="gBean" cx="35%" cy="28%" r="80%">
+        <stop offset="0" stop-color="#ffd270"/><stop offset=".45" stop-color="#f5a70b"/><stop offset="1" stop-color="#a86a00"/>
+      </radialGradient>
+    </defs>
+    <g transform="rotate(32 50 50)">
+      <ellipse cx="50" cy="50" rx="31" ry="45" fill="url(#gBean)" stroke="#6b3f00" stroke-width="2"/>
+      <path d="M50 6 C34 28 66 72 50 94" fill="none" stroke="#4a2a00" stroke-width="6" stroke-linecap="round"/>
+      <path d="M50 6 C34 28 66 72 50 94" fill="none" stroke="#ffe29a" stroke-opacity=".35" stroke-width="1.4" stroke-linecap="round" transform="translate(3 0)"/>
+    </g>
+    <circle cx="50" cy="50" r="19" fill="#25d366" stroke="#fff" stroke-width="3"/>
+    <g transform="translate(37.5 37.5) scale(1.04)" fill="#fff">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </g>
+  </svg>
+</a>
+
+<script>
+/* =====================================================
+   CONFIGURACIÓN — edita aquí tus datos
+   ===================================================== */
+const WHATSAPP = "573012226387";          // 57 = Colombia + tu número
+const INSTAGRAM = "https://www.instagram.com/0808cafe/";
+const TIKTOK = "https://www.tiktok.com/@0808cafe";
+
+// Si quieres mostrar precio, pon un número (ej: 45000). Si es null, no se muestra.
+const PRODUCTOS = [
+  {
+    id: "bourbon", nombre: "Bourbon Rosado", img: "img/bourbon-rosado.jpeg",
+    origen: "Gigante · Huila", proceso: "Honey", acidez: "Acidez baja", msnm: 1950,
+    aroma: "Dulce, panela", sabor: "Frutal, caramelo", precio: null
+  },
+  {
+    id: "blend", nombre: "Blend Castillo – Caturra", img: "img/blend.jpeg",
+    origen: "Ciudad Bolívar · Antioquia", proceso: "Lavado", acidez: "Acidez media", msnm: 1950,
+    aroma: "Caramelo dulce", sabor: "Chocolate, panela", precio: null
+  },
+  {
+    id: "chiroso", nombre: "Chiroso", img: "img/chiroso.jpeg",
+    origen: "Urrao · Antioquia", proceso: "Lavado", acidez: "Acidez media", msnm: 2000,
+    aroma: "Floral, lima", sabor: "Dulce, miel", precio: null
+  }
+];
+const MOLIENDAS = ["Grano", "Fina", "Media", "Gruesa"];
+const TOSTIONES = ["Claro", "Medio"];
+
+/* =====================================================
+   UTILIDADES
+   ===================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const reducido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const waURL = txt => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(txt)}`;
+const moneda = n => "$" + n.toLocaleString("es-CO");
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+/* =====================================================
+   NAV
+   ===================================================== */
+const nav = $("#nav"), navLinks = $("#navLinks"), menuBtn = $("#menuBtn");
+addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 40), {passive:true});
+menuBtn.addEventListener("click", () => {
+  const abierto = navLinks.classList.toggle("abierto");
+  menuBtn.setAttribute("aria-expanded", abierto);
+  menuBtn.textContent = abierto ? "✕" : "☰";
+});
+$$("#navLinks a").forEach(a => a.addEventListener("click", () => {
+  navLinks.classList.remove("abierto"); menuBtn.textContent = "☰"; menuBtn.setAttribute("aria-expanded", false);
+}));
+
+/* Cinta */
+$("#cinta").innerHTML = Array(2).fill(
+  ["Café de especialidad","Cosecha selecta","Gigante · Huila","Ciudad Bolívar","Urrao","100% colombiano","Tostado artesanal"]
+    .map(t => `<span>${t} ✦</span>`).join("")
+).join("");
+
+/* =====================================================
+   GRANOS DE CAFÉ CAYENDO (hero)
+   ===================================================== */
+(function(){
+  const c = $("#granos"), ctx = c.getContext("2d");
+  let W, H, granos = [], mouse = {x:.5};
+  const N = reducido ? 0 : (innerWidth < 600 ? 14 : 26);
+  function size(){ const r = c.parentElement.getBoundingClientRect(); W = c.width = r.width; H = c.height = r.height; }
+  size(); addEventListener("resize", size);
+  addEventListener("mousemove", e => mouse.x = e.clientX / innerWidth);
+  function nuevo(inicio){
+    return { x:Math.random()*W, y: inicio ? Math.random()*H : -40, s:7+Math.random()*13,
+             v:.4+Math.random()*1.1, r:Math.random()*6.28, vr:(Math.random()-.5)*.025, o:.25+Math.random()*.55, d:Math.random()*100 };
+  }
+  for(let i=0;i<N;i++) granos.push(nuevo(true));
+  function grano(g){
+    ctx.save(); ctx.translate(g.x,g.y); ctx.rotate(g.r); ctx.globalAlpha=g.o;
+    ctx.fillStyle="#f5a70b"; ctx.beginPath(); ctx.ellipse(0,0,g.s*.62,g.s,0,0,6.283); ctx.fill();
+    ctx.strokeStyle="#000"; ctx.lineWidth=Math.max(1.2,g.s*.14); ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(0,-g.s*.9); ctx.bezierCurveTo(-g.s*.45,-g.s*.3,g.s*.45,g.s*.3,0,g.s*.9); ctx.stroke();
+    ctx.restore();
+  }
+  let vis = true;
+  new IntersectionObserver(e => vis = e[0].isIntersecting).observe(c);
+  (function loop(){
+    if(vis){
+      ctx.clearRect(0,0,W,H);
+      for(const g of granos){
+        g.y += g.v; g.r += g.vr; g.d += .01;
+        g.x += Math.sin(g.d)*.5 + (mouse.x-.5)*.8;
+        if(g.y > H+40) Object.assign(g, nuevo(false));
+        grano(g);
+      }
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* =====================================================
+   PEDIDO (carrito) + BOTÓN GRANO
+   ===================================================== */
+const pedido = [];   // {id, nombre, cant, molienda, tostion, precio}
+const granoWA = $("#granoWA"), granoCont = $("#granoCont"), granoEtq = $("#granoEtq");
+
+function mensajePedido(){
+  if(!pedido.length) return "Hola 0808 Café ☕ Quiero conocer más sobre sus cafés de especialidad.";
+  let total = 0, hayPrecio = true;
+  const lineas = pedido.map(p => {
+    if(p.precio) total += p.precio * p.cant; else hayPrecio = false;
+    return `• ${p.cant} x ${p.nombre} (500 g) — Molienda: ${p.molienda} — Tostión: ${p.tostion}`;
+  });
+  let msg = "Hola 0808 Café ☕ Quisiera hacer este pedido:\n\n" + lineas.join("\n");
+  if(hayPrecio && total) msg += `\n\nTotal estimado: ${moneda(total)}`;
+  return msg + "\n\n¿Cómo coordinamos el pago y el envío?";
+}
+function actualizarGrano(){
+  const n = pedido.reduce((a,p) => a + p.cant, 0);
+  granoCont.textContent = n;
+  granoCont.classList.toggle("on", n > 0);
+  granoCont.classList.remove("rebote"); void granoCont.offsetWidth; if(n) granoCont.classList.add("rebote");
+  granoEtq.textContent = n ? `Enviar pedido (${n})` : "¡Escríbenos!";
+  const url = waURL(mensajePedido());
+  granoWA.href = url; $("#btnContacto").href = url;
+  if(n){ granoWA.classList.add("mostrar"); clearTimeout(actualizarGrano.t); actualizarGrano.t = setTimeout(() => granoWA.classList.remove("mostrar"), 2500); }
+}
+actualizarGrano();
+
+/* =====================================================
+   TARJETAS DE PRODUCTO
+   ===================================================== */
+const grid = $("#productos");
+grid.innerHTML = PRODUCTOS.map(p => `
+  <article class="card rev" data-id="${p.id}">
+    <div class="card-img" data-zoom="${p.id}" tabindex="0" role="button" aria-label="Ver etiqueta de ${p.nombre}">
+      <img src="${p.img}" alt="Bolsa de ${p.nombre}, ${p.origen}" loading="lazy">
+      <span class="zoom">Ver completa</span>
+    </div>
+    <div class="card-cuerpo">
+      <h3>${p.nombre}</h3>
+      <div class="origen">${p.origen} · ${p.msnm} msnm</div>
+      <div class="chips"><span class="chip">${p.proceso}</span><span class="chip">${p.acidez}</span><span class="chip">500 g</span></div>
+      <p class="notas"><b>Aroma:</b> ${p.aroma}<br><b>Sabor:</b> ${p.sabor}</p>
+      ${p.precio ? `<p class="notas"><b>${moneda(p.precio)}</b> por bolsa</p>` : ""}
+      <div class="opcion"><span class="etq">MOLIENDA</span>
+        <div class="seg" data-g="molienda">${MOLIENDAS.map((m,i) => `<button type="button" aria-pressed="${i===0}">${m}</button>`).join("")}</div></div>
+      <div class="opcion"><span class="etq">TOSTIÓN</span>
+        <div class="seg" data-g="tostion">${TOSTIONES.map((m,i) => `<button type="button" aria-pressed="${i===1}">${m}</button>`).join("")}</div></div>
+      <div class="acciones">
+        <div class="cant"><button type="button" data-d="-1" aria-label="Menos">−</button><span>1</span><button type="button" data-d="1" aria-label="Más">+</button></div>
+        <button type="button" class="btn btn-ambar btn-add">Agregar al pedido</button>
+      </div>
+    </div>
+  </article>`).join("");
+
+$$(".card").forEach(card => {
+  const p = PRODUCTOS.find(x => x.id === card.dataset.id);
+  let cant = 1;
+  card.addEventListener("click", e => {
+    const seg = e.target.closest(".seg button");
+    if(seg){ $$("button", seg.parentElement).forEach(b => b.setAttribute("aria-pressed", b === seg)); return; }
+    const d = e.target.closest(".cant button");
+    if(d){ cant = Math.max(1, Math.min(20, cant + +d.dataset.d)); $(".cant span", card).textContent = cant; return; }
+    if(e.target.closest(".btn-add")){
+      const mol = $('[data-g="molienda"] [aria-pressed="true"]', card).textContent;
+      const tos = $('[data-g="tostion"] [aria-pressed="true"]', card).textContent;
+      const ya = pedido.find(x => x.id === p.id && x.molienda === mol && x.tostion === tos);
+      if(ya) ya.cant += cant; else pedido.push({id:p.id, nombre:p.nombre, cant, molienda:mol, tostion:tos, precio:p.precio});
+      cant = 1; $(".cant span", card).textContent = 1;
+      actualizarGrano(); toast(`${p.nombre} agregado ☕ Toca el grano para enviar`);
+    }
+  });
+  /* Inclinación 3D */
+  if(!reducido && matchMedia("(hover:hover)").matches){
+    card.addEventListener("mousemove", e => {
+      const r = card.getBoundingClientRect(), x = (e.clientX-r.left)/r.width-.5, y = (e.clientY-r.top)/r.height-.5;
+      card.style.transform = `perspective(900px) rotateY(${x*7}deg) rotateX(${-y*7}deg) translateY(-4px)`;
+    });
+    card.addEventListener("mouseleave", () => card.style.transform = "");
+  }
+});
+
+/* Modal etiqueta */
+const modal = $("#modal");
+function abrirModal(id){
+  const p = PRODUCTOS.find(x => x.id === id);
+  $("#modalImg").src = p.img; $("#modalImg").alt = "Etiqueta de " + p.nombre;
+  modal.classList.add("abierto"); $("#modalCerrar").focus();
+}
+grid.addEventListener("click", e => { const z = e.target.closest("[data-zoom]"); if(z) abrirModal(z.dataset.zoom); });
+grid.addEventListener("keydown", e => { if((e.key==="Enter"||e.key===" ") && e.target.dataset.zoom){ e.preventDefault(); abrirModal(e.target.dataset.zoom); }});
+modal.addEventListener("click", e => { if(e.target === modal || e.target.id === "modalCerrar") modal.classList.remove("abierto"); });
+addEventListener("keydown", e => { if(e.key === "Escape") modal.classList.remove("abierto"); });
+
+/* =====================================================
+   QUIZ: ¿QUÉ CAFÉ ERES?
+   ===================================================== */
+const PREGUNTAS = [
+  { q:"¿Cómo tomas tu café normalmente?", o:[
+      ["Con leche o con bastante azúcar", {blend:2}],
+      ["Negro, sin nada", {chiroso:2, bourbon:1}],
+      ["Con un toque de panela o miel", {bourbon:2, blend:1}] ]},
+  { q:"¿Qué sabor te provoca más?", o:[
+      ["Chocolate y panela", {blend:3}],
+      ["Frutas y caramelo", {bourbon:3}],
+      ["Flores, cítricos y miel", {chiroso:3}] ]},
+  { q:"¿Qué tanta acidez te gusta?", o:[
+      ["Muy poca, suave y redondo", {bourbon:2}],
+      ["Equilibrada", {blend:2, chiroso:1}],
+      ["Viva y fresca", {chiroso:2}] ]}
+];
+const MOTIVO = {
+  bourbon:"Dulce y frutal, con acidez baja. Su proceso honey le da cuerpo suave y notas de caramelo.",
+  blend:"Redondo y achocolatado, con acidez media. Funciona para todos los días y con leche.",
+  chiroso:"Floral, con lima y miel. El más alto de los tres, con una acidez viva y limpia."
+};
+const quizCaja = $("#quizCaja");
+let qi = 0, puntos;
+function quizInicio(){ qi = 0; puntos = {bourbon:0, blend:0, chiroso:0}; quizPregunta(); }
+function quizPregunta(){
+  const q = PREGUNTAS[qi];
+  quizCaja.innerHTML = `<div class="progreso"><i style="width:${qi/PREGUNTAS.length*100}%"></i></div>
+    <div class="quiz-q">${q.q}</div>
+    <div class="quiz-ops">${q.o.map((o,i) => `<button type="button" data-i="${i}">${o[0]}</button>`).join("")}</div>`;
+  requestAnimationFrame(() => $(".progreso i", quizCaja).style.width = (qi+1)/PREGUNTAS.length*100 + "%");
+}
+quizCaja.addEventListener("click", e => {
+  const b = e.target.closest(".quiz-ops button");
+  if(b){
+    const pts = PREGUNTAS[qi].o[+b.dataset.i][1];
+    for(const k in pts) puntos[k] += pts[k];
+    qi++; qi < PREGUNTAS.length ? quizPregunta() : quizResultado();
+  }
+  if(e.target.closest("#quizRepetir")) quizInicio();
+  const add = e.target.closest("[data-pedir]");
+  if(add){
+    const p = PRODUCTOS.find(x => x.id === add.dataset.pedir);
+    window.open(waURL(`Hola 0808 Café ☕ Hice el test y me salió el ${p.nombre}. Quiero pedir una bolsa de 500 g.`), "_blank", "noopener");
+  }
+});
+function quizResultado(){
+  const id = Object.entries(puntos).sort((a,b) => b[1]-a[1])[0][0];
+  const p = PRODUCTOS.find(x => x.id === id);
+  quizCaja.innerHTML = `<div class="quiz-res">
+    <img src="${p.img}" alt="Bolsa de ${p.nombre}">
+    <h3>${p.nombre}</h3>
+    <p>${MOTIVO[id]}</p>
+    <button class="btn btn-ambar" type="button" data-pedir="${id}">Pedir este café</button>
+    <button class="btn btn-borde" type="button" id="quizRepetir">Repetir test</button>
+  </div>`;
+  if(!reducido) lluviaGranos(quizCaja);
+}
+function lluviaGranos(host){
+  for(let i=0;i<18;i++){
+    const g = document.createElement("span");
+    g.textContent = "☕";
+    Object.assign(g.style,{position:"absolute",left:Math.random()*100+"%",top:"-20px",fontSize:12+Math.random()*16+"px",pointerEvents:"none",transition:`transform ${1.2+Math.random()}s ease-in, opacity 1.6s`,opacity:1});
+    host.appendChild(g);
+    requestAnimationFrame(() => { g.style.transform = `translateY(${host.offsetHeight+40}px) rotate(${Math.random()*360}deg)`; g.style.opacity = 0; });
+    setTimeout(() => g.remove(), 2400);
+  }
+}
+quizInicio();
+
+/* =====================================================
+   MOLIENDA INTERACTIVA
+   ===================================================== */
+const METODOS = [
+  {n:"Prensa francesa", g:"Gruesa",  t:"4 minutos de infusión", tip:"Cuerpo pleno y textura aceitosa. Una molienda gruesa evita que quede turbio y amargo.", size:9},
+  {n:"V60 / Chemex",    g:"Media",   t:"2 a 3 minutos",          tip:"Resalta las notas florales y frutales. Ideal para el Chiroso y el Bourbon Rosado.", size:6},
+  {n:"Cafetera de goteo", g:"Media", t:"5 a 6 minutos",          tip:"Práctico para varias tazas. Una molienda media da un café equilibrado.", size:6},
+  {n:"Moka / Greca",    g:"Fina",    t:"4 a 5 minutos",          tip:"Intenso y concentrado. Fina, pero sin llegar a polvo, para que no se amargue.", size:3.5},
+  {n:"Espresso",        g:"Fina",    t:"25 a 30 segundos",       tip:"Pide molienda fina y ajusta según tu máquina. El Blend se lleva muy bien con leche.", size:2.6},
+  {n:"No tengo molino", g:"Media",   t:"Te lo enviamos ya molido", tip:"Sin molino, pide molienda media: sirve para goteo, V60 y la mayoría de cafeteras caseras. Si usas prensa o moka, dínoslo por WhatsApp y te lo molemos a tu medida.", size:6},
+  {n:"Tengo molino en casa", g:"Grano", t:"Muélelo justo antes de preparar", tip:"Si ya tienes molino, pídelo en grano: el aroma y el sabor se conservan mucho más.", size:20}
+];
+const metodos = $("#metodos"), polvo = $("#polvo");
+metodos.innerHTML = METODOS.map((m,i) => `<button type="button" role="tab" aria-selected="${i===0}" data-i="${i}">${m.n}</button>`).join("");
+const piezas = Array.from({length:70}, () => { const i = document.createElement("i"); polvo.appendChild(i); return {el:i, rx:Math.random(), ry:Math.random(), v:.6+Math.random()*.8}; });
+function pintarMolienda(i){
+  const m = METODOS[i];
+  $("#mNombre").textContent = m.g === "Grano" ? "Pídelo en grano" : "Molienda " + m.g.toLowerCase();
+  $("#mTiempo").textContent = m.n + " · " + m.t;
+  $("#mTip").textContent = m.tip;
+  const W = polvo.clientWidth, H = polvo.clientHeight;
+  const cuantos = Math.min(70, Math.round(900 / (m.size*m.size)) + 6);
+  piezas.forEach((p,k) => {
+    const s = m.size * p.v;
+    Object.assign(p.el.style,{display:k<cuantos?"block":"none",width:s+"px",height:(m.g==="Grano"?s*1.45:s)+"px",left:p.rx*(W-s)+"px",top:p.ry*(H-s)+"px",
+      borderRadius:"50%",transform:`rotate(${p.rx*360}deg)`,
+      background:m.g==="Grano"?"linear-gradient(100deg,transparent 44%,#3a2200 44%,#3a2200 56%,transparent 56%),#f5a70b":"#6b3f1d"});
+  });
+}
+metodos.addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  $$("button", metodos).forEach(x => x.setAttribute("aria-selected", x === b));
+  pintarMolienda(+b.dataset.i);
+});
+addEventListener("resize", () => pintarMolienda(+$('[aria-selected="true"]', metodos).dataset.i));
+pintarMolienda(0);
+
+/* =====================================================
+   REVEAL, MONTAÑA Y CONTADORES AL HACER SCROLL
+   ===================================================== */
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if(!e.isIntersecting) return;
+  e.target.classList.add("visible"); io.unobserve(e.target);
+}), {threshold:.15});
+$$(".rev, #montana").forEach(el => io.observe(el));
+
+const ioNum = new IntersectionObserver(es => es.forEach(e => {
+  if(!e.isIntersecting) return;
+  const el = e.target, fin = +el.dataset.n, t0 = performance.now(), dur = 1400;
+  (function paso(t){
+    const k = Math.min(1,(t-t0)/dur);
+    el.textContent = Math.round(fin * (1 - Math.pow(1-k,3)));
+    if(k<1) requestAnimationFrame(paso);
+  })(t0);
+  ioNum.unobserve(el);
+}), {threshold:.6});
+$$("[data-n]").forEach(el => ioNum.observe(el));
+
+/* Aviso suave del grano a los 6 s */
+setTimeout(() => { if(!pedido.length){ granoWA.classList.add("mostrar"); setTimeout(() => granoWA.classList.remove("mostrar"), 3500); } }, 6000);
+</script>
+</body>
+</html>

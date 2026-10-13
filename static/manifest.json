@@ -13,7 +13,8 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "/",
+  "start_url": "/sistema/",
+  "scope": "/sistema/",
   "background_color": "#ffffff",
   "theme_color": "#007bff",
   "display": "standalone",
