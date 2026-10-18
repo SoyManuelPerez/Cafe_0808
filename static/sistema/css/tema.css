@@ -1,0 +1,173 @@
+/* Tema 0808 para el sistema: mismos colores de la bolsa y la etiqueta que usa la landing.
+   Se carga después de sistema.css y solo ajusta apariencia (no cambia la estructura). */
+:root {
+    --bg-color: #1c2023;        /* pizarra (fondo de las fotos de producto) */
+    --sidebar-bg: #23282b;
+    --card-bg: #272c30;
+    --surface-2: #2f3539;
+    --gold-primary: #cda752;    /* dorado de la etiqueta */
+    --gold-bright: #f5a70b;     /* ámbar del logo */
+    --text-color: #efe6d2;
+    --text-muted: #a9a294;
+    --border-color: #394045;
+    --ok: #57c785;
+    --danger: #ef7a6b;
+    --radius: 10px;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Sin sesión no se ve nada del sistema detrás del login */
+body.sin-sesion .sidebar,
+body.sin-sesion .content { visibility: hidden; }
+
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.2px; margin: 4px 0 22px; text-shadow: none; color: var(--text-color); }
+h2, h3 { text-shadow: none; color: var(--gold-primary); font-weight: 650; }
+.card h3 { margin-top: 0; font-size: 17px; }
+
+/* ---------- Login ---------- */
+.login-screen { background: radial-gradient(ellipse at 50% 30%, #2c3236 0%, var(--bg-color) 70%); }
+.login-card {
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--gold-primary);
+    border-radius: 14px;
+    padding: 30px 26px 22px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .45);
+}
+.login-card .logo { border: 0; border-radius: 0; object-fit: contain; width: 84px; height: 94px; }
+.login-card h3 { letter-spacing: 2px; }
+.login-error {
+    background: rgba(239, 122, 107, .12);
+    border: 1px solid rgba(239, 122, 107, .5);
+    color: #ffb4a8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    margin: 6px 0 4px;
+    text-align: left;
+}
+.login-error[hidden] { display: none; }
+
+/* ---------- Barra lateral ---------- */
+.sidebar { border-right: 1px solid var(--border-color); padding: 22px 12px; }
+.sidebar .logo { border: 0; border-radius: 0; object-fit: contain; width: 70px; height: 80px; }
+.brand-title { letter-spacing: 3px; font-size: 15px; color: var(--gold-primary); }
+.user-badge {
+    color: var(--text-color);
+    background: var(--surface-2);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    margin: 8px 0 4px;
+}
+.version-tag { color: var(--text-muted); font-weight: 500; letter-spacing: .5px; }
+.nav-button {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-color);
+    padding: 10px 14px;
+    margin: 2px 0;
+    border-radius: 8px;
+    transition: background-color .15s, color .15s;
+}
+.nav-button:hover { background-color: var(--surface-2); border-color: transparent; box-shadow: none; color: var(--text-color); }
+.nav-button.active {
+    background-color: rgba(205, 167, 82, .14);
+    border-color: transparent;
+    box-shadow: inset 3px 0 0 var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+/* ---------- Contenido ---------- */
+.content { padding: 28px clamp(16px, 3vw, 40px); }
+.card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    padding: 20px 22px;
+}
+label { color: var(--text-muted); font-size: 13px; font-weight: 600; }
+
+input, select, textarea {
+    background-color: #1f2427;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    transition: border-color .15s, box-shadow .15s;
+}
+select {
+    background-image: linear-gradient(45deg, transparent 50%, var(--gold-primary) 50%), linear-gradient(135deg, var(--gold-primary) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 0 3px rgba(205, 167, 82, .22);
+}
+:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
+
+button { border-radius: 8px; }
+button.btn-gold {
+    background-color: var(--gold-primary);
+    color: #1b1712 !important;
+    border: 1px solid var(--gold-primary);
+    font-weight: 700;
+    transition: background-color .15s, transform .1s;
+}
+button.btn-gold:hover { background-color: var(--gold-bright); border-color: var(--gold-bright); color: #1b1712 !important; }
+button.btn-gold:active { transform: translateY(1px); }
+button:disabled { opacity: .55; cursor: progress; }
+button.btn-danger { background-color: transparent; border-color: rgba(239, 122, 107, .6); color: var(--danger) !important; border-radius: 8px; }
+button.btn-danger:hover { background-color: var(--danger); color: #1b1712 !important; }
+
+/* Indicadores */
+.stock-item, .kpi-card {
+    background-color: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: none;
+}
+.stock-item { text-align: left; border-left: 3px solid var(--gold-primary); }
+.stock-item-title { color: var(--text-color); font-weight: 600; }
+.stock-item-qty { color: var(--gold-primary); font-size: 22px; font-variant-numeric: tabular-nums; }
+.kpi-title { color: var(--text-muted); font-weight: 600; font-size: 13px; }
+.kpi-value { font-variant-numeric: tabular-nums; }
+
+/* Tablas */
+.table-responsive { border-radius: var(--radius); border: 1px solid var(--border-color); }
+table { font-size: 14px; }
+th, td { border: 0; border-bottom: 1px solid var(--border-color); padding: 10px 12px; }
+th {
+    background-color: #22272a;
+    color: var(--text-muted);
+    font-weight: 650;
+    font-size: 12.5px;
+    position: sticky;
+    top: 0;
+}
+tbody tr:hover td { background-color: rgba(255, 255, 255, .025); }
+td { font-variant-numeric: tabular-nums; }
+.table-toolbar input[type="text"] { background-color: #1f2427; border-radius: 8px; }
+.pagination-controls button { background-color: var(--surface-2); color: var(--text-color); border-radius: 8px; }
+.input-cart-price { background-color: #1f2427 !important; border-color: var(--border-color) !important; color: var(--text-color) !important; border-radius: 6px !important; }
+
+/* Modales */
+.modal-overlay { background-color: rgba(10, 12, 13, .78); backdrop-filter: blur(3px); }
+.modal-container { border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.modal-header, .modal-footer { background-color: var(--sidebar-bg); }
+.modal-body { background-color: var(--card-bg); }
+
+.hamburger-btn { background-color: var(--sidebar-bg); color: var(--text-color); border-color: var(--border-color); border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}

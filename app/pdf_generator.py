@@ -1,6 +1,7 @@
 import io
 import os
 import base64
+from app.config import STATIC_DIR
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -15,9 +16,9 @@ def generar_factura_pdf(documento, items, es_cotizacion=False):
     styles = getSampleStyleSheet()
     elements = []
 
-    logo_path = "static/logo_factura.jpeg"
+    logo_path = os.path.join(STATIC_DIR, "logo_factura.jpeg")
     if not os.path.exists(logo_path):
-        logo_path = "static/logo.png"
+        logo_path = os.path.join(STATIC_DIR, "logo.png")
 
     if os.path.exists(logo_path):
         logo_image = Image(logo_path, width=3.5*inch, height=3.5*inch)

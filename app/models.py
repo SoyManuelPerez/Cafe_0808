@@ -1,96 +1,146 @@
-from pydantic import BaseModel
-from typing import List, Optional
+"""Modelos de entrada de la API. Validan tipos, límites y limpian texto antes de guardar."""
+import re
+from typing import Annotated, List, Optional, Literal
+
+from pydantic import AfterValidator, BaseModel, Field
+
+_ETIQUETAS = re.compile(r"[<>]")
+
+
+def _limpiar(valor: str) -> str:
+    # Quita < y > para que ningún texto guardado pueda inyectar HTML/JS en las pantallas.
+    return _ETIQUETAS.sub("", valor).strip()
+
+
+Texto = Annotated[str, Field(max_length=200), AfterValidator(_limpiar)]
+TextoLargo = Annotated[str, Field(max_length=1000), AfterValidator(_limpiar)]
+Fecha = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}")]
+Dinero = Annotated[float, Field(ge=0, le=1_000_000_000)]
+
 
 # ==========================================
-# MODELOS DE USUARIOS Y AUTENTICACIÓN
+# USUARIOS Y AUTENTICACIÓN
 # ==========================================
 
 class UserLogin(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=60)
+    password: str = Field(min_length=1, max_length=128)
+
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
-    rol: Optional[str] = "ventas"
+    username: Annotated[str, Field(min_length=2, max_length=40, pattern=r"^[\w .-]+$")]
+    password: str = Field(min_length=6, max_length=128)
+    rol: Literal["admin", "ventas"] = "ventas"
+
 
 class UserUpdate(BaseModel):
-    username: str
-    password: Optional[str] = None
-    rol: Optional[str] = None
+    username: Annotated[str, Field(min_length=2, max_length=40, pattern=r"^[\w .-]+$")]
+    password: Optional[str] = Field(default=None, max_length=128)
+    rol: Optional[Literal["admin", "ventas"]] = None
 
 
 # ==========================================
-# MODELO DE CLIENTES
+# CLIENTES
 # ==========================================
 
 class ClienteCreate(BaseModel):
-    nombre: str
-    celular: Optional[str] = None
+    nombre: Annotated[Texto, Field(min_length=1)]
+    celular: Optional[Annotated[str, Field(max_length=30), AfterValidator(_limpiar)]] = None
 
 
 # ==========================================
-# MODELOS DE COMPRAS (INSUMOS Y MATERIA PRIMA)
+# GASTOS
+# ==========================================
+
+class GastoCreate(BaseModel):
+    monto: Dinero
+    fecha: Fecha
+    observacion: TextoLargo
+
+
+# ==========================================
+# COMPRAS (INSUMOS Y MATERIA PRIMA)
 # ==========================================
 
 class CompraEmpaqueCreate(BaseModel):
-    fecha: str
-    tipo_empaque: str
-    cantidad: int
-    costo_total: float
+    fecha: Fecha
+    tipo_empaque: Literal["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
+    cantidad: int = Field(gt=0, le=1_000_000)
+    costo_total: Dinero
+
 
 class CompraCreate(BaseModel):
-    fecha: str
-    libras: float
-    costo_total: float
-    producto_id: Optional[str] = None
+    fecha: Fecha
+    libras: float = Field(gt=0, le=100_000)
+    costo_total: Dinero
+    producto_id: Optional[str] = Field(default=None, max_length=40)
+
+
+class AjusteEmpaque(BaseModel):
+    tipo_empaque: Literal["bolsa_250g", "bolsa_500g", "etiqueta_250g", "etiqueta_500g"]
+    disponibles: int = Field(ge=0, le=10_000_000)
+    costo_unitario: Dinero = 0.0
+
+
+class CostoLibra(BaseModel):
+    nombre: Annotated[Texto, Field(min_length=1)]
+    costo_por_libra: Dinero
 
 
 # ==========================================
-# MODELOS DE PRODUCTOS E INVENTARIO
+# PRODUCTOS E INVENTARIO
 # ==========================================
 
 class ProductoCreate(BaseModel):
-    nombre: str
-    gramaje: float
-    precio_venta: float
-    costo_por_libra: Optional[float] = 0.0
+    nombre: Annotated[Texto, Field(min_length=1)]
+    gramaje: float = Field(gt=0, le=100_000)
+    precio_venta: Dinero
+    costo_por_libra: Optional[Dinero] = 0.0
+
 
 class ProductoUpdate(BaseModel):
-    nombre: str
-    precio_venta: float
+    nombre: Annotated[Texto, Field(min_length=1)]
+    precio_venta: Dinero
+
+
+class AjusteInventarioCreate(BaseModel):
+    nombre: Texto               # Nombre del café (producto)
+    libras: float               # Siempre positivo; el sentido lo da "tipo"
+    tipo: str                   # "entrada" (suma stock) o "salida" (descuenta stock)
+    motivo: Optional[TextoLargo] = None
+
+
+class DescuentoManual(BaseModel):
+    nombre: Texto
+    libras: float
+    motivo: Optional[TextoLargo] = None
 
 
 # ==========================================
-# MODELOS DE VENTAS Y PEDIDOS
+# VENTAS Y PEDIDOS
 # ==========================================
 
 class VentaItem(BaseModel):
-    producto_id: Optional[str] = None
-    nombre: str
-    gramaje: int
-    cantidad: int
-    descuento: float = 0.0
-    presentacion: str
-    gramos_totales: int
-    precio_unitario: float
-    subtotal: float
+    producto_id: Optional[str] = Field(default=None, max_length=40)
+    nombre: Texto
+    gramaje: int = Field(gt=0, le=100_000)
+    cantidad: int = Field(gt=0, le=10_000)
+    descuento: Dinero = 0.0
+    presentacion: Texto
+    gramos_totales: int = Field(ge=0)
+    precio_unitario: Dinero
+    subtotal: float = 0.0
+
 
 class VentaCreate(BaseModel):
-    fecha: str
-    cliente: str
-    vendedor: Optional[str] = None
-    tipo_pago: str
-    tipo_venta: str  # Puede ser: "Normal", "Obsequio", "Venta al Costo"
-    items: List[VentaItem]
+    fecha: Fecha
+    cliente: Texto
+    vendedor: Optional[Texto] = None
+    tipo_pago: Texto
+    tipo_venta: Texto  # "Normal", "Obsequio", "Venta al Costo"
+    items: List[VentaItem] = Field(max_length=200)
 
 
-# ==========================================
-# MODELO DE AJUSTES MANUALES DE INVENTARIO (NO SON COMPRAS)
-# ==========================================
-
-class AjusteInventarioCreate(BaseModel):
-    nombre: str                 # Nombre del café (producto)
-    libras: float               # Siempre positivo; el sentido lo da "tipo"
-    tipo: str                   # "entrada" (suma stock) o "salida" (descuenta stock)
-    motivo: Optional[str] = None
+class EditarDetallesVenta(BaseModel):
+    cliente: Annotated[Texto, Field(min_length=1)]
+    tipo_pago: Annotated[Texto, Field(min_length=1)]

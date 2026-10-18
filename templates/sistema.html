@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0808 Café · Sistema</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1c2023">
+    <link rel="stylesheet" href="/static/sistema/css/sistema.css?v={{ v }}">
+    <link rel="stylesheet" href="/static/sistema/css/tema.css?v={{ v }}">
+    <!-- Exportar a Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="/static/sistema/js/core.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/auth.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/ventas.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/carrito.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/pedidos.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/clientes.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/gastos.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/inventario.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/empaques.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/compras.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/creditos.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/reportes.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/usuarios.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/pdf.js?v={{ v }}" defer></script>
+    <script src="/static/sistema/js/app.js?v={{ v }}" defer></script>
+</head>
+<body class="sin-sesion">
+
+    <!-- DATALIST GLOBAL PARA AUTOCOMPLETAR CLIENTES EN TIEMPO REAL -->
+    <datalist id="lista-clientes-autocompletar"></datalist>
+
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <img src="/static/logo.png" alt="0808 Logo" class="logo">
+            <h3 style="color:var(--gold-bright); margin: 5px 0;">0808 CAFÉ</h3>
+            <p style="color:#aaa; font-size:13px; margin-bottom: 12px;">Inicia sesión para acceder</p>
+            <form onsubmit="ejecutarLogin(event)" autocomplete="on">
+                <p id="login-error" class="login-error" role="alert" hidden></p>
+                <input type="text" id="login-user" placeholder="Usuario" autocomplete="username" maxlength="60" required>
+                <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password" maxlength="128" required>
+                <button type="submit" class="btn-gold" style="margin-top:12px; padding: 8px;">Ingresar</button>
+            </form>
+            <div style="margin-top: 15px; color: var(--gold-primary); font-size: 11px; font-weight: bold; letter-spacing: 1px;">
+                Versión 3.0
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar" id="main-sidebar">
+        <img src="/static/logo.png" alt="0808 Logo" class="logo">
+        <div class="brand-title">0808 CAFÉ</div>
+        <div class="user-badge" id="lbl-user-info">…</div>
+        <div class="version-tag">Versión 3.0</div>
+
+        <button class="nav-button active" id="btn-nav-ventas" onclick="showSection('ventas', event)">🛒 Ventas</button>
+        <button class="nav-button" id="btn-nav-pedidos" onclick="showSection('pedidos-sec', event)">📦 Pedidos</button>
+        <button class="nav-button" id="btn-nav-clientes" onclick="showSection('clientes', event)">👥 Clientes</button>
+        
+        <!-- Elementos Exclusivos para Administrador -->
+        <button class="nav-button admin-only" id="btn-nav-parciales" onclick="showSection('parciales-sec', event)">⏳ Ventas Parciales</button>
+        <button class="nav-button admin-only" id="btn-nav-gastos" onclick="showSection('gastos-sec', event)">💸 Otros Gastos</button>
+        <button class="nav-button admin-only" id="btn-nav-compras" onclick="showSection('compras', event)">📦 Compras de Café</button>
+        <button class="nav-button admin-only" id="btn-nav-empaques" onclick="showSection('empaques', event)">🛍️ Empaques y etiquetas</button>
+        <button class="nav-button admin-only" id="btn-nav-inventario" onclick="showSection('inventario', event)">📊 Productos e Inventario</button>
+        <button class="nav-button admin-only" id="btn-nav-creditos" onclick="showSection('creditos', event)">💳 Créditos</button>
+        <button class="nav-button admin-only" id="btn-nav-reportes" onclick="showSection('reportes', event)">📈 Reportes</button>
+        <button class="nav-button admin-only" id="btn-nav-usuarios" onclick="showSection('usuarios-sec', event)">👤 Usuarios</button>
+        
+        <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar Sesión</button>
+    </div>
+
+    <div class="content">
+        <button class="hamburger-btn" onclick="toggleSidebar()">
+            ☰ Menú Navegación
+        </button>
+
+        <!-- MÓDULO VENTAS -->
+        <div id="ventas" class="section active">
+            <h1>🛒 Módulo de Ventas</h1>
+
+            <div class="card">
+                <h3>☕ Café Disponible por Producto</h3>
+                <div id="grid-detalles-stock" class="grid-stock"></div>
+            </div>
+
+            <div class="card">
+                <h3>Agregar Producto al Carrito</h3>
+                <label>Producto:</label>
+                <select id="select-producto"></select>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 130px;">
+                        <label>Presentación:</label>
+                        <select id="pres-producto">
+                            <option value="Grano">☕ Grano</option>
+                            <option value="Molido">☕ Molido</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 100px;">
+                        <label>Cantidad:</label>
+                        <input type="number" id="cant-producto" value="1" min="1">
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
+                        <label>Descuento / Unit (COP):</label>
+                        <input type="number" id="desc-producto" value="0" min="0" placeholder="Descuento">
+                    </div>
+                </div>
+
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('venta')">
+                    <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Agregar al Carrito
+                </button>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>🛒 Carrito de Compras</h3>
+                    <button class="btn-danger" onclick="vaciarCarrito('venta')">
+                        <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        Vaciar Carrito
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="tabla-carrito">
+                        <thead>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. (Editable)</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; text-align: right; font-size: 20px; color: var(--gold-bright);">
+                    Total: <strong id="total-carrito-txt">$0</strong>
+                </div>
+
+                <br>
+                <label>Seleccionar o Digitar Cliente:</label>
+                <div class="select-with-btn">
+                    <input type="text" id="select-cliente-venta" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." autocomplete="off">
+                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('venta')" title="Crear Cliente Rápido">
+                        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                </div>
+
+                <label style="margin-top: 10px; display: block;">Tipo de Venta:</label>
+                <select id="tipo-venta" onchange="toggleTipoVenta('venta')">
+                    <option value="Normal">Normal</option>
+                    <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
+                    <option value="Venta al Costo">Venta al Costo (Sin ganancia)</option>
+                </select>
+
+                <div id="div-metodo-pago">
+                    <label>Método de Pago:</label>
+                    <select id="pago-venta">
+                        <option value="Contado">Contado</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
+                </div>
+
+                <button class="btn-gold" style="margin-top:15px;" onclick="procesarVenta()">🚀 Procesar Venta</button>
+            </div>
+
+            <!-- HISTÓRICO INTEGRADO PARA VENDEDORES -->
+            <div class="card" id="card-mis-ventas">
+                <h3>📋 Mi Histórico de Ventas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-mis-ventas">
+                        <thead>
+                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO PEDIDOS -->
+        <div id="pedidos-sec" class="section">
+            <h1>📦 Módulo de Pedidos</h1>
+
+            <div class="card">
+                <h3>Agregar Producto al Pedido</h3>
+                <label>Producto:</label>
+                <select id="select-producto-cot"></select>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 130px;">
+                        <label>Presentación:</label>
+                        <select id="pres-producto-cot">
+                            <option value="Grano">☕ Grano</option>
+                            <option value="Molido">☕ Molido</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 100px;">
+                        <label>Cantidad:</label>
+                        <input type="number" id="cant-producto-cot" value="1" min="1">
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
+                        <label>Descuento / Unit (COP):</label>
+                        <input type="number" id="desc-producto-cot" value="0" min="0" placeholder="Descuento">
+                    </div>
+                </div>
+
+                <button class="btn-gold" style="margin-top: 10px;" onclick="agregarAlCarrito('cotizacion')">
+                    <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Agregar al Pedido
+                </button>
+            </div>
+
+            <div class="card" id="card-carrito-pedido">
+                <div id="banner-edicion-pedido" style="display:none; background:#2a2410; border:1px solid var(--gold-primary); border-radius:6px; padding:10px 14px; margin-bottom:12px; color:var(--gold-bright); justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span>✏️ Editando <strong id="banner-edicion-num"></strong> — conserva su mismo consecutivo.</span>
+                    <button type="button" class="btn-danger" style="width:auto; padding:4px 10px;" onclick="cancelarEdicionPedido()">Cancelar edición</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>📦 Carrito de Pedido</h3>
+                    <button class="btn-danger" onclick="vaciarCarrito('cotizacion')">
+                        <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        Vaciar Carrito
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="tabla-carrito-cot">
+                        <thead>
+                            <tr><th>Producto</th><th>Presentación</th><th>Gramaje</th><th>Precio Unit. (Editable)</th><th>Cant.</th><th>Desc./U.</th><th>Subtotal</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; text-align: right; font-size: 20px; color: var(--gold-bright);">
+                    Total Pedido: <strong id="total-carrito-txt-cot">$0</strong>
+                </div>
+
+                <br>
+                <label>Seleccionar o Digitar Cliente:</label>
+                <div class="select-with-btn">
+                    <input type="text" id="select-cliente-cot" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." autocomplete="off">
+                    <button type="button" class="btn-add-inline" onclick="abrirModalNuevoCliente('cotizacion')" title="Crear Cliente Rápido">
+                        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                </div>
+
+                <label style="margin-top: 10px; display: block;">Tipo de Pedido:</label>
+                <select id="tipo-cot" onchange="toggleTipoVenta('cotizacion')">
+                    <option value="Normal">Normal</option>
+                    <option value="Obsequio">Obsequio ($0 - Muestra/Regalo)</option>
+                    <option value="Venta al Costo">Venta al Costo (Sin ganancia)</option>
+                </select>
+
+                <div id="div-metodo-pago-cot">
+                    <label style="margin-top: 10px; display: block;">Forma de Pago Propuesta:</label>
+                    <select id="pago-cot">
+                        <option value="Contado">Contado</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
+                </div>
+
+                <button class="btn-gold" id="btn-procesar-cot" style="margin-top:15px;" onclick="procesarCotizacion()">📦 Registrar Pedido</button>
+            </div>
+
+            <!-- TABLA PRINCIPAL DE PEDIDOS -->
+            <div class="card" id="card-mis-cotizaciones">
+                <h3>📋 Lista de Pedidos Registrados</h3>
+                <div class="table-responsive">
+                    <table id="tabla-mis-cotizaciones">
+                        <thead>
+                            <tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Tipo Pedido</th><th>Estado</th><th>Total Pedido</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO CLIENTES -->
+        <div id="clientes" class="section">
+            <h1>👥 Módulo de Clientes</h1>
+            <div class="card">
+                <h3>Registrar Nuevo Cliente</h3>
+                <form id="form-cliente" onsubmit="guardarCliente(event)">
+                    <input type="text" id="cli-nombre" placeholder="Nombre Completo del Cliente" required>
+                    <input type="text" id="cli-celular" placeholder="Número de Celular">
+                    <button type="submit" class="btn-gold">💾 Guardar Cliente</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Lista de Clientes</h3>
+                <div class="table-responsive">
+                    <table id="tabla-clientes">
+                        <thead>
+                            <tr><th>Nombre</th><th>Celular</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO OTROS GASTOS -->
+        <div id="gastos-sec" class="section admin-only">
+            <h1>💸 Módulo de Otros Gastos y Balance Neta</h1>
+
+            <!-- TARJETAS DE COMPARACIÓN FINANCIERA -->
+            <div class="grid-kpi">
+                <div class="kpi-card" style="border-color: #2ecc71;">
+                    <div class="kpi-title">📈 GANANCIAS BRUTAS</div>
+                    <div class="kpi-value" id="kpi-ganancias-brutas" style="color: #2ecc71;">$0</div>
+                    <small style="color:#aaa;">Ventas realizadas</small>
+                </div>
+
+                <div class="kpi-card" style="border-color: #ff6b6b;">
+                    <div class="kpi-title">💸 OTROS GASTOS TOTALES</div>
+                    <div class="kpi-value" id="kpi-otros-gastos" style="color: #ff6b6b;">$0</div>
+                    <small style="color:#aaa;">Egresos acumulados</small>
+                </div>
+
+                <div class="kpi-card" style="border-color: var(--gold-primary);">
+                    <div class="kpi-title">💰 GANANCIA NETA REAL</div>
+                    <div class="kpi-value" id="kpi-ganancia-neta" style="color: var(--gold-bright);">$0</div>
+                    <small style="color:#aaa;">(Ganancias - Gastos)</small>
+                </div>
+            </div>
+
+            <!-- FORMULARIO REGISTRO GASTOS -->
+            <div class="card">
+                <h3>Registrar Nuevo Gasto</h3>
+                <form id="form-gasto" onsubmit="guardarGasto(event)">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label>Monto del Gasto (COP):</label>
+                            <input type="number" id="gasto-monto" placeholder="Ej: 50000" min="1" step="any" required>
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label>Fecha del Gasto:</label>
+                            <input type="date" id="gasto-fecha" required>
+                        </div>
+                    </div>
+
+                    <label style="margin-top: 10px; display: block;">Concepto / Observaciones:</label>
+                    <textarea id="gasto-observacion" placeholder="Escribe el motivo del gasto (ej: transporte, papelería, servicios...)" required></textarea>
+
+                    <button type="submit" class="btn-gold" style="margin-top: 10px;">💾 Registrar Gasto</button>
+                </form>
+            </div>
+
+            <!-- HISTÓRICO DE OTROS GASTOS -->
+            <div class="card">
+                <h3>📋 Histórico de Otros Gastos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-gastos">
+                        <thead>
+                            <tr><th>Fecha</th><th>Monto (COP)</th><th>Observaciones / Concepto</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO VENTAS PARCIALES (EXCLUSIVO ADMIN) -->
+        <div id="parciales-sec" class="section admin-only">
+            <h1>⏳ Ventas Parciales y Pendientes de Inventario</h1>
+            <div class="card">
+                <h3>📋 Listado de Ventas con Falta de Stock / Insumos</h3>
+                <p style="color:#aaa; font-size:14px;">Aquí aparecen las ventas que se procesaron sin stock suficiente. Al reabastecer el inventario, haz clic en "Completar Despacho" para descontar el stock faltante y pasarlas a ventas normales.</p>
+                <div class="table-responsive">
+                    <table id="tabla-parciales">
+                        <thead>
+                            <tr><th>Factura N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Faltantes Detallados</th><th>Total</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO COMPRAS DE CAFÉ -->
+        <div id="compras" class="section admin-only">
+            <h1>📦 Compras de Materia Prima (Café)</h1>
+            <div class="card">
+                <h3>Registrar Nueva Compra de Café</h3>
+                <form id="form-compra" onsubmit="guardarCompra(event)">
+                    <label>Seleccionar Producto:</label>
+                    <select id="compra-producto-id"></select>
+                    
+                    <input type="date" id="compra-fecha">
+                    <input type="number" id="compra-libras" placeholder="Cantidad de Libras Compradas" oninput="calcularCostoPorLibra()" step="any" required>
+                    <input type="number" id="compra-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoPorLibra()" step="any" required>
+                    
+                    <div style="margin: 10px 0; color: var(--gold-bright);">
+                        Costo por Libra calculado: <strong id="costo-libra-calculado">$0</strong>
+                    </div>
+
+                    <button type="submit" class="btn-gold">Guardar Compra de Café</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Existencias y Costo por Libra por Producto</h3>
+                <div class="table-responsive">
+                    <table id="tabla-existencias">
+                        <thead>
+                            <tr><th>Producto</th><th>Existencias (Libras)</th><th>Costo por Libra (COP)</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO EMPAQUES -->
+        <div id="empaques" class="section admin-only">
+            <h1>🛍️ Inventario de Empaques y Etiquetas</h1>
+            <div class="card">
+                <h3>Registrar Compra de Insumos</h3>
+                <form id="form-empaque" onsubmit="guardarCompraEmpaque(event)">
+                    <label>Tipo de Insumo:</label>
+                    <select id="emp-tipo" required>
+                        <option value="bolsa_250g">Bolsa 250g</option>
+                        <option value="bolsa_500g">Bolsa 500g</option>
+                        <option value="etiqueta_250g">Etiqueta 250g</option>
+                        <option value="etiqueta_500g">Etiqueta 500g</option>
+                    </select>
+                    <input type="date" id="emp-fecha">
+                    <input type="number" id="emp-cantidad" placeholder="Cantidad Comprada (Unidades)" oninput="calcularCostoEmpaqueUnitario()" required min="1">
+                    <input type="number" id="emp-costo" placeholder="Costo Total Pagado (COP)" oninput="calcularCostoEmpaqueUnitario()" required min="1">
+                    
+                    <div style="margin: 10px 0; color: var(--gold-bright);">
+                        Costo Unitario Calculado: <strong id="costo-empaque-unitario-txt">$0</strong>
+                    </div>
+
+                    <button type="submit" class="btn-gold">💾 Guardar Compra de Empaque</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📊 Resumen de Inventario de Insumos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-resumen-empaques">
+                        <thead>
+                            <tr><th>Insumo</th><th>Comprados</th><th>Usados (Ventas)</th><th>Disponibles (Editar)</th><th>Costo Unitario (COP)</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO INVENTARIO Y PRODUCTOS -->
+        <div id="inventario" class="section admin-only">
+            <h1>📊 Productos e Inventario</h1>
+
+            <!-- MÓDULO DE AJUSTE MANUAL DE INVENTARIO -->
+            <div class="card">
+                <h3>⚖️ Ajuste Manual de Inventario (Café)</h3>
+                <p style="color: #aaa; font-size: 14px; margin-top:0;">Suma o descuenta libras de un café <strong>sin registrar una compra</strong>. No modifica costos, inversión ni ganancias. Úsalo para mermas, consumo interno, obsequios no registrados o correcciones de conteo.</p>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="descuento-producto" onchange="mostrarStockAjuste()" style="flex: 2; min-width: 200px; margin:0;"></select>
+                    <select id="ajuste-tipo" style="flex: 1; min-width: 140px; margin:0;">
+                        <option value="salida">➖ Descontar</option>
+                        <option value="entrada">➕ Agregar</option>
+                    </select>
+                    <input type="number" id="descuento-libras" placeholder="Libras" step="0.1" min="0.1" style="flex: 1; min-width: 110px; margin:0;">
+                </div>
+                <input type="text" id="ajuste-motivo" placeholder="Motivo (ej: merma, corrección de conteo, muestra...)" style="margin-top:10px;">
+                <div id="ajuste-stock-actual" style="color:#aaa; font-size:13px; margin:6px 0 10px;"></div>
+                <button class="btn-gold" style="width:auto;" onclick="ejecutarAjusteInventario()">💾 Aplicar Ajuste</button>
+            </div>
+
+            <div class="card">
+                <h3>🧾 Historial de Ajustes de Inventario</h3>
+                <div class="table-responsive">
+                    <table id="tabla-ajustes-inventario">
+                        <thead>
+                            <tr><th>Fecha</th><th>Café</th><th>Movimiento</th><th>Libras</th><th>Motivo</th><th>Usuario</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Crear Producto</h3>
+                <form id="form-producto" onsubmit="guardarProducto(event)">
+                    <input type="text" id="prod-nombre" placeholder="Nombre del Café" required>
+                    <input type="number" id="prod-gramos" placeholder="Gramaje (g)" required>
+                    <input type="number" id="prod-precio" placeholder="Precio de Venta (COP)" required>
+                    <button type="submit" class="btn-gold">Guardar Producto</button>
+                </form>
+            </div>
+            <div class="card">
+                <h3>Catálogo de Productos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-productos">
+                        <thead>
+                            <tr><th>Nombre</th><th>Gramaje</th><th>Precio de Venta</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO CRÉDITOS -->
+        <div id="creditos" class="section admin-only">
+            <h1>💳 Cuentas por Cobrar</h1>
+            <div class="card">
+                <div style="margin-bottom: 15px; font-size: 18px; color: var(--gold-bright); background: #141414; padding: 12px 18px; border-radius: 6px; border: 1px solid var(--gold-primary); display: flex; justify-content: space-between; align-items: center;">
+                    <span>💳 Total Pendiente por Cobrar:</span>
+                    <strong id="total-creditos-txt" style="font-size: 22px;">$0</strong>
+                </div>
+                <div class="table-responsive">
+                    <table id="tabla-creditos">
+                        <thead><tr><th>ID</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO REPORTES -->
+        <div id="reportes" class="section admin-only">
+            <h1>📈 Reportes e Históricos Generales</h1>
+            
+            <div class="card">
+                <h3>🛒 Histórico de Ventas</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reportes">
+                        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Tipo Venta</th><th>Estado Despacho</th><th>Total</th><th>Ganancia Neta</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📦 Histórico de Compras de Materia Prima (Café)</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-compras">
+                        <thead>
+                            <tr><th>Fecha</th><th>Producto Comprado</th><th>Cantidad (Libras)</th><th>Costo Total</th><th>Costo / Libra</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🛍️ Histórico de Compras de Empaques</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-empaques">
+                        <thead>
+                            <tr><th>Fecha</th><th>Insumo Comprado</th><th>Cantidad</th><th>Costo Total</th><th>Costo / Unidad</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📦 Histórico de Pedidos</h3>
+                <div class="table-responsive">
+                    <table id="tabla-reporte-cotizaciones">
+                        <thead><tr><th>Pedido N°</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Estado</th><th>Total Pedido</th><th>Vista Previa</th><th>Acción</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO GESTIÓN DE USUARIOS -->
+        <div id="usuarios-sec" class="section admin-only">
+            <h1>👤 Gestión de Usuarios</h1>
+
+            <div class="card">
+                <h3>Crear Nuevo Usuario</h3>
+                <form id="form-usuario" onsubmit="guardarUsuario(event)">
+                    <input type="text" id="usr-username" placeholder="Nombre de usuario" required>
+                    <input type="password" id="usr-password" placeholder="Contraseña" required>
+                    <label style="margin-top:5px; display:block;">Rol de Acceso:</label>
+                    <select id="usr-rol" required>
+                        <option value="ventas">Ventas (Solo ventas/pedidos/clientes)</option>
+                        <option value="admin">Administrador (Acceso Total)</option>
+                    </select>
+                    <button type="submit" class="btn-gold" style="margin-top:10px;">💾 Crear Usuario</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>📋 Lista de Usuarios Registrados</h3>
+                <div class="table-responsive">
+                    <table id="tabla-usuarios">
+                        <thead>
+                            <tr><th>Usuario</th><th>Rol</th><th>Nueva Contraseña (Opcional)</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL EDITAR DETALLES DE VENTA -->
+    <div id="modal-editar-venta" class="modal-overlay">
+        <div class="modal-container modal-small" style="padding:20px; height:auto;">
+            <div class="modal-header" style="padding:0 0 10px 0;">
+                <h3 style="margin:0; color:var(--gold-bright);">✏️ Editar Detalles de Venta</h3>
+                <button onclick="cerrarModalEditarVenta()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer; width:auto; padding:0;">✖</button>
+            </div>
+            <div class="modal-body" style="align-items:stretch; padding:15px 0 0 0;">
+                <input type="hidden" id="edit-venta-id">
+                
+                <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Cliente:</label>
+                <input type="text" id="edit-venta-cliente" list="lista-clientes-autocompletar" placeholder="🔍 Digita el nombre del cliente..." style="margin-bottom:15px;" autocomplete="off">
+
+                <label style="color:var(--gold-primary); margin-bottom:5px; display:block;">Forma de Pago:</label>
+                <select id="edit-venta-pago" style="margin-bottom:15px;">
+                    <option value="Contado">Contado</option>
+                    <option value="Crédito">Crédito</option>
+                </select>
+
+                <button class="btn-gold" style="padding:10px; margin-top:10px;" onclick="guardarCambiosVenta()">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CREAR CLIENTE RÁPIDO -->
+    <div id="modal-nuevo-cliente" class="modal-overlay">
+        <div class="modal-container modal-small">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold-bright);">👤 Registrar Nuevo Cliente</h3>
+                <button onclick="cerrarModalNuevoCliente()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-modal-cliente" onsubmit="guardarClienteModal(event)" style="width:100%;">
+                    <label style="color:var(--gold-primary); display:block; margin-bottom:5px;">Nombre del Cliente:</label>
+                    <input type="text" id="modal-cli-nombre" placeholder="Nombre completo" required>
+                    
+                    <label style="color:var(--gold-primary); display:block; margin-top:10px; margin-bottom:5px;">Celular / Contacto:</label>
+                    <input type="text" id="modal-cli-celular" placeholder="Número de Celular">
+
+                    <button type="submit" class="btn-gold" style="margin-top:20px;">💾 Guardar Cliente</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PREVISUALIZACIÓN PDF -->
+    <div id="modal-factura" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="modal-titulo-pdf" style="margin:0; color:var(--gold-bright);">📄 Previsualización de Documento</h3>
+                <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
+            </div>
+            <div class="modal-body" id="modal-body-pdf"></div>
+            <div class="modal-footer">
+                <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
+                <button class="btn-danger" style="width:auto; padding:8px 16px;" onclick="cerrarModalFactura()">❌ Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
