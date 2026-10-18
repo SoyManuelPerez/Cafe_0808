@@ -62,9 +62,14 @@ class StaticCache(StaticFiles):
         self.max_age = max_age
         super().__init__(*args, **kwargs)
 
-    def file_response(self, *args, **kwargs):
-        resp = super().file_response(*args, **kwargs)
-        resp.headers["Cache-Control"] = f"public, max-age={self.max_age}"
+    def file_response(self, full_path, *args, **kwargs):
+        resp = super().file_response(full_path, *args, **kwargs)
+        if str(full_path).endswith((".js", ".css")):
+            # CSS/JS: el navegador pregunta si cambió (respuesta 304 si no). Así un cambio
+            # publicado se ve de inmediato sin tener que limpiar caché.
+            resp.headers["Cache-Control"] = "no-cache"
+        else:
+            resp.headers["Cache-Control"] = f"public, max-age={self.max_age}"
         return resp
 
 

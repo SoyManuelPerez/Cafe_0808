@@ -11,7 +11,7 @@ router = APIRouter(include_in_schema=False)
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Cambia este número al publicar cambios de CSS/JS para que los navegadores no usen la copia vieja.
-VERSION_ASSETS = "3.0.0"
+VERSION_ASSETS = "3.0.2"
 
 
 @router.get("/")

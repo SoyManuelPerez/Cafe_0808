@@ -1,5 +1,5 @@
 // Service worker del sistema (/sistema/). Red primero; si no hay internet, usa lo guardado.
-const CACHE_NAME = 'sistema-0808-v3';
+const CACHE_NAME = 'sistema-0808-v3-1';
 
 self.addEventListener('install', () => self.skipWaiting());
 

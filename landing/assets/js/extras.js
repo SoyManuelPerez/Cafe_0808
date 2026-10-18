@@ -102,7 +102,7 @@ function iniciarMolienda() {
       Object.assign(p.el.style, {
         display: k < cuantos ? "block" : "none", width: s + "px", height: (m.g === "Grano" ? s * 1.45 : s) + "px",
         left: p.rx * (W - s) + "px", top: p.ry * (H - s) + "px", transform: `rotate(${p.rx * 360}deg)`,
-        background: m.g === "Grano" ? "linear-gradient(100deg,transparent 44%,#3a2200 44%,#3a2200 56%,transparent 56%),#cda752" : "#6b3f1d"
+        background: m.g === "Grano" ? "linear-gradient(100deg,transparent 44%,#3a2200 44%,#3a2200 56%,transparent 56%),#f5a70b" : "#6b3f1d"
       });
     });
   };

@@ -26,8 +26,11 @@ CSP_SISTEMA = (
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
     "connect-src 'self'; "
-    "object-src 'self' blob:; frame-src 'self' blob:; worker-src 'self'; manifest-src 'self'; "
-    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    "object-src 'self' blob:; frame-src 'self' blob:; "
+    "worker-src 'self'; manifest-src 'self'; "
+    # Sin frame-ancestors aquí: los PDF en blob: heredan esta política y el visor dejaría de
+    # funcionar. La protección contra incrustar el sistema la da X-Frame-Options: DENY.
+    "base-uri 'self'; form-action 'self'"
 )
 
 
