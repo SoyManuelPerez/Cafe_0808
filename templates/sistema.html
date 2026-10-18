@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>0808 Café · Sistema</title>
     <meta name="robots" content="noindex, nofollow">
-    <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="icon" type="image/png" href="/assets/img/logo-nav.png">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#1c2023">
     <link rel="stylesheet" href="/static/sistema/css/sistema.css?v={{ v }}">
@@ -662,9 +662,16 @@
                 <button onclick="cerrarModalFactura()" style="width:auto; padding:5px 12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer;">✖</button>
             </div>
             <div class="modal-body" id="modal-body-pdf"></div>
-            <div class="modal-footer">
-                <button class="btn-gold" style="width:auto; padding:8px 16px;" onclick="descargarPdfDesdeModal()">⬇️ Descargar PDF</button>
-                <button class="btn-danger" style="width:auto; padding:8px 16px;" onclick="cerrarModalFactura()">❌ Cerrar</button>
+            <div class="modal-footer pdf-acciones">
+                <div class="pdf-zoom" role="group" aria-label="Zoom de la vista previa">
+                    <button type="button" id="pdf-zoom-menos" onclick="cambiarZoomPdf(-1)" aria-label="Alejar">−</button>
+                    <span id="pdf-zoom-valor" aria-live="polite">100%</span>
+                    <button type="button" id="pdf-zoom-mas" onclick="cambiarZoomPdf(1)" aria-label="Acercar">+</button>
+                </div>
+                <button type="button" class="btn-wa" onclick="enviarPdfWhatsapp()">Enviar por WhatsApp</button>
+                <button type="button" class="btn-secundario" onclick="abrirPdfCompleto()">Abrir PDF</button>
+                <button type="button" class="btn-secundario" onclick="descargarPdfDesdeModal()">Descargar</button>
+                <button type="button" class="btn-danger" onclick="cerrarModalFactura()">Cerrar</button>
             </div>
         </div>
     </div>

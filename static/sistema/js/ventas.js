@@ -94,7 +94,7 @@ async function cargarMisVentas() {
                             <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex;" onclick="abrirModalPdf('/api/ventas/${idVal}/pdf', 'Factura N° ${numFact}', 'Factura_${numFact}.pdf')">👁️ Ver Factura</button>
                             ${!esAnulado ? `
                                 <button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:4px;" onclick="abrirModalEditarVenta('${idVal}', '${v.cliente || ''}', '${v.tipo_pago || ''}')">✏️ Editar</button>
-                                ${(esCredito && creditoPendiente) ? `<button class="btn-gold" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:5px; background-color:#1e3a1e; border-color:#2ecc71; color:#2ecc71;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
+                                ${(esCredito && creditoPendiente) ? `<button class="btn-approve" style="padding: 4px 10px; width:auto; display:inline-flex; margin-left:5px;" onclick="pagarCreditoVendedor('${idVal}')">✅ Pagado</button>` : ''}
                                 <button class="btn-danger" style="padding: 4px 8px; width:auto; display:inline-flex; margin-left:4px;" onclick="anularVenta('${idVal}')">🚫 Anular</button>
                             ` : '<span>-</span>'}
                         </td>

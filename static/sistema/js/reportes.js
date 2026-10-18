@@ -18,11 +18,11 @@ async function cargarReportes() {
                 const numFact = v.consecutivo_str || (idVal ? String(idVal).substring(0,8) : 'N/A');
                 const esAnulado = v.tipo_venta === 'Anulado' || v.estado_despacho === 'Anulado';
 
-                let estadoTxt = '<span style="color:#2ecc71;">✅ Completa</span>';
+                let estadoTxt = '<span style="color:#2ecc71; font-weight:bold;">✅ Completa</span>';
                 if (esAnulado) {
                     estadoTxt = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulada</span>';
                 } else if ((v.estado_despacho || '') === 'Pendiente') {
-                    estadoTxt = '<span style="color:#ff6b6b;">⏳ Pendiente</span>';
+                    estadoTxt = '<span style="color:#ff6b6b; font-weight:bold;">⏳ Pendiente</span>';
                 }
 
                 const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';

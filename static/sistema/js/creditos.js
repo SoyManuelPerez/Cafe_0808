@@ -17,7 +17,7 @@ async function cargarCreditos() {
                 <td>${c.cliente || ''}</td>
                 <td>${fmtCOP(c.total_venta)}</td>
                 <td><span style="color: #ff6b6b; font-weight: bold;">${c.estado_credito || 'Pendiente'}</span></td>
-                <td><button class="btn-gold" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button></td>
+                <td><button class="btn-approve" style="padding: 6px 12px; width:auto;" onclick="pagarCredito('${idVal}')">✅ Marcar Pagado</button></td>
             </tr>`;
         },
         {
