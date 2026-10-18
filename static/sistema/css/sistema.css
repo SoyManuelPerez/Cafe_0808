@@ -2,8 +2,8 @@
     --bg-color: #0D0D0D;
     --sidebar-bg: #141414;
     --card-bg: #1A1A1A;
-    --gold-primary: #D4AF37;
-    --gold-bright: #FFD700;
+    --gold-primary: #f5a70b;
+    --gold-bright: #f5a70b;
     --text-color: #F5F5F5;
     --border-color: #292418;
 }
@@ -39,7 +39,7 @@ body {
     width: 85%;
     max-width: 340px;
     text-align: center;
-    box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    box-shadow: 0 0 15px rgba(245, 167, 11, 0.2);
 }
 
 .login-card .logo {
@@ -128,7 +128,7 @@ body {
     background-color: #1A1813;
     border-color: var(--gold-primary);
     color: var(--gold-bright);
-    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+    box-shadow: 0 0 8px rgba(245, 167, 11, 0.3);
 }
 
 .content {
@@ -139,7 +139,7 @@ body {
 
 h1, h2, h3 {
     color: var(--gold-primary);
-    text-shadow: 0 0 5px rgba(212, 175, 55, 0.2);
+    text-shadow: 0 0 5px rgba(245, 167, 11, 0.2);
 }
 
 .card {
@@ -440,7 +440,7 @@ th {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+    box-shadow: 0 0 20px rgba(245, 167, 11, 0.2);
 }
 
 .modal-small {
@@ -508,7 +508,7 @@ th {
     border: 1px solid var(--gold-bright) !important;
     border-radius: 6px !important;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+    box-shadow: 0 0 8px rgba(245, 167, 11, 0.5);
     transition: all 0.2s ease;
 }
 

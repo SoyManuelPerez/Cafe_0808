@@ -48,7 +48,7 @@ async function cargarMisCotizaciones() {
                 if (esAnulado) {
                     badgeEstado = '<span style="color:#ff6b6b; font-weight:bold;">🚫 Anulado</span>';
                 } else if (esDespachado) {
-                    badgeEstado = '<span style="color:#D4AF37; font-weight:bold;">✅ Despachado</span>';
+                    badgeEstado = '<span style="color:#f5a70b; font-weight:bold;">✅ Despachado</span>';
                 }
 
                 const estiloFila = esAnulado ? 'style="background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b;"' : '';

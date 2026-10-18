@@ -5,8 +5,8 @@
     --sidebar-bg: #23282b;
     --card-bg: #272c30;
     --surface-2: #2f3539;
-    --gold-primary: #cda752;    /* dorado de la etiqueta */
-    --gold-bright: #f5a70b;     /* ámbar del logo */
+    --gold-primary: #f5a70b;    /* ámbar 0808 (mismo del botón de la landing) */
+    --gold-bright: #ffbb33;     /* ámbar más claro, solo para hover */
     --text-color: #efe6d2;
     --text-muted: #a9a294;
     --border-color: #394045;
@@ -77,7 +77,7 @@ h2, h3 { text-shadow: none; color: var(--gold-primary); font-weight: 650; }
 }
 .nav-button:hover { background-color: var(--surface-2); border-color: transparent; box-shadow: none; color: var(--text-color); }
 .nav-button.active {
-    background-color: rgba(205, 167, 82, .14);
+    background-color: rgba(245, 167, 11, .14);
     border-color: transparent;
     box-shadow: inset 3px 0 0 var(--gold-primary);
     color: var(--gold-primary);
@@ -111,7 +111,7 @@ select {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--gold-primary);
-    box-shadow: 0 0 0 3px rgba(205, 167, 82, .22);
+    box-shadow: 0 0 0 3px rgba(245, 167, 11, .22);
 }
 :focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
 
@@ -167,7 +167,77 @@ td { font-variant-numeric: tabular-nums; }
 .modal-body { background-color: var(--card-bg); }
 
 .hamburger-btn { background-color: var(--sidebar-bg); color: var(--text-color); border-color: var(--border-color); border-radius: 8px; }
+.btn-salir-movil { display: none; }
+body.sin-sesion .btn-salir-movil, body.sin-sesion .hamburger-btn { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
+}
+
+/* Títulos y montos destacados en el mismo ámbar */
+h1 { color: var(--gold-primary); }
+.brand-title { color: var(--gold-primary); }
+.modal-header h3, #modal-titulo-pdf { color: var(--gold-primary) !important; }
+
+/* ---------- Vista previa de PDF ---------- */
+.modal-body.pdf-visor {
+    display: block;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #3a4045;
+    padding: 12px;
+    text-align: center;
+}
+.pdf-pagina {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto 12px;
+    background: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+}
+.pdf-iframe { width: 100%; height: 70vh; border: 0; background: #fff; }
+.pdf-estado { color: var(--text-color); padding: 30px 10px; margin: 0; }
+.pdf-error { color: #ffb4a8; }
+
+/* ---------- Celular ---------- */
+@media (max-width: 768px) {
+    /* La barra fija del menú ya no tapa el título del módulo */
+    .content { padding: 72px 14px calc(24px + env(safe-area-inset-bottom)); }
+    .hamburger-btn { background-color: var(--sidebar-bg); min-height: 52px; font-size: 16px; }
+    .btn-salir-movil {
+        display: block;
+        position: fixed;
+        top: 8px;
+        right: 12px;
+        z-index: 901;
+        width: auto;
+        margin: 0;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: transparent;
+        border: 1px solid rgba(239, 122, 107, .6);
+        color: var(--danger);
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Menú: alto real de la pantalla (iPhone) y "Cerrar sesión" siempre alcanzable */
+    .sidebar {
+        height: 100vh;
+        height: 100dvh;
+        box-sizing: border-box;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+    .sidebar .nav-button[onclick*="ejecutarLogout"] {
+        margin-top: 12px !important;
+        border-top: 1px solid var(--border-color);
+        border-radius: 0 0 8px 8px;
+        padding-top: 14px;
+    }
+
+    .modal-container { width: 96%; height: 90vh; height: 90dvh; }
+    .modal-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }

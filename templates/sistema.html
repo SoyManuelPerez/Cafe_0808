@@ -70,13 +70,14 @@
         <button class="nav-button admin-only" id="btn-nav-reportes" onclick="showSection('reportes', event)">📈 Reportes</button>
         <button class="nav-button admin-only" id="btn-nav-usuarios" onclick="showSection('usuarios-sec', event)">👤 Usuarios</button>
         
-        <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar Sesión</button>
+        <button class="nav-button" style="color:#ff6b6b; margin-top:auto;" onclick="ejecutarLogout()">🚪 Cerrar sesión</button>
     </div>
 
     <div class="content">
-        <button class="hamburger-btn" onclick="toggleSidebar()">
-            ☰ Menú Navegación
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-controls="main-sidebar">
+            ☰ Menú
         </button>
+        <button class="btn-salir-movil" type="button" onclick="ejecutarLogout()">Cerrar sesión</button>
 
         <!-- MÓDULO VENTAS -->
         <div id="ventas" class="section active">
