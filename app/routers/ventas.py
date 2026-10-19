@@ -1,10 +1,10 @@
 """Ventas. Un vendedor solo ve y gestiona sus propias ventas; el admin ve todas."""
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.database import db, fix_id, oid
 from app.models import EditarDetallesVenta, VentaCreate
 from app.pdf_generator import generar_factura_pdf
-from app.services.documentos import telefono_whatsapp, url_publica
+from app.services.documentos import telefono_whatsapp
 from app.security import es_admin, exigir_dueno_o_admin, get_current_user, require_admin
 from app.services.inventario import (
     ahora, costo_estimado, evaluar_stock, limpiar_items, normalizar_pago,
@@ -143,14 +143,13 @@ def descargar_factura(venta_id: str, user: dict = Depends(get_current_user)):
 
 
 @router.get("/ventas/{venta_id}/whatsapp")
-def enlace_whatsapp_venta(venta_id: str, request: Request, user: dict = Depends(get_current_user)):
-    """Enlace firmado para que el cliente vea su factura, y su celular si está registrado."""
+def contacto_whatsapp_venta(venta_id: str, user: dict = Depends(get_current_user)):
+    """Datos para abrir el chat de WhatsApp del cliente (su celular si está registrado)."""
     venta = _venta_o_404(venta_id)
     exigir_dueno_o_admin(user, venta)
     if venta.get("tipo_venta") == "Anulado":
         raise HTTPException(status_code=400, detail="La venta está anulada; no se puede enviar.")
-    url = url_publica(request, "venta", str(venta["_id"]))
-    return {"url": url, "telefono": telefono_whatsapp(venta.get("cliente", "")),
+    return {"telefono": telefono_whatsapp(venta.get("cliente", "")),
             "cliente": venta.get("cliente", ""), "numero": venta.get("consecutivo_str", ""),
             "total": float(venta.get("total_venta", 0.0))}
 

@@ -1,10 +1,10 @@
 """Pedidos (cotizaciones). Se pueden editar mientras estén pendientes y luego despacharse como venta."""
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.database import db, fix_id, oid
 from app.models import VentaCreate
 from app.pdf_generator import generar_factura_pdf
-from app.services.documentos import telefono_whatsapp, url_publica
+from app.services.documentos import telefono_whatsapp
 from app.security import es_admin, exigir_dueno_o_admin, get_current_user
 from app.services.inventario import (
     ahora, costo_estimado, evaluar_stock, limpiar_items, normalizar_pago,
@@ -166,13 +166,12 @@ def descargar_cotizacion_pdf(cotizacion_id: str, user: dict = Depends(get_curren
 
 
 @router.get("/{cotizacion_id}/whatsapp")
-def enlace_whatsapp_pedido(cotizacion_id: str, request: Request, user: dict = Depends(get_current_user)):
+def contacto_whatsapp_pedido(cotizacion_id: str, user: dict = Depends(get_current_user)):
     pedido = _pedido_o_404(cotizacion_id)
     exigir_dueno_o_admin(user, pedido)
     if pedido.get("estado") == "Anulado":
         raise HTTPException(status_code=400, detail="El pedido está anulado; no se puede enviar.")
-    url = url_publica(request, "pedido", str(pedido["_id"]))
-    return {"url": url, "telefono": telefono_whatsapp(pedido.get("cliente", "")),
+    return {"telefono": telefono_whatsapp(pedido.get("cliente", "")),
             "cliente": pedido.get("cliente", ""), "numero": pedido.get("consecutivo_str", ""),
             "total": float(pedido.get("total_venta", 0.0))}
 

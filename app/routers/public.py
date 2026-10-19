@@ -5,7 +5,6 @@ import time
 from fastapi import APIRouter, Response
 
 from app.database import db
-from app.services.documentos import pdf_desde_token
 
 router = APIRouter(prefix="/api/public", tags=["público"])
 
@@ -34,13 +33,3 @@ def precios_publicos(response: Response):
     response.headers["Cache-Control"] = "public, max-age=60"
     return datos
 
-
-@router.get("/documento/{token}")
-def documento_compartido(token: str):
-    """Factura o pedido abierto desde el enlace enviado por WhatsApp (sin iniciar sesión)."""
-    pdf, nombre = pdf_desde_token(token)
-    return Response(content=pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{nombre}.pdf"',
-        "X-Robots-Tag": "noindex, nofollow",
-        "Referrer-Policy": "no-referrer",
-    })

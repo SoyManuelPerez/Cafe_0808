@@ -261,3 +261,43 @@ button.btn-secundario:hover { border-color: var(--gold-primary); color: var(--go
     .modal-container { width: 96%; height: 90vh; height: 90dvh; }
     .modal-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- Panel "Enviar por WhatsApp" ---------- */
+.modal-container { position: relative; }
+.panel-wa {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(15, 17, 18, .55);
+}
+.panel-wa-caja {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid #25d366;
+    border-radius: 14px 14px 0 0;
+    padding: 20px 20px calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 50px rgba(0, 0, 0, .45);
+}
+.panel-wa-caja h4 { margin: 0 34px 8px 0; font-size: 18px; color: var(--text-color); }
+.panel-wa-cerrar {
+    position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; margin: 0; padding: 0;
+    border-radius: 50%; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); cursor: pointer;
+}
+.panel-wa-estado { margin: 0 0 14px; font-size: 14px; padding: 8px 10px; border-radius: 8px; }
+.panel-wa-estado.ok { background: rgba(37, 211, 102, .12); color: #7ff0a8; }
+.panel-wa-estado.aviso { background: rgba(245, 167, 11, .12); color: #ffd27a; }
+.panel-wa-tel { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.panel-wa-tel span { color: var(--text-muted); font-weight: 600; }
+.panel-wa-tel input { margin: 0; font-size: 17px; letter-spacing: .5px; }
+.panel-wa-pasos { margin: 0 0 14px; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+.panel-wa-pasos b { color: var(--text-color); }
+.panel-wa-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.panel-wa-botones button { margin: 0; padding: 11px 12px; font-weight: 700; font-size: 14px; }
+.panel-wa-botones .btn-wa { grid-column: 1 / -1; font-size: 16px; padding: 13px; }

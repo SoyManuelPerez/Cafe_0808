@@ -11,6 +11,7 @@ let _pdfjsPromesa = null;
 let endpointPdfActual = '';
 let tituloPdfActual = '';
 let zoomPdf = 1;
+let renderPdfActual = null;   // promesa del dibujo en curso
 
 function cargarPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -103,7 +104,8 @@ async function abrirModalPdf(endpointUrl, tituloModal, filenameDescarga) {
     }
 
     try {
-        await dibujarPdf(blob, container);
+        renderPdfActual = dibujarPdf(blob, container);
+        await renderPdfActual;
     } catch (err) {
         console.error('Vista previa con PDF.js falló:', err);
         // Respaldo: visor del navegador. Si tampoco puede, quedan los botones de abrir y descargar.
@@ -112,39 +114,162 @@ async function abrirModalPdf(endpointUrl, tituloModal, filenameDescarga) {
     }
 }
 
-/* Envía la factura por WhatsApp sin descargarla.
-   - Celular: abre el menú de compartir con el PDF adjunto (eliges WhatsApp y el chat).
-   - Computador: abre WhatsApp con el chat del cliente (si tiene celular registrado) y un
-     enlace seguro para ver la factura, válido por 30 días. */
-async function enviarPdfWhatsapp() {
-    if (!blobPdfActual) return;
-    const archivo = new File([blobPdfActual], nombrePdfDescarga, { type: 'application/pdf' });
+/* ---------------- Enviar por WhatsApp como imagen ----------------
+   Ningún navegador puede abrir el chat de una persona con una imagen ya adjunta
+   (WhatsApp solo acepta texto en ese enlace). Por eso:
+     1) se copia una imagen HD de la factura,
+     2) se abre directamente el chat del cliente,
+     3) en el chat se mantiene presionado y se elige "Pegar". */
 
-    if (esCelular() && navigator.canShare && navigator.canShare({ files: [archivo] })) {
-        try {
-            await navigator.share({ files: [archivo], title: tituloPdfActual, text: `${tituloPdfActual} · 0808 Café de Especialidad` });
-            return;
-        } catch (err) {
-            if (err && err.name === 'AbortError') return; // el usuario cerró el menú
-            // si compartir falla, se usa el enlace
+let imagenFacturaBlob = null;
+let contactoFactura = null;
+
+// Une las páginas dibujadas en una sola imagen PNG y recorta el blanco sobrante de abajo.
+async function generarImagenFactura() {
+    // Si la factura aún se está dibujando, se espera a que termine (si no, saldría en blanco).
+    if (renderPdfActual) await renderPdfActual.catch(() => {});
+    let paginas = [...document.querySelectorAll('#modal-body-pdf canvas.pdf-pagina')];
+    if (!paginas.length && blobPdfActual) {
+        const oculto = document.createElement('div');
+        oculto.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px';
+        document.body.appendChild(oculto);
+        try { await dibujarPdf(blobPdfActual, oculto); paginas = [...oculto.querySelectorAll('canvas')]; }
+        finally { setTimeout(() => oculto.remove(), 0); }
+    }
+    if (!paginas.length) throw new Error('No se pudo preparar la imagen de la factura.');
+
+    const recortes = paginas.map(c => ({ c, alto: altoConContenido(c) }));
+    const ancho = paginas[0].width;
+    const separacion = Math.round(ancho * 0.02);
+    const alto = recortes.reduce((a, r) => a + r.alto, 0) + separacion * (recortes.length - 1);
+    const lienzo = document.createElement('canvas');
+    lienzo.width = ancho;
+    lienzo.height = alto;
+    const ctx = lienzo.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ancho, alto);
+    let y = 0;
+    for (const r of recortes) {
+        ctx.drawImage(r.c, 0, 0, r.c.width, r.alto, 0, y, r.c.width, r.alto);
+        y += r.alto + separacion;
+    }
+    return new Promise((ok, mal) => lienzo.toBlob(b => b ? ok(b) : mal(new Error('No se pudo crear la imagen.')), 'image/png'));
+}
+
+// Alto útil de una página: hasta la última fila con tinta + un margen.
+function altoConContenido(canvas) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const w = canvas.width, h = canvas.height, bloque = 24;
+    for (let y = h - bloque; y > 0; y -= bloque) {
+        const datos = ctx.getImageData(0, y, w, bloque).data;
+        for (let i = 0; i < datos.length; i += 16) {
+            if (datos[i] < 235 || datos[i + 1] < 235 || datos[i + 2] < 235) {
+                return Math.min(h, y + bloque + Math.round(w * 0.05));
+            }
         }
     }
+    return h;
+}
 
-    // La ventana se abre ya (dentro del clic) para que el navegador no la bloquee.
-    const ventana = window.open('', '_blank');
-    try {
-        const res = await fetch(endpointPdfActual.replace(/\/pdf$/, '/whatsapp'));
-        const datos = await res.json();
-        if (!res.ok) throw new Error(datos.detail || 'No se pudo crear el enlace.');
-        const tipoDoc = endpointPdfActual.includes('/cotizaciones/') ? 'tu pedido' : 'tu factura';
-        const saludo = datos.cliente && datos.cliente !== 'Cliente General' ? `Hola ${datos.cliente} ☕` : 'Hola ☕';
-        const texto = `${saludo}\nTe compartimos ${tipoDoc} N° ${datos.numero} de 0808 Café por ${fmtCOP(datos.total)}.\n\nPuedes verla aquí: ${datos.url}\n\n¡Gracias por tu compra!`;
-        const destino = `https://wa.me/${datos.telefono || ''}?text=${encodeURIComponent(texto)}`;
-        if (ventana) ventana.location.href = destino; else location.href = destino;
-    } catch (err) {
-        if (ventana) ventana.close();
-        alert(err.message || 'No se pudo preparar el envío por WhatsApp.');
+async function enviarPdfWhatsapp() {
+    if (!blobPdfActual) return;
+    const promesaImagen = generarImagenFactura();
+    const promesaContacto = fetch(endpointPdfActual.replace(/\/pdf$/, '/whatsapp'))
+        .then(r => r.ok ? r.json() : {}).catch(() => ({}));
+
+    // Copiar debe empezar dentro del toque del usuario; se le pasa la promesa de la imagen.
+    let copiada = false;
+    if (navigator.clipboard && window.ClipboardItem) {
+        try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': promesaImagen })]);
+            copiada = true;
+        } catch (err) {
+            console.warn('No se pudo copiar la imagen:', err);
+        }
     }
+    try {
+        imagenFacturaBlob = await promesaImagen;
+    } catch (err) {
+        alert(err.message);
+        return;
+    }
+    contactoFactura = await promesaContacto;
+    mostrarPanelWhatsapp(copiada);
+}
+
+function mostrarPanelWhatsapp(copiada) {
+    cerrarPanelWhatsapp();
+    const c = contactoFactura || {};
+    const cliente = c.cliente && c.cliente !== 'Cliente General' ? c.cliente : '';
+    const tel = (c.telefono || '').replace(/^57/, '');
+    const tipo = endpointPdfActual.includes('/cotizaciones/') ? 'pedido' : 'factura';
+    const panel = document.createElement('div');
+    panel.id = 'panel-wa';
+    panel.className = 'panel-wa';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Enviar por WhatsApp');
+    panel.innerHTML = `
+        <div class="panel-wa-caja">
+            <button type="button" class="panel-wa-cerrar" onclick="cerrarPanelWhatsapp()" aria-label="Cerrar">✕</button>
+            <h4>Enviar ${tipo}${cliente ? ' a ' + esc(cliente) : ''}</h4>
+            <p class="panel-wa-estado ${copiada ? 'ok' : 'aviso'}">${copiada
+                ? `✓ Imagen de la ${tipo} copiada en alta resolución.`
+                : 'Este navegador no permite copiar la imagen. Usa <b>Compartir imagen</b>.'}</p>
+            <label for="wa-telefono">Celular de WhatsApp</label>
+            <div class="panel-wa-tel"><span>+57</span><input id="wa-telefono" type="tel" inputmode="numeric" maxlength="15" placeholder="300 123 4567" value="${esc(tel)}"></div>
+            ${copiada ? `<ol class="panel-wa-pasos">
+                <li>Toca <b>Abrir chat</b>.</li>
+                <li>En el chat, mantén presionada la caja de texto y elige <b>Pegar</b>.</li>
+                <li>Envía la imagen.</li>
+            </ol>` : ''}
+            <div class="panel-wa-botones">
+                <button type="button" class="btn-wa" onclick="abrirChatWhatsapp()">Abrir chat${cliente ? ' de ' + esc(cliente.split(' ')[0]) : ''}</button>
+                <button type="button" class="btn-secundario" onclick="compartirImagenFactura()">Compartir imagen</button>
+                <button type="button" class="btn-secundario" onclick="descargarImagenFactura()">Guardar imagen</button>
+            </div>
+        </div>`;
+    document.querySelector('#modal-factura .modal-container').appendChild(panel);
+    if (!tel) panel.querySelector('#wa-telefono').focus();
+}
+
+function cerrarPanelWhatsapp() {
+    document.getElementById('panel-wa')?.remove();
+}
+
+function abrirChatWhatsapp() {
+    const crudo = (document.getElementById('wa-telefono')?.value || '').replace(/\D/g, '');
+    if (crudo.length < 10) {
+        alert('Escribe el celular del cliente (10 dígitos).');
+        document.getElementById('wa-telefono')?.focus();
+        return;
+    }
+    const tel = crudo.length === 10 ? '57' + crudo : crudo;
+    // En celular se abre la app de WhatsApp directo en el chat; en computador, WhatsApp Web/Escritorio.
+    if (esCelular()) location.href = `whatsapp://send?phone=${tel}`;
+    else window.open(`https://wa.me/${tel}`, '_blank');
+}
+
+// Alternativa: menú de compartir del teléfono con la imagen adjunta.
+async function compartirImagenFactura() {
+    if (!imagenFacturaBlob) return;
+    const archivo = new File([imagenFacturaBlob], nombrePdfDescarga.replace(/\.pdf$/i, '.png'), { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        try { await navigator.share({ files: [archivo] }); } catch (_) { /* cancelado */ }
+    } else {
+        descargarImagenFactura();
+    }
+}
+
+function descargarImagenFactura() {
+    if (!imagenFacturaBlob) return;
+    const url = URL.createObjectURL(imagenFacturaBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombrePdfDescarga.replace(/\.pdf$/i, '.png');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // Abre el PDF original en otra pestaña: máxima nitidez con el visor del dispositivo.
@@ -153,6 +278,8 @@ function abrirPdfCompleto() {
 }
 
 function cerrarModalFactura() {
+    cerrarPanelWhatsapp();
+    imagenFacturaBlob = null;
     document.getElementById('modal-factura').style.display = 'none';
     document.getElementById('modal-body-pdf').innerHTML = '';
     if (urlPdfActual) {
