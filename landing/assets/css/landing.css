@@ -343,15 +343,15 @@ footer { background: #191c1e; border-top: 1px solid var(--linea); padding: 28px 
 .carrito-pie .btn { width: 100%; }
 .vaciar { display: block; margin: 10px auto 0; font-size: .85rem; color: #6b604f; text-decoration: underline; text-underline-offset: 3px; padding: 4px; }
 
-/* ---------- Botón flotante (grano + WhatsApp) ---------- */
+/* ---------- Botón flotante (WhatsApp) ---------- */
 .grano {
-  position: fixed; right: 18px; bottom: 18px; z-index: 80; width: 74px; height: 74px;
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .45)); transition: transform .25s;
+  position: fixed; right: 18px; bottom: 18px; z-index: 80; width: 62px; height: 62px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .4)); transition: transform .25s;
 }
-.grano:hover { transform: scale(1.08) rotate(-6deg); }
+.grano:hover { transform: scale(1.08); }
 .grano svg { width: 100%; height: 100%; overflow: visible; }
 .grano .cuenta {
-  position: absolute; top: 0; right: 0; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
+  position: absolute; top: -4px; right: -4px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
   background: var(--papel); color: var(--tinta); font-weight: 700; font-size: .78rem; display: none; place-items: center; border: 2px solid var(--tinta);
 }
 .grano .cuenta.on { display: grid; }
@@ -385,3 +385,18 @@ body.carrito-abierto .grano { opacity: 0; pointer-events: none; }
   .js .ficha { opacity: 1; transform: none; }
 }
 .et-campo .mt { margin-top: 6px; }
+
+/* --- añadidos de texto --- */
+.nosotros .destacado { color: var(--papel); font-weight: 600; border-left: 3px solid var(--etiqueta); padding-left: 14px; }
+.quiz-nota { margin-top: 14px; font-size: .85rem; color: var(--papel-2); }
+.faq { max-width: 720px; margin: 28px auto 34px; text-align: left; }
+.faq details { border-top: 1px solid var(--linea); padding: 16px 4px; }
+.faq details:last-child { border-bottom: 1px solid var(--linea); }
+.faq summary { cursor: pointer; font-weight: 600; font-size: 1.05rem; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--ambar); font-size: 1.4rem; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq p { color: var(--papel-2); margin-top: 10px; max-width: 60ch; }
+.cierre { background: var(--ambar); color: var(--tinta); text-align: center; padding: clamp(48px, 8vw, 88px) 0; }
+.cierre h2 { color: var(--tinta); margin-bottom: 24px; }
+.cierre .btn-ambar { background: var(--tinta); color: var(--papel); }

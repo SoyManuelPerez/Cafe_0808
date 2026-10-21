@@ -19,9 +19,9 @@ const PREGUNTAS = [
     ["Viva y fresca", { chiroso: 2 }] ] }
 ];
 const MOTIVO = {
-  bourbon: "Dulce y frutal, con acidez baja. El proceso honey le da cuerpo suave y notas de caramelo.",
-  blend: "Redondo y achocolatado, con acidez media. Sirve para todos los días y va muy bien con leche.",
-  chiroso: "Floral, con lima y miel. El de mayor altura de los tres, con una acidez viva y limpia."
+  bourbon: "Dulce y suave, con muy poca acidez. Su proceso honey le da un cuerpo redondo con notas de caramelo y panela. Si te gusta el café amable, empieza por aquí.",
+  blend: "Achocolatado y redondo. Es el café de todos los días y el que mejor se lleva con la leche.",
+  chiroso: "Floral y cítrico, con dulzor a miel. Es el de mayor altura de los tres (2.090 m) y el más expresivo. Mejor si lo tomas negro."
 };
 
 function iniciarTest() {
@@ -48,8 +48,9 @@ function iniciarTest() {
         <p>${esc(MOTIVO[id])}</p>
         <div class="acciones">
           <button class="btn btn-ambar" type="button" data-agregar="${id}">Agregar ${TAMANO_INICIAL} g al pedido</button>
-          <button class="btn btn-linea" type="button" data-repetir>Repetir</button>
+          <button class="btn btn-linea" type="button" data-repetir>Probar otro</button>
         </div>
+        <p class="quiz-nota">Se agrega en grano y tostión media. Puedes cambiar la molienda en tu pedido.</p>
       </div>
     </div>`;
   };
@@ -73,13 +74,13 @@ function iniciarTest() {
 
 /* ---------------- Molienda ---------------- */
 const METODOS = [
-  { n: "Prensa francesa", g: "Gruesa", t: "4 minutos de infusión", tip: "Cuerpo pleno y textura aceitosa. Una molienda gruesa evita que quede turbio y amargo.", size: 9 },
-  { n: "V60 / Chemex", g: "Media", t: "2 a 3 minutos", tip: "Resalta las notas florales y frutales. Ideal para el Chiroso y el Bourbon Rosado.", size: 6 },
-  { n: "Cafetera de goteo", g: "Media", t: "5 a 6 minutos", tip: "Práctica para varias tazas. Una molienda media da un café equilibrado.", size: 6 },
-  { n: "Moka / greca", g: "Fina", t: "4 a 5 minutos", tip: "Intenso y concentrado. Fina, pero sin llegar a polvo, para que no se amargue.", size: 3.5 },
+  { n: "Prensa francesa", g: "Gruesa", t: "4 minutos de infusión", tip: "Cuerpo pleno y textura sedosa. Con molienda gruesa no queda turbio ni amargo. Va muy bien con el Blend.", size: 9 },
+  { n: "V60 / Chemex", g: "Media", t: "2 a 3 minutos", tip: "Resalta lo floral y lo frutal. Es el método ideal para el Chiroso y el Bourbon Rosado.", size: 6 },
+  { n: "Cafetera de goteo", g: "Media", t: "5 a 6 minutos", tip: "Práctica para varias tazas. La molienda media da un café equilibrado. Cualquiera de los tres funciona.", size: 6 },
+  { n: "Moka / greca", g: "Fina", t: "4 a 5 minutos", tip: "Intenso y concentrado. Fina, sin llegar a polvo, para que no amargue. Prueba el Blend.", size: 3.5 },
   { n: "Espresso", g: "Fina", t: "25 a 30 segundos", tip: "Pide molienda fina y ajusta según tu máquina. El Blend se lleva muy bien con leche.", size: 2.6 },
-  { n: "No tengo molino", g: "Media", t: "Te lo enviamos molido", tip: "Sin molino, marca molienda media: sirve para goteo, V60 y la mayoría de cafeteras caseras.", size: 6 },
-  { n: "Tengo molino", g: "Grano", t: "Muélelo justo antes de preparar", tip: "Si tienes molino, pídelo en grano: el aroma y el sabor se conservan mucho más tiempo.", size: 20 }
+  { n: "Sin molino", g: "Media", t: "lo recibes molido y listo", tip: "Marca molienda media: sirve para goteo, V60 y la mayoría de cafeteras caseras.", size: 6 },
+  { n: "Con molino", g: "Grano", t: "Muélelo justo antes de preparar", tip: "Si tienes molino, pídelo en grano: el aroma y el sabor se conservan mucho más tiempo.", size: 20 }
 ];
 
 function iniciarMolienda() {

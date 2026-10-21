@@ -98,8 +98,8 @@
 <section class="test" id="test">
   <div class="contenedor test-grid">
     <div>
-      <h2>¿Cuál café es para ti?</h2>
-      <p class="intro">Tres preguntas sobre cómo tomas el café y te decimos cuál pedir.</p>
+      <h2>¿No sabes cuál elegir?</h2>
+      <p class="intro">Responde 3 preguntas sobre cómo tomas tu café y te recomendamos el ideal para ti. Sin tecnicismos.</p>
     </div>
     <div class="quiz-caja" id="quizCaja" aria-live="polite"></div>
   </div>
@@ -109,7 +109,7 @@
 <section id="molienda">
   <div class="contenedor">
     <h2>¿Cómo lo preparas?</h2>
-    <p class="intro">Escoge tu método y te decimos qué molienda marcar en la etiqueta.</p>
+    <p class="intro">Elige tu método y te decimos qué molienda marcar en la etiqueta. ¿Dudas? Marca media: funciona en la mayoría de cafeteras.</p>
     <div class="metodos" id="metodos" role="tablist" aria-label="Métodos de preparación"></div>
     <div class="molienda-panel" role="tabpanel" aria-live="polite">
       <div class="polvo" id="polvo" aria-hidden="true"></div>
@@ -128,12 +128,12 @@
     <img src="/assets/img/logo-ramas.jpeg" alt="Logo de 0808 con ramas de café" width="1600" height="1600" loading="lazy">
     <div class="nosotros">
       <h2>Del cafetal a tu taza</h2>
-      <p>0808 nació para que el buen café colombiano llegue a tu casa sin intermediarios. Elegimos lotes de cosecha selecta, los tostamos en tandas pequeñas y los empacamos en bolsas con válvula y cierre.</p>
-      <p>Cada bolsa trae en la etiqueta su origen, proceso, altura y notas. Lo que lees es lo que vas a probar.</p>
+      <p>Nuestros tres cafés crecen en montañas de Huila y Antioquia: Gigante, Urrao y Ciudad Bolívar. Los tostamos en tandas pequeñas y los empacamos en bolsas con válvula y cierre para que lleguen frescos a tu casa.</p>
+      <p class="destacado">Cada bolsa trae en la etiqueta su origen, proceso, altura y notas. Lo que lees es lo que vas a probar.</p>
       <div class="datos">
-        <div><strong>3</strong><span>orígenes</span></div>
-        <div><strong>2.090</strong><span>metros, el más alto</span></div>
-        <div><strong>100%</strong><span>colombiano</span></div>
+        <div><strong>3</strong><span>orígenes de montaña</span></div>
+        <div><strong>4</strong><span>moliendas a tu gusto</span></div>
+        <div><strong>2</strong><span>tostiones: claro o medio</span></div>
       </div>
     </div>
   </div>
@@ -143,9 +143,15 @@
 <section class="contacto" id="contacto">
   <div class="contenedor">
     <h2>¿Dudas antes de pedir?</h2>
-    <p class="intro">Escríbenos y te ayudamos a elegir. Respondemos por WhatsApp.</p>
+    <p class="intro">Aquí van las respuestas rápidas. Si necesitas algo más, escríbenos y te ayudamos a elegir.</p>
+    <div class="faq">
+      <details open><summary>¿Cómo hago mi pedido?</summary><p>Eliges café, molienda, tostión y tamaño, lo agregas a tu pedido y lo envías por WhatsApp. Nosotros confirmamos contigo.</p></details>
+      <details><summary>¿Cuánto cuesta el envío y cuánto demora?</summary><p>Depende de tu ciudad. Te lo cotizamos por WhatsApp antes de que pagues nada.</p></details>
+      <details><summary>¿Cómo pago?</summary><p>Coordinamos el pago contigo por WhatsApp al confirmar tu pedido.</p></details>
+      <details><summary>¿Y si no sé qué molienda marcar?</summary><p>Marca media: sirve para goteo, V60 y la mayoría de cafeteras caseras. Si tienes molino, pídelo en grano.</p></details>
+    </div>
     <div class="contacto-btns">
-      <a class="btn btn-wa" id="btnContacto" href="#" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+      <a class="btn btn-wa" id="btnContacto" href="#" target="_blank" rel="noopener">Pregúntanos por WhatsApp</a>
       <a class="btn btn-linea" id="lnkInstagram" href="#" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
         Instagram
@@ -155,6 +161,12 @@
         TikTok
       </a>
     </div>
+  </div>
+</section>
+<section class="cierre">
+  <div class="contenedor">
+    <h2>Tu café de altura, a un pedido de distancia</h2>
+    <a href="#cafes" class="btn btn-ambar">Ver cafés y precios</a>
   </div>
 </section>
 </main>
@@ -194,23 +206,13 @@
 
 <div class="aviso" id="aviso" role="status" aria-live="polite"><span id="avisoTxt"></span></div>
 
-<!-- ============ Grano flotante: abre el pedido o WhatsApp ============ -->
+<!-- ============ Botón flotante: abre el pedido o WhatsApp ============ -->
 <a class="grano" id="grano" href="#" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp">
   <span class="cuenta" id="granoCuenta">0</span>
-  <svg viewBox="0 0 100 100" aria-hidden="true">
-    <defs>
-      <radialGradient id="gGrano" cx="35%" cy="28%" r="80%">
-        <stop offset="0" stop-color="#ffd270"/><stop offset=".5" stop-color="#f5a70b"/><stop offset="1" stop-color="#a86a00"/>
-      </radialGradient>
-    </defs>
-    <g transform="rotate(32 50 50)">
-      <ellipse cx="50" cy="50" rx="31" ry="45" fill="url(#gGrano)" stroke="#5b4413" stroke-width="2"/>
-      <path d="M50 6 C34 28 66 72 50 94" fill="none" stroke="#3d2c08" stroke-width="6" stroke-linecap="round"/>
-    </g>
-    <circle cx="50" cy="50" r="19" fill="#25d366" stroke="#fff" stroke-width="3"/>
-    <g transform="translate(37.5 37.5) scale(1.04)" fill="#fff">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </g>
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="32" cy="32" r="32" fill="#25d366"/>
+    <path d="M32 15.5a16.5 16.5 0 0 0-14.2 24.9L16 48l7.8-1.9A16.5 16.5 0 1 0 32 15.5z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M26.6 25.2c.6-1.1 1.4-1 2-.7l1.7 2.6c.4.6.2 1.2-.2 1.7l-1 1.1c1.2 2.3 3.1 4.1 5.4 5.2l1.2-1c.5-.4 1.1-.5 1.7-.1l2.6 1.7c.6.4.6 1.3-.1 2.1-1.3 1.5-3.5 2-5.9 1.1-4.9-1.8-8.4-5.3-9.8-9.8-.6-2.1 1-3.600 2.400-4.600z" fill="#fff"/>
   </svg>
 </a>
 
